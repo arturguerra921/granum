@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "granum"
+version = "1.0.0"
+
+[project.scripts]
+granum-run = "src.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
