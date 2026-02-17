@@ -22,7 +22,8 @@ dependencies = [
     "plotly",
     "dash",
     "pandas",
-    "openpyxl"
+    "openpyxl",
+    "dash-bootstrap-components"
 ]
 
 [project.scripts]
