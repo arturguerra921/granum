@@ -20,7 +20,10 @@ license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = [
     "plotly",
-    "dash"
+    "dash",
+    "pandas",
+    "openpyxl",
+    "dash-bootstrap-components"
 ]
 
 [project.scripts]
