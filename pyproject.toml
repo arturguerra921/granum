@@ -2,12 +2,26 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [project]
 name = "granum"
-version = "1.0.0"
+version = "0.0.1"
+authors = [
+    {name = "ualivent", email="ualivent@gmail.com"}
+]
+maintainers = [
+    {name = "ualivent", email="ualivent@gmail.com"}
+]
+description = "Google Calendar for terminal usage."
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+    "plotly",
+    "dash"
+]
 
 [project.scripts]
 granum-run = "src.__main__:main"
-
-[tool.setuptools.packages.find]
-where = ["."]
