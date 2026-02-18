@@ -3,7 +3,7 @@ import io
 import pandas as pd
 from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
 import dash_bootstrap_components as dbc
-from src.view.theme import GOV_THEME
+from src.view.theme import UNB_THEME
 import dash
 
 # Initialize app with Bootstrap theme and suppress callback exceptions
@@ -19,11 +19,11 @@ navbar = dbc.Navbar(
             html.A(
                 dbc.Row(
                     [
-                        dbc.Col(html.Img(src="/assets/logo.png", height="50px"), className="me-3"),
+                        dbc.Col(html.Img(src="/assets/logo.png", height="48px"), className="me-3"),
                         dbc.Col(
                             [
                                 html.H5("Otimização de Localização", className="navbar-brand-text mb-0"),
-                                html.Small("Governo Federal", className="navbar-subtext")
+                                html.Small("Universidade de Brasília", className="navbar-subtext")
                             ],
                         ),
                     ],
@@ -36,7 +36,7 @@ navbar = dbc.Navbar(
         ],
         fluid=True
     ),
-    className="navbar-custom mb-4 py-3 shadow-sm"
+    className="navbar-custom mb-32 py-3 shadow-sm"
 )
 
 # 2. Tabs
@@ -48,7 +48,7 @@ tabs = dbc.Tabs(
     ],
     id="main-tabs",
     active_tab="tab-input",
-    className="mb-4"
+    className="mb-32"
 )
 
 # 3. Tab 1 Content (Input)
@@ -66,8 +66,8 @@ upload_card = dbc.Card(
                     id='upload-data',
                     children=html.Div([
                         html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
-                        html.Span('Arraste e solte ou ', style={"color": "#6c757d"}),
-                        html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": GOV_THEME['AZUL_ATLANTICO']})
+                        html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                        html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']})
                     ]),
                     className="upload-box mb-24",
                     multiple=False,
@@ -93,7 +93,7 @@ upload_card = dbc.Card(
     className="card-custom h-100"
 )
 
-# Enrichment Card (New Feature)
+# Enrichment Card
 enrich_card = dbc.Card(
     [
         dbc.CardHeader(
@@ -175,7 +175,7 @@ data_table_card = dbc.Card(
                                 html.H5("Nenhum dado carregado", className="text-muted"),
                                 html.P("Faça o upload de uma planilha Excel para visualizar os dados aqui.", className="text-muted small")
                             ],
-                            className="text-center mt-5"
+                            className="text-center mt-48"
                         )
                     ]),
                     color="primary"
@@ -233,11 +233,11 @@ app.layout = html.Div(
                 content_container
             ],
             fluid=True,
-            className="px-4 pb-5"
+            className="px-4 pb-48"
         )
     ],
     style={
-        'backgroundColor': '#F4F6F8',
+        'backgroundColor': UNB_THEME['UNB_GRAY_LIGHT'],
         'minHeight': '100vh'
     }
 )
@@ -253,9 +253,9 @@ def render_content(active_tab):
     if active_tab == 'tab-input':
         return tab1_layout
     elif active_tab == 'tab-config':
-        return html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-5 text-muted")
+        return html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
     elif active_tab == 'tab-results':
-        return html.H3('Resultados (Placeholder)', className="text-center mt-5 text-muted")
+        return html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
     return html.Div()
 
 # 1. Upload & Clear -> Update Store
@@ -339,7 +339,7 @@ def render_table(stored_data):
                 html.H5("Nenhum dado carregado", className="text-muted"),
                 html.P("Faça o upload de uma planilha Excel para visualizar os dados aqui.", className="text-muted small")
             ],
-            className="text-center mt-5"
+            className="text-center mt-48"
         )
 
     try:
@@ -355,11 +355,11 @@ def render_table(stored_data):
                 'fontFamily': "'Roboto', sans-serif",
                 'padding': '12px',
                 'fontSize': '0.9rem',
-                'color': '#495057'
+                'color': UNB_THEME['UNB_GRAY_DARK']
             },
             style_header={
                 'backgroundColor': '#F8F9FA',
-                'color': '#3C3C3C',
+                'color': UNB_THEME['UNB_BLUE'],
                 'fontWeight': 'bold',
                 'border': 'none',
                 'padding': '12px',
@@ -390,7 +390,7 @@ def download_data(n_clicks, stored_data):
         return no_update
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "dados_editados.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "dados_unb_editados.xlsx", index=False)
 
 
 def view():

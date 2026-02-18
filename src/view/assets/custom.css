@@ -1,16 +1,18 @@
+
 /* Rule: Spacing & Rhythm (8pt Grid System) - Standardize all margins and paddings using multiples of 8px (e.g., 16px gap between inputs, 24px padding inside cards). */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 body {
     font-family: 'Roboto', sans-serif !important;
-    background-color: #F4F6F8 !important;
+    background-color: #EDEDDF !important; /* UnB Concreto 4 (Light Background) */
+    color: #7E7E65 !important;           /* UnB Concreto 1 (Dark Text) */
 }
 
 /* Navbar */
 .navbar-custom {
-    background-color: #3C3C3C !important;
-    border-bottom: 4px solid #183EFF !important;
+    background-color: #003366 !important; /* UnB Blue */
+    border-bottom: 4px solid #006633 !important; /* UnB Green */
 }
 
 .navbar-brand-text {
@@ -19,7 +21,7 @@ body {
 }
 
 .navbar-subtext {
-    color: #CED4DA !important; /* Light gray for subtext */
+    color: #EDEDDF !important; /* Use Concreto 4 for subtle text */
     font-weight: 400;
 }
 
@@ -34,7 +36,7 @@ body {
 .card-header-custom {
     background-color: #FFFFFF !important;
     border-bottom: none !important;
-    color: #3C3C3C !important; /* Dark gray for headers */
+    color: #003366 !important; /* UnB Blue for headers */
     font-weight: 700 !important;
     font-size: 1.1rem;
     padding-top: 24px !important;
@@ -48,34 +50,34 @@ body {
 
 /* Buttons */
 .btn-primary-custom {
-    background-color: #183EFF !important;
-    border-color: #183EFF !important;
+    background-color: #003366 !important; /* UnB Blue */
+    border-color: #003366 !important;
     font-weight: 500 !important;
 }
 
 .btn-primary-custom:hover {
-    background-color: #102CD0 !important;
-    border-color: #102CD0 !important;
+    background-color: #002244 !important; /* Darker blue */
+    border-color: #002244 !important;
 }
 
 .btn-success-custom {
-    background-color: #00D000 !important;
-    border-color: #00D000 !important;
+    background-color: #006633 !important; /* UnB Green */
+    border-color: #006633 !important;
     font-weight: 500 !important;
 }
 
 .btn-success-custom:hover {
-    background-color: #00A000 !important;
-    border-color: #00A000 !important;
+    background-color: #004422 !important; /* Darker green */
+    border-color: #004422 !important;
 }
 
 .btn-outline-secondary-custom {
-    color: #6C757D !important;
-    border-color: #6C757D !important;
+    color: #7E7E65 !important; /* Concreto 1 */
+    border-color: #7E7E65 !important;
 }
 
 .btn-outline-secondary-custom:hover {
-    background-color: #6C757D !important;
+    background-color: #7E7E65 !important;
     color: #FFFFFF !important;
 }
 
@@ -99,27 +101,44 @@ body {
 }
 
 .upload-box:hover {
-    border-color: #183EFF;
+    border-color: #003366; /* UnB Blue */
 }
 
 /* Spacing Utilities (8pt Grid) */
 .mb-8 { margin-bottom: 8px !important; }
 .mb-16 { margin-bottom: 16px !important; }
 .mb-24 { margin-bottom: 24px !important; }
+.mb-32 { margin-bottom: 32px !important; }
+.mb-48 { margin-bottom: 48px !important; }
+
 .mt-8 { margin-top: 8px !important; }
 .mt-16 { margin-top: 16px !important; }
 .mt-24 { margin-top: 24px !important; }
+.mt-32 { margin-top: 32px !important; }
+.mt-48 { margin-top: 48px !important; }
+
 .p-24 { padding: 24px !important; }
 .gap-16 { gap: 16px !important; }
 
 /* Tabs */
 .nav-tabs .nav-link {
-    color: #495057;
+    color: #7E7E65; /* Concreto 1 */
     font-weight: 500;
 }
 
 .nav-tabs .nav-link.active {
-    color: #183EFF;
+    color: #003366; /* UnB Blue */
     font-weight: 600;
     border-color: #DEE2E6 #DEE2E6 #FFFFFF;
+}
+
+/* Labels */
+label {
+    color: #7E7E65 !important;
+}
+
+/* Text Muted replacement to adhere to Concreto 1/4 or just dark gray */
+.text-muted {
+    color: #7E7E65 !important;
+    opacity: 0.8;
 }
