@@ -57,7 +57,7 @@ tabs = dbc.Tabs(
 upload_card = dbc.Card(
     [
         dbc.CardHeader(
-            "Carregar e Validar",
+            "Carregar Arquivo",
             className="card-header-custom"
         ),
         dbc.CardBody(
@@ -69,23 +69,10 @@ upload_card = dbc.Card(
                         html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
                         html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']})
                     ]),
-                    className="upload-box mb-24",
+                    className="upload-box",
                     multiple=False,
                     accept='.xlsx'
-                ),
-                html.Div(className="d-grid gap-2", children=[
-                    dbc.Button(
-                        "Validar Dados",
-                        id='btn-validate',
-                        className="btn-primary-custom"
-                    ),
-                    dbc.Button(
-                        "Limpar",
-                        id='btn-clear',
-                        outline=True,
-                        className="btn-outline-secondary-custom"
-                    ),
-                ])
+                )
             ],
             className="card-body-custom"
         ),
@@ -93,16 +80,16 @@ upload_card = dbc.Card(
     className="card-custom h-100"
 )
 
-# Enrichment Card
-enrich_card = dbc.Card(
+# Add Data Card
+add_data_card = dbc.Card(
     [
         dbc.CardHeader(
-            "Enriquecer Dados",
+            "Adicionar Dados",
             className="card-header-custom"
         ),
         dbc.CardBody(
             [
-                html.P("Adicione colunas padronizadas a todas as linhas da planilha carregada.", className="text-muted small mb-16"),
+                html.P("Adicione uma nova linha à planilha carregada.", className="text-muted small mb-16"),
                 dbc.Row([
                     dbc.Col(
                         [
@@ -121,8 +108,8 @@ enrich_card = dbc.Card(
                 ]),
                 html.Div(className="d-grid", children=[
                     dbc.Button(
-                        "Adicionar Colunas",
-                        id='btn-add-columns',
+                        "Adicionar Linha",
+                        id='btn-add-row',
                         className="btn-primary-custom"
                     ),
                 ])
@@ -142,7 +129,7 @@ download_card = dbc.Card(
         ),
         dbc.CardBody(
             [
-                html.P("Baixe a planilha com as novas colunas adicionadas.", className="text-muted small mb-16"),
+                html.P("Baixe a planilha com os novos dados adicionados.", className="text-muted small mb-16"),
                  html.Div(className="d-grid", children=[
                     dbc.Button(
                         "Baixar Planilha Editada",
@@ -192,7 +179,7 @@ data_table_card = dbc.Card(
 error_modal = dbc.Modal(
     [
         dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
-        dbc.ModalBody("Por favor, carregue um arquivo Excel primeiro antes de adicionar colunas."),
+        dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
         dbc.ModalFooter(
             dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
         ),
@@ -207,7 +194,7 @@ tab1_layout = html.Div([
             dbc.Col([
                 dbc.Row([
                     dbc.Col(upload_card, width=12, className="mb-24"),
-                    dbc.Col(enrich_card, width=12, className="mb-24"),
+                    dbc.Col(add_data_card, width=12, className="mb-24"),
                     dbc.Col(download_card, width=12, className="mb-24")
                 ])
             ], width=12, lg=3),
@@ -258,13 +245,13 @@ def render_content(active_tab):
         return html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
     return html.Div()
 
-# 1. Upload & Clear -> Update Store
+# 1. Upload & Add Row -> Update Store
 @app.callback(
     Output('stored-data', 'data'),
     Output('error-modal', 'is_open'),
+    Output('modal-body-content', 'children'),
     [Input('upload-data', 'contents'),
-     Input('btn-clear', 'n_clicks'),
-     Input('btn-add-columns', 'n_clicks'),
+     Input('btn-add-row', 'n_clicks'),
      Input('close-modal', 'n_clicks')],
     [State('upload-data', 'filename'),
      State('stored-data', 'data'),
@@ -272,59 +259,62 @@ def render_content(active_tab):
      State('input-idade', 'value'),
      State('error-modal', 'is_open')]
 )
-def update_store(contents, n_clear, n_add, n_close, filename, stored_data, name_val, age_val, is_open):
+def update_store(contents, n_add, n_close, filename, stored_data, name_val, age_val, is_open):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return no_update, no_update
+        return no_update, no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Close Modal
     if trigger_id == 'close-modal':
-        return no_update, False
-
-    # Clear Data
-    if trigger_id == 'btn-clear':
-        return None, False
+        return no_update, False, no_update
 
     # Upload Data
     if trigger_id == 'upload-data':
         if contents is None:
-            return no_update, no_update
+            return no_update, no_update, no_update
 
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
             if filename.endswith('.xlsx'):
                 df = pd.read_excel(io.BytesIO(decoded))
-                return df.to_json(date_format='iso', orient='split'), False
+                return df.to_json(date_format='iso', orient='split'), False, no_update
             else:
-                # Ideally show error for wrong file type, but keeping simple for now
-                return no_update, False
+                return no_update, True, "O arquivo deve ser um Excel (.xlsx)."
         except Exception as e:
             print(f"Error processing file: {e}")
-            return no_update, False
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um Excel válido."
 
-    # Add Columns
-    if trigger_id == 'btn-add-columns':
+    # Add Row
+    if trigger_id == 'btn-add-row':
         if not stored_data:
-            return no_update, True # Open error modal
+            return no_update, True, "Por favor, carregue um arquivo Excel primeiro."
+
+        if not name_val or not age_val:
+             return no_update, True, "Preencha os campos Nome e Idade para adicionar."
 
         try:
             df = pd.read_json(io.StringIO(stored_data), orient='split')
 
-            # Add new columns with provided values
-            if name_val:
-                df['Nome'] = name_val
-            if age_val:
-                df['Idade'] = age_val
+            # Create a new row dictionary
+            new_row_data = {'Nome': name_val, 'Idade': age_val}
 
-            return df.to_json(date_format='iso', orient='split'), False
+            # Create a DataFrame for the new row
+            # If the original DF doesn't have these columns, they will be added.
+            # If the original DF has other columns, they will be NaN for this row unless filled.
+            new_row_df = pd.DataFrame([new_row_data])
+
+            # Concatenate
+            df = pd.concat([df, new_row_df], ignore_index=True)
+
+            return df.to_json(date_format='iso', orient='split'), False, no_update
         except Exception as e:
-            print(f"Error adding columns: {e}")
-            return no_update, False
+            print(f"Error adding row: {e}")
+            return no_update, True, f"Erro ao adicionar linha: {str(e)}"
 
-    return no_update, no_update
+    return no_update, no_update, no_update
 
 
 # 2. Store -> Render Table
