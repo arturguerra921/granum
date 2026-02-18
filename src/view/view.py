@@ -51,192 +51,192 @@ tabs = dbc.Tabs(
 )
 
 # 3. Tab 1 Content (Input)
-
-# Upload Card
-upload_card = dbc.Card(
-    [
-        dbc.CardHeader(
-            "Carregar Arquivo",
-            className="card-header-custom"
-        ),
-        dbc.CardBody(
-            [
-                dcc.Upload(
-                    id='upload-data',
-                    children=html.Div([
-                        html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
-                        html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
-                        html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']})
-                    ]),
-                    className="upload-box",
-                    multiple=False,
-                    accept='.xlsx'
-                )
-            ],
-            className="card-body-custom"
-        ),
-    ],
-    className="card-custom h-100"
-)
-
-# Add Data Card
-add_data_card = dbc.Card(
-    [
-        dbc.CardHeader(
-            "Adicionar Dados",
-            className="card-header-custom"
-        ),
-        dbc.CardBody(
-            [
-                html.P("Adicione uma nova linha à planilha carregada.", className="text-muted small mb-16"),
-                dbc.Row([
-                    dbc.Col(
-                        [
-                            dbc.Label("Nome", className="fw-bold small"),
-                            dbc.Input(id="input-nome", type="text", placeholder="Ex: João Silva", className="mb-16")
-                        ],
-                        width=12
-                    ),
-                    dbc.Col(
-                        [
-                            dbc.Label("Idade", className="fw-bold small"),
-                            dbc.Input(id="input-idade", type="number", placeholder="Ex: 30", className="mb-24")
-                        ],
-                        width=12
-                    ),
-                ]),
-                html.Div(className="d-grid", children=[
-                    dbc.Button(
-                        "Adicionar Linha",
-                        id='btn-add-row',
-                        className="btn-primary-custom"
-                    ),
-                ])
-            ],
-            className="card-body-custom"
-        ),
-    ],
-    className="card-custom h-100"
-)
-
-# Download Card
-download_card = dbc.Card(
-    [
-        dbc.CardHeader(
-            "Exportar",
-            className="card-header-custom"
-        ),
-        dbc.CardBody(
-            [
-                html.P("Baixe a planilha com os novos dados adicionados.", className="text-muted small mb-16"),
-                 html.Div(className="d-grid", children=[
-                    dbc.Button(
-                        "Baixar Planilha Editada",
-                        id='btn-download',
-                        className="btn-success-custom"
-                    ),
-                ])
-            ],
-            className="card-body-custom"
-        ),
-    ],
-    className="card-custom h-100"
-)
-
-
-# Data Table Card
-# Initial Empty DataFrame
-initial_df = pd.DataFrame(columns=["Nome", "Idade"])
-
-data_table_card = dbc.Card(
-    [
-        dbc.CardHeader(
-            "Visualização dos Dados",
-            className="card-header-custom"
-        ),
-        dbc.CardBody(
-            [
-                dbc.Spinner(
-                    html.Div(id='table-container', children=[
-                        dash_table.DataTable(
-                            id='editable-table',
-                            data=initial_df.to_dict('records'),
-                            columns=[{'name': i, 'id': i, 'deletable': True, 'renamable': True} for i in initial_df.columns],
-                            editable=True,
-                            row_deletable=True,
-                            page_size=10,
-                            style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
-                            style_cell={
-                                'textAlign': 'left',
-                                'fontFamily': "'Roboto', sans-serif",
-                                'padding': '12px',
-                                'fontSize': '0.9rem',
-                                'color': UNB_THEME['UNB_GRAY_DARK']
-                            },
-                            style_header={
-                                'backgroundColor': '#F8F9FA', # Standard light gray header background
-                                'color': UNB_THEME['UNB_BLUE'],
-                                'fontWeight': 'bold',
-                                'border': 'none',
-                                'padding': '12px',
-                                'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
-                            },
-                            style_data={
-                                'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
-                            },
-                            style_data_conditional=[
-                                {
-                                    'if': {'row_index': 'odd'},
-                                    'backgroundColor': '#f8f9fa'
-                                }
-                            ]
-                        )
-                    ]),
-                    color="primary"
-                )
-            ],
-            className="card-body-custom"
-        ),
-    ],
-    className="card-custom h-100",
-    style={"minHeight": "400px"}
-)
-
-# Error Modal
-error_modal = dbc.Modal(
-    [
-        dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
-        dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
-        dbc.ModalFooter(
-            dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
-        ),
-    ],
-    id="error-modal",
-    is_open=False,
-)
-
-tab1_layout = html.Div([
-    dbc.Row(
+# Defined as a function to ensure fresh instances if needed, though Dash handles ID reuse fine
+def get_tab1_layout():
+    # Upload Card
+    upload_card = dbc.Card(
         [
-            dbc.Col([
-                dbc.Row([
-                    dbc.Col(upload_card, width=12, className="mb-24"),
-                    dbc.Col(add_data_card, width=12, className="mb-24"),
-                    dbc.Col(download_card, width=12, className="mb-24")
-                ])
-            ], width=12, lg=3),
+            dbc.CardHeader(
+                "Carregar Arquivo",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dcc.Upload(
+                        id='upload-data',
+                        children=html.Div([
+                            html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']})
+                        ]),
+                        className="upload-box",
+                        multiple=False,
+                        accept='.xlsx'
+                    )
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100"
+    )
 
-            dbc.Col(data_table_card, width=12, lg=9, className="mb-24"),
-        ]
-    ),
-    error_modal,
-    dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
-    dcc.Download(id='download-dataframe-xlsx')
-])
+    # Add Data Card
+    add_data_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Adicionar Dados",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    html.P("Adicione uma nova linha à planilha carregada.", className="text-muted small mb-16"),
+                    dbc.Row([
+                        dbc.Col(
+                            [
+                                dbc.Label("Nome", className="fw-bold small"),
+                                dbc.Input(id="input-nome", type="text", placeholder="Ex: João Silva", className="mb-16")
+                            ],
+                            width=12
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Label("Idade", className="fw-bold small"),
+                                dbc.Input(id="input-idade", type="number", placeholder="Ex: 30", className="mb-24")
+                            ],
+                            width=12
+                        ),
+                    ]),
+                    html.Div(className="d-grid", children=[
+                        dbc.Button(
+                            "Adicionar Linha",
+                            id='btn-add-row',
+                            className="btn-primary-custom"
+                        ),
+                    ])
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100"
+    )
+
+    # Download Card
+    download_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Exportar",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    html.P("Baixe a planilha com os novos dados adicionados.", className="text-muted small mb-16"),
+                     html.Div(className="d-grid", children=[
+                        dbc.Button(
+                            "Baixar Planilha Editada",
+                            id='btn-download',
+                            className="btn-success-custom"
+                        ),
+                    ])
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100"
+    )
+
+
+    # Data Table Card
+    # Initial Empty DataFrame
+    initial_df = pd.DataFrame(columns=["Nome", "Idade"])
+
+    data_table_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Visualização dos Dados",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Spinner(
+                        html.Div(id='table-container', children=[
+                            dash_table.DataTable(
+                                id='editable-table',
+                                data=initial_df.to_dict('records'), # Initially empty
+                                columns=[{'name': i, 'id': i, 'deletable': True, 'renamable': True} for i in initial_df.columns],
+                                editable=True,
+                                row_deletable=True,
+                                page_size=10,
+                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                style_cell={
+                                    'textAlign': 'left',
+                                    'fontFamily': "'Roboto', sans-serif",
+                                    'padding': '12px',
+                                    'fontSize': '0.9rem',
+                                    'color': UNB_THEME['UNB_GRAY_DARK']
+                                },
+                                style_header={
+                                    'backgroundColor': '#F8F9FA', # Standard light gray header background
+                                    'color': UNB_THEME['UNB_BLUE'],
+                                    'fontWeight': 'bold',
+                                    'border': 'none',
+                                    'padding': '12px',
+                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
+                                },
+                                style_data={
+                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
+                                },
+                                style_data_conditional=[
+                                    {
+                                        'if': {'row_index': 'odd'},
+                                        'backgroundColor': '#f8f9fa'
+                                    }
+                                ]
+                            )
+                        ]),
+                        color="primary"
+                    )
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100",
+        style={"minHeight": "400px"}
+    )
+
+    # Error Modal
+    error_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
+            dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
+            dbc.ModalFooter(
+                dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="error-modal",
+        is_open=False,
+    )
+
+    return html.Div([
+        dbc.Row(
+            [
+                dbc.Col([
+                    dbc.Row([
+                        dbc.Col(upload_card, width=12, className="mb-24"),
+                        dbc.Col(add_data_card, width=12, className="mb-24"),
+                        dbc.Col(download_card, width=12, className="mb-24")
+                    ])
+                ], width=12, lg=3),
+
+                dbc.Col(data_table_card, width=12, lg=9, className="mb-24"),
+            ]
+        ),
+        error_modal
+    ])
 
 # --- App Layout Assembly ---
 
 content_container = html.Div(id="tabs-content")
+initial_df = pd.DataFrame(columns=["Nome", "Idade"])
 
 app.layout = html.Div(
     [
@@ -244,7 +244,9 @@ app.layout = html.Div(
         dbc.Container(
             [
                 tabs,
-                content_container
+                content_container,
+                dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
+                dcc.Download(id='download-dataframe-xlsx')
             ],
             fluid=True,
             className="px-4 pb-48"
@@ -265,7 +267,7 @@ app.layout = html.Div(
 )
 def render_content(active_tab):
     if active_tab == 'tab-input':
-        return tab1_layout
+        return get_tab1_layout()
     elif active_tab == 'tab-config':
         return html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
     elif active_tab == 'tab-results':
@@ -353,13 +355,20 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data, nam
 
 
 # 2. Store -> Render Table (Update Table Data)
+# Explicitly including active_tab in Inputs to force re-evaluation if needed
+# But primarily, the Input is stored-data.
+# We need to make sure this callback fires when the component is created.
+# Without prevent_initial_call=True (default False), it SHOULD fire on layout render.
 @app.callback(
     Output('editable-table', 'data'),
     Output('editable-table', 'columns'),
-    Input('stored-data', 'data'),
-    prevent_initial_call=True
+    [Input('stored-data', 'data'),
+     Input('main-tabs', 'active_tab')] # Add this to force trigger on tab switch
 )
-def update_table_view(stored_data):
+def update_table_view(stored_data, active_tab):
+    if active_tab != 'tab-input':
+        return no_update, no_update
+
     if stored_data is None:
         return no_update, no_update
 
