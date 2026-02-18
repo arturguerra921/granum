@@ -5,23 +5,23 @@
 
 body {
     font-family: 'Roboto', sans-serif !important;
-    background-color: #EDEDDF !important; /* UnB Concreto 4 (Light Background) */
-    color: #7E7E65 !important;           /* UnB Concreto 1 (Dark Text) */
+    background-color: #F4F6F8 !important; /* APP_BACKGROUND (Cool Tech Gray) */
+    color: #7E7E65 !important;           /* UNB_GRAY_DARK */
 }
 
 /* Navbar */
 .navbar-custom {
-    background-color: #003366 !important; /* UnB Blue */
-    border-bottom: 4px solid #006633 !important; /* UnB Green */
+    background-color: #003366 !important; /* UNB_BLUE */
+    border-bottom: 4px solid #006633 !important; /* UNB_GREEN */
 }
 
 .navbar-brand-text {
-    color: #FFFFFF !important;
+    color: #FFFFFF !important; /* WHITE */
     font-weight: 500;
 }
 
 .navbar-subtext {
-    color: #EDEDDF !important; /* Use Concreto 4 for subtle text */
+    color: #EDEDDF !important; /* Keeping Concreto 4 for subtle text contrast if desired, or switch to white/gray */
     font-weight: 400;
 }
 
@@ -30,13 +30,13 @@ body {
     border: none !important;
     border-radius: 12px !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-    background-color: #FFFFFF !important;
+    background-color: #FFFFFF !important; /* WHITE */
 }
 
 .card-header-custom {
-    background-color: #FFFFFF !important;
+    background-color: #FFFFFF !important; /* WHITE */
     border-bottom: none !important;
-    color: #003366 !important; /* UnB Blue for headers */
+    color: #003366 !important; /* UNB_BLUE */
     font-weight: 700 !important;
     font-size: 1.1rem;
     padding-top: 24px !important;
@@ -50,7 +50,7 @@ body {
 
 /* Buttons */
 .btn-primary-custom {
-    background-color: #003366 !important; /* UnB Blue */
+    background-color: #003366 !important; /* UNB_BLUE */
     border-color: #003366 !important;
     font-weight: 500 !important;
 }
@@ -61,7 +61,7 @@ body {
 }
 
 .btn-success-custom {
-    background-color: #006633 !important; /* UnB Green */
+    background-color: #006633 !important; /* UNB_GREEN */
     border-color: #006633 !important;
     font-weight: 500 !important;
 }
@@ -72,13 +72,13 @@ body {
 }
 
 .btn-outline-secondary-custom {
-    color: #7E7E65 !important; /* Concreto 1 */
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
     border-color: #7E7E65 !important;
 }
 
 .btn-outline-secondary-custom:hover {
     background-color: #7E7E65 !important;
-    color: #FFFFFF !important;
+    color: #FFFFFF !important; /* WHITE */
 }
 
 /* Upload Component */
@@ -90,8 +90,8 @@ body {
     border-style: dashed;
     border-radius: 10px;
     text-align: center;
-    border-color: #DEE2E6; /* Light gray border */
-    background-color: #F8F9FA;
+    border-color: #DEE2E6; /* BORDER_LIGHT */
+    background-color: #F8F9FA; /* Default Bootstrap Light Gray (acceptable utility) */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -101,7 +101,7 @@ body {
 }
 
 .upload-box:hover {
-    border-color: #003366; /* UnB Blue */
+    border-color: #003366; /* UNB_BLUE (BORDER_UPLOAD_HOVER) */
 }
 
 /* Spacing Utilities (8pt Grid) */
@@ -122,23 +122,23 @@ body {
 
 /* Tabs */
 .nav-tabs .nav-link {
-    color: #7E7E65; /* Concreto 1 */
+    color: #7E7E65; /* UNB_GRAY_DARK */
     font-weight: 500;
 }
 
 .nav-tabs .nav-link.active {
-    color: #003366; /* UnB Blue */
+    color: #003366; /* UNB_BLUE */
     font-weight: 600;
-    border-color: #DEE2E6 #DEE2E6 #FFFFFF;
+    border-color: #DEE2E6 #DEE2E6 #FFFFFF; /* BORDER_LIGHT */
 }
 
 /* Labels */
 label {
-    color: #7E7E65 !important;
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
 }
 
-/* Text Muted replacement to adhere to Concreto 1/4 or just dark gray */
+/* Text Muted replacement */
 .text-muted {
-    color: #7E7E65 !important;
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
     opacity: 0.8;
 }

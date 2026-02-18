@@ -7,7 +7,6 @@ from src.view.theme import UNB_THEME
 import dash
 
 # Initialize app with Bootstrap theme and suppress callback exceptions
-# external_stylesheets includes the custom.css automatically because it's in the assets folder
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
 
 # --- Layout Components ---
@@ -146,6 +145,9 @@ download_card = dbc.Card(
 
 
 # Data Table Card
+# Initial Empty DataFrame
+initial_df = pd.DataFrame(columns=["Nome", "Idade"])
+
 data_table_card = dbc.Card(
     [
         dbc.CardHeader(
@@ -156,13 +158,38 @@ data_table_card = dbc.Card(
             [
                 dbc.Spinner(
                     html.Div(id='table-container', children=[
-                        # Placeholder text will appear here
-                         html.Div(
-                            [
-                                html.H5("Nenhum dado carregado", className="text-muted"),
-                                html.P("Faça o upload de uma planilha Excel para visualizar os dados aqui.", className="text-muted small")
-                            ],
-                            className="text-center mt-48"
+                        dash_table.DataTable(
+                            id='editable-table',
+                            data=initial_df.to_dict('records'),
+                            columns=[{'name': i, 'id': i, 'deletable': True, 'renamable': True} for i in initial_df.columns],
+                            editable=True,
+                            row_deletable=True,
+                            page_size=10,
+                            style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                            style_cell={
+                                'textAlign': 'left',
+                                'fontFamily': "'Roboto', sans-serif",
+                                'padding': '12px',
+                                'fontSize': '0.9rem',
+                                'color': UNB_THEME['UNB_GRAY_DARK']
+                            },
+                            style_header={
+                                'backgroundColor': '#F8F9FA', # Standard light gray header background
+                                'color': UNB_THEME['UNB_BLUE'],
+                                'fontWeight': 'bold',
+                                'border': 'none',
+                                'padding': '12px',
+                                'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
+                            },
+                            style_data={
+                                'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
+                            },
+                            style_data_conditional=[
+                                {
+                                    'if': {'row_index': 'odd'},
+                                    'backgroundColor': '#f8f9fa'
+                                }
+                            ]
                         )
                     ]),
                     color="primary"
@@ -203,7 +230,7 @@ tab1_layout = html.Div([
         ]
     ),
     error_modal,
-    dcc.Store(id='stored-data'),
+    dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
     dcc.Download(id='download-dataframe-xlsx')
 ])
 
@@ -224,7 +251,7 @@ app.layout = html.Div(
         )
     ],
     style={
-        'backgroundColor': UNB_THEME['UNB_GRAY_LIGHT'],
+        'backgroundColor': UNB_THEME['APP_BACKGROUND'],
         'minHeight': '100vh'
     }
 )
@@ -252,14 +279,16 @@ def render_content(active_tab):
     Output('modal-body-content', 'children'),
     [Input('upload-data', 'contents'),
      Input('btn-add-row', 'n_clicks'),
+     Input('editable-table', 'data_timestamp'), # Track edits via timestamp
      Input('close-modal', 'n_clicks')],
     [State('upload-data', 'filename'),
      State('stored-data', 'data'),
      State('input-nome', 'value'),
      State('input-idade', 'value'),
-     State('error-modal', 'is_open')]
+     State('error-modal', 'is_open'),
+     State('editable-table', 'data')]
 )
-def update_store(contents, n_add, n_close, filename, stored_data, name_val, age_val, is_open):
+def update_store(contents, n_add, timestamp, n_close, filename, stored_data, name_val, age_val, is_open, table_data):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update
@@ -289,84 +318,58 @@ def update_store(contents, n_add, n_close, filename, stored_data, name_val, age_
 
     # Add Row
     if trigger_id == 'btn-add-row':
-        if not stored_data:
-            return no_update, True, "Por favor, carregue um arquivo Excel primeiro."
+        if stored_data:
+             df = pd.read_json(io.StringIO(stored_data), orient='split')
+        else:
+             df = pd.DataFrame(columns=["Nome", "Idade"])
 
         if not name_val or not age_val:
              return no_update, True, "Preencha os campos Nome e Idade para adicionar."
 
         try:
-            df = pd.read_json(io.StringIO(stored_data), orient='split')
-
-            # Create a new row dictionary
             new_row_data = {'Nome': name_val, 'Idade': age_val}
-
-            # Create a DataFrame for the new row
-            # If the original DF doesn't have these columns, they will be added.
-            # If the original DF has other columns, they will be NaN for this row unless filled.
             new_row_df = pd.DataFrame([new_row_data])
-
-            # Concatenate
             df = pd.concat([df, new_row_df], ignore_index=True)
-
             return df.to_json(date_format='iso', orient='split'), False, no_update
         except Exception as e:
             print(f"Error adding row: {e}")
             return no_update, True, f"Erro ao adicionar linha: {str(e)}"
 
+    # Table Edited (Manual Data Entry)
+    if trigger_id == 'editable-table':
+        try:
+            # Reconstruct DF from table data
+            if table_data is None:
+                return no_update, no_update, no_update
+
+            df = pd.DataFrame(table_data)
+            # Ensure proper JSON structure for store
+            return df.to_json(date_format='iso', orient='split'), False, no_update
+        except Exception as e:
+            print(f"Error updating store from table edit: {e}")
+            return no_update, no_update, no_update
+
     return no_update, no_update, no_update
 
 
-# 2. Store -> Render Table
+# 2. Store -> Render Table (Update Table Data)
 @app.callback(
-    Output('table-container', 'children'),
-    Input('stored-data', 'data')
+    Output('editable-table', 'data'),
+    Output('editable-table', 'columns'),
+    Input('stored-data', 'data'),
+    prevent_initial_call=True
 )
-def render_table(stored_data):
+def update_table_view(stored_data):
     if stored_data is None:
-        return html.Div(
-            [
-                html.H5("Nenhum dado carregado", className="text-muted"),
-                html.P("Faça o upload de uma planilha Excel para visualizar os dados aqui.", className="text-muted small")
-            ],
-            className="text-center mt-48"
-        )
+        return no_update, no_update
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
-
-        return dash_table.DataTable(
-            data=df.to_dict('records'),
-            columns=[{'name': i, 'id': i} for i in df.columns],
-            page_size=10,
-            style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': '1px solid #dee2e6'},
-            style_cell={
-                'textAlign': 'left',
-                'fontFamily': "'Roboto', sans-serif",
-                'padding': '12px',
-                'fontSize': '0.9rem',
-                'color': UNB_THEME['UNB_GRAY_DARK']
-            },
-            style_header={
-                'backgroundColor': '#F8F9FA',
-                'color': UNB_THEME['UNB_BLUE'],
-                'fontWeight': 'bold',
-                'border': 'none',
-                'padding': '12px',
-                'borderBottom': '2px solid #DEE2E6'
-            },
-            style_data={
-                'borderBottom': '1px solid #dee2e6'
-            },
-            style_data_conditional=[
-                {
-                    'if': {'row_index': 'odd'},
-                    'backgroundColor': '#f8f9fa'
-                }
-            ]
-        )
+        columns = [{'name': i, 'id': i, 'deletable': True, 'renamable': True} for i in df.columns]
+        return df.to_dict('records'), columns
     except Exception as e:
-        return html.Div(f"Erro ao renderizar tabela: {e}")
+        print(f"Error rendering table: {e}")
+        return no_update, no_update
 
 # 3. Download
 @app.callback(
