@@ -162,7 +162,7 @@ def get_tab1_layout():
                             dash_table.DataTable(
                                 id='editable-table',
                                 data=initial_df.to_dict('records'), # Initially empty
-                                columns=[{'name': i, 'id': i, 'deletable': True, 'renamable': True} for i in initial_df.columns],
+                                columns=[{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in initial_df.columns],
                                 editable=True,
                                 row_deletable=True,
                                 page_size=10,
@@ -374,7 +374,7 @@ def update_table_view(stored_data, active_tab):
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
-        columns = [{'name': i, 'id': i, 'deletable': True, 'renamable': True} for i in df.columns]
+        columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
         return df.to_dict('records'), columns
     except Exception as e:
         print(f"Error rendering table: {e}")
