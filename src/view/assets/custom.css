@@ -1,56 +1,144 @@
-:root {
-    /* Official Government Colors */
-    --azul-atlantico: #183EFF;
-    --amarelo-sol: #FFD000;
-    --vermelho-urucum: #FF0000;
-    --verde-amazonia: #00D000;
-    --cinza-harpia: #3C3C3C;
-    --preto-ebano: #000000;
-    --branco-paz: #FFFFFF;
-}
+
+/* Rule: Spacing & Rhythm (8pt Grid System) - Standardize all margins and paddings using multiples of 8px (e.g., 16px gap between inputs, 24px padding inside cards). */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 body {
-    font-family: 'Verdana', sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: var(--branco-paz);
-    color: var(--preto-ebano);
+    font-family: 'Roboto', sans-serif !important;
+    background-color: #F4F6F8 !important; /* APP_BACKGROUND (Cool Tech Gray) */
+    color: #7E7E65 !important;           /* UNB_GRAY_DARK */
 }
 
-/*
-   Styles for dcc.Tabs and dcc.Tab components.
-
-   To use these styles, apply the classes as follows:
-   dcc.Tabs(parent_className='custom-tabs', ...)
-   dcc.Tab(className='custom-tab', selected_className='custom-tab--selected', ...)
-*/
-
-.custom-tabs {
-    border-bottom: 2px solid var(--azul-atlantico);
+/* Navbar */
+.navbar-custom {
+    background-color: #003366 !important; /* UNB_BLUE */
+    border-bottom: 4px solid #006633 !important; /* UNB_GREEN */
 }
 
-.custom-tab {
-    background-color: var(--cinza-harpia) !important;
-    color: var(--branco-paz) !important;
-    border-top: none !important;
+.navbar-brand-text {
+    color: #FFFFFF !important; /* WHITE */
+    font-weight: 500;
+}
+
+.navbar-subtext {
+    color: #EDEDDF !important; /* Keeping Concreto 4 for subtle text contrast if desired, or switch to white/gray */
+    font-weight: 400;
+}
+
+/* Cards */
+.card-custom {
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    background-color: #FFFFFF !important; /* WHITE */
+}
+
+.card-header-custom {
+    background-color: #FFFFFF !important; /* WHITE */
     border-bottom: none !important;
-    border-left: 1px solid var(--preto-ebano) !important;
-    border-right: 1px solid var(--preto-ebano) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 12px !important;
-    cursor: pointer !important;
-    transition: background-color 0.3s ease;
+    color: #003366 !important; /* UNB_BLUE */
+    font-weight: 700 !important;
+    font-size: 1.1rem;
+    padding-top: 24px !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
 }
 
-.custom-tab--selected {
-    background-color: var(--azul-atlantico) !important;
-    color: var(--branco-paz) !important;
-    font-weight: bold !important;
-    border-bottom: none !important;
+.card-body-custom {
+    padding: 24px !important;
 }
 
-.custom-tab:hover {
-    opacity: 0.9;
+/* Buttons */
+.btn-primary-custom {
+    background-color: #003366 !important; /* UNB_BLUE */
+    border-color: #003366 !important;
+    font-weight: 500 !important;
+}
+
+.btn-primary-custom:hover {
+    background-color: #002244 !important; /* Darker blue */
+    border-color: #002244 !important;
+}
+
+.btn-success-custom {
+    background-color: #006633 !important; /* UNB_GREEN */
+    border-color: #006633 !important;
+    font-weight: 500 !important;
+}
+
+.btn-success-custom:hover {
+    background-color: #004422 !important; /* Darker green */
+    border-color: #004422 !important;
+}
+
+.btn-outline-secondary-custom {
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
+    border-color: #7E7E65 !important;
+}
+
+.btn-outline-secondary-custom:hover {
+    background-color: #7E7E65 !important;
+    color: #FFFFFF !important; /* WHITE */
+}
+
+/* Upload Component */
+.upload-box {
+    width: 100%;
+    height: 150px;
+    line-height: 1.5;
+    border-width: 2px;
+    border-style: dashed;
+    border-radius: 10px;
+    text-align: center;
+    border-color: #DEE2E6; /* BORDER_LIGHT */
+    background-color: #F8F9FA; /* Default Bootstrap Light Gray (acceptable utility) */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.upload-box:hover {
+    border-color: #003366; /* UNB_BLUE (BORDER_UPLOAD_HOVER) */
+}
+
+/* Spacing Utilities (8pt Grid) */
+.mb-8 { margin-bottom: 8px !important; }
+.mb-16 { margin-bottom: 16px !important; }
+.mb-24 { margin-bottom: 24px !important; }
+.mb-32 { margin-bottom: 32px !important; }
+.mb-48 { margin-bottom: 48px !important; }
+
+.mt-8 { margin-top: 8px !important; }
+.mt-16 { margin-top: 16px !important; }
+.mt-24 { margin-top: 24px !important; }
+.mt-32 { margin-top: 32px !important; }
+.mt-48 { margin-top: 48px !important; }
+
+.p-24 { padding: 24px !important; }
+.gap-16 { gap: 16px !important; }
+
+/* Tabs */
+.nav-tabs .nav-link {
+    color: #7E7E65; /* UNB_GRAY_DARK */
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    color: #003366; /* UNB_BLUE */
+    font-weight: 600;
+    border-color: #DEE2E6 #DEE2E6 #FFFFFF; /* BORDER_LIGHT */
+}
+
+/* Labels */
+label {
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
+}
+
+/* Text Muted replacement */
+.text-muted {
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
+    opacity: 0.8;
 }
