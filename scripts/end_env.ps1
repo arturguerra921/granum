@@ -9,8 +9,15 @@ if ($connections) {
         if ($pid_to_kill -gt 0) {
             Write-Host "Killing process $pid_to_kill..."
             Stop-Process -Id $pid_to_kill -Force -ErrorAction SilentlyContinue
+
+            # Fallback for stubborn processes (Force /F)
+            if (Get-Process -Id $pid_to_kill -ErrorAction SilentlyContinue) {
+                Write-Host "  Process stubborn, using taskkill fallback..."
+                taskkill /F /PID $pid_to_kill
+            }
         }
     }
+    Write-Host "Process stopped."
 } else {
     Write-Host "No process found running on port $port."
 }

@@ -9,11 +9,16 @@ if ($connections) {
         if ($pid_to_kill -gt 0) {
             Write-Host "Killing process $pid_to_kill..."
             Stop-Process -Id $pid_to_kill -Force -ErrorAction SilentlyContinue
+            # Fallback for stubborn processes
+            if (Get-Process -Id $pid_to_kill -ErrorAction SilentlyContinue) {
+                Write-Host "  Using taskkill fallback for $pid_to_kill..."
+                taskkill /F /PID $pid_to_kill
+            }
         }
     }
 }
 
-# 2. Activate Virtual Environment for this script execution
+# 2. Activate Virtual Environment for this script execution (for install)
 if (Test-Path "granum_env\Scripts\Activate.ps1") {
     # Dot-source the activation script to load the environment variables into the current scope
     . .\granum_env\Scripts\Activate.ps1
@@ -27,6 +32,18 @@ if (Test-Path "granum_env\Scripts\Activate.ps1") {
 Write-Host "Installing/Updating package in editable mode..."
 pip install -e .
 
-# 4. Run the Application
-Write-Host "Starting Granum (granum-run)..."
-granum-run
+# 4. Run the Application in a NEW WINDOW
+# This prevents the VS Code terminal from freezing/blocking and causing ETIMEDOUT errors.
+Write-Host "Starting Granum in a separate window..."
+Write-Host "NOTE: To stop the server, close the new window or run 'scripts/end_env.ps1'." -ForegroundColor Cyan
+
+# We start a new PowerShell process that activates the venv and runs the server.
+# -NoExit keeps the window open so you can see logs/errors.
+# The command block:
+#   1. Activate venv
+#   2. Change to project root (Get-Location of current script context)
+#   3. Run granum-run
+$projectRoot = Get-Location
+$argList = "-NoExit", "-Command", "& { Set-Location '$projectRoot'; . .\granum_env\Scripts\Activate.ps1; Write-Host 'Granum Server Running...'; granum-run }"
+
+Start-Process powershell -ArgumentList $argList
