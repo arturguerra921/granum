@@ -388,6 +388,9 @@ def update_table_view(stored_data, active_tab):
     prevent_initial_call=True,
 )
 def download_data(n_clicks, stored_data):
+    if not n_clicks:
+        return no_update
+
     if not stored_data:
         return no_update
 
