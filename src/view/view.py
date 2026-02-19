@@ -13,8 +13,8 @@ try:
     MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
     ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
 
-    df_municipios = pd.read_csv(MUNICIPIOS_PATH)
-    df_estados = pd.read_csv(ESTADOS_PATH)
+    df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
+    df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
 
     # Merge to get UF
     df_merged = pd.merge(df_municipios, df_estados[['codigo_uf', 'uf']], on='codigo_uf', how='left')
@@ -37,7 +37,8 @@ except Exception as e:
 
 
 # Initialize app with Bootstrap theme and suppress callback exceptions
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP], suppress_callback_exceptions=True)
+app.title = "Granum"
 
 # --- Layout Components ---
 
@@ -220,13 +221,23 @@ def get_tab1_layout():
                 dbc.Card(
                     dbc.CardBody(
                         [
-                            html.H6("Total Peso (Kg)", className="text-muted small text-uppercase fw-bold mb-2"),
-                            html.H3(id="metric-total-weight", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
+                                    html.Div(
+                                        [
+                                            html.H6("Total Peso (Kg)", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-total-weight", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
                         ],
-                        className="d-flex flex-column align-items-center justify-content-center py-3"
+                        className="p-3"
                     ),
                     className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "8px"}
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
                 ),
                 width=6
             ),
@@ -234,18 +245,28 @@ def get_tab1_layout():
                 dbc.Card(
                     dbc.CardBody(
                         [
-                            html.H6("Produtos Diferentes", className="text-muted small text-uppercase fw-bold mb-2"),
-                            html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-tags-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
+                                    html.Div(
+                                        [
+                                            html.H6("Produtos Diferentes", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
                         ],
-                        className="d-flex flex-column align-items-center justify-content-center py-3"
+                        className="p-3"
                     ),
                     className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "8px"}
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
                 ),
                 width=6
             ),
         ],
-        className="mt-24 g-3" # Margin top and gutter
+        className="mt-auto pt-3 g-3" # Push to bottom
     )
 
     data_table_card = dbc.Card(
@@ -291,16 +312,16 @@ def get_tab1_layout():
                                     }
                                 ]
                             )
-                        ]),
+                        ], className="h-100"),
                         color="primary"
                     ),
                     metrics_section
                 ],
-                className="card-body-custom"
+                className="card-body-custom d-flex flex-column"
             ),
         ],
         className="card-custom h-100",
-        style={"minHeight": "400px"}
+        style={"minHeight": "600px"} # Increased min-height to ensure space
     )
 
     # Error Modal
@@ -346,6 +367,7 @@ app.layout = html.Div(
                 tabs,
                 content_container,
                 dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
+                dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
                 dcc.Download(id='download-dataframe-xlsx')
             ],
             fluid=True,
@@ -527,47 +549,108 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
 
 # 2. Store -> Render Table (Update Table Data)
-# Explicitly including active_tab in Inputs to force re-evaluation if needed
-# But primarily, the Input is stored-data.
-# We need to make sure this callback fires when the component is created.
-# Without prevent_initial_call=True (default False), it SHOULD fire on layout render.
 @app.callback(
     Output('editable-table', 'data'),
     Output('editable-table', 'columns'),
-    Output('metric-total-weight', 'children'),
-    Output('metric-unique-products', 'children'),
     [Input('stored-data', 'data'),
-     Input('main-tabs', 'active_tab')] # Add this to force trigger on tab switch
+     Input('main-tabs', 'active_tab')]
 )
 def update_table_view(stored_data, active_tab):
     if active_tab != 'tab-input':
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update
 
     if stored_data is None:
-        return no_update, no_update, "0", "0"
+        return no_update, no_update
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
         columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
+        return df.to_dict('records'), columns
+    except Exception as e:
+        print(f"Error rendering table: {e}")
+        return no_update, no_update
 
-        # Calculate metrics
+# 2.1 Update Metrics Store
+@app.callback(
+    Output('metrics-store', 'data'),
+    Input('stored-data', 'data')
+)
+def update_metrics(stored_data):
+    if stored_data is None:
+        return {'weight': 0, 'count': 0}
+
+    try:
+        df = pd.read_json(io.StringIO(stored_data), orient='split')
+
         total_weight = 0
         unique_products = 0
 
         if not df.empty:
-            # Ensure weight is numeric, coercing errors to NaN and filling with 0
             if "Peso (Kg)" in df.columns:
                 total_weight = pd.to_numeric(df["Peso (Kg)"], errors='coerce').fillna(0).sum()
 
             if "Produto" in df.columns:
                 unique_products = df["Produto"].nunique()
 
-        formatted_weight = f"{total_weight:,.2f}"
-
-        return df.to_dict('records'), columns, formatted_weight, str(unique_products)
+        return {'weight': float(total_weight), 'count': int(unique_products)}
     except Exception as e:
-        print(f"Error rendering table: {e}")
-        return no_update, no_update, no_update, no_update
+        print(f"Error calculating metrics: {e}")
+        return {'weight': 0, 'count': 0}
+
+# Client-side callback for animating metrics
+app.clientside_callback(
+    """
+    function(data) {
+        if (!data) return window.dash_clientside.no_update;
+
+        const animate = (id, endValue, isFloat) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            // Get current value (stripped of formatting) or default to 0
+            let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
+            const duration = 1000; // 1 second
+            const startTime = performance.now();
+
+            const step = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease out cubic
+                const ease = 1 - Math.pow(1 - progress, 3);
+
+                const current = startValue + (endValue - startValue) * ease;
+
+                if (isFloat) {
+                    el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                } else {
+                    el.innerText = Math.round(current).toString();
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                     // Ensure final value is exact
+                    if (isFloat) {
+                        el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    } else {
+                        el.innerText = endValue.toString();
+                    }
+                }
+            };
+
+            requestAnimationFrame(step);
+        };
+
+        animate('metric-total-weight', data.weight, true);
+        animate('metric-unique-products', data.count, false);
+
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output('metric-total-weight', 'id'), # Dummy output
+    Input('metrics-store', 'data')
+)
 
 # 3. Download
 @app.callback(
