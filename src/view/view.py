@@ -1,10 +1,40 @@
 import base64
 import io
+import os
 import pandas as pd
 from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 import dash
+
+# --- Data Loading ---
+try:
+    DATA_DIR = os.path.join(os.path.dirname(__file__), 'assets', 'data')
+    MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
+    ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
+
+    df_municipios = pd.read_csv(MUNICIPIOS_PATH)
+    df_estados = pd.read_csv(ESTADOS_PATH)
+
+    # Merge to get UF
+    df_merged = pd.merge(df_municipios, df_estados[['codigo_uf', 'uf']], on='codigo_uf', how='left')
+
+    # Create "Cidade - UF" column
+    df_merged['cidade_uf'] = df_merged['nome'] + ' - ' + df_merged['uf']
+
+    # Create options for dropdown
+    CITY_OPTIONS = sorted(df_merged['cidade_uf'].unique().tolist())
+
+    # Create lookup dictionary
+    # Drop duplicates to ensure unique keys (though City-UF should be unique for municipalities)
+    df_unique = df_merged.drop_duplicates(subset=['cidade_uf'])
+    CITY_LOOKUP = df_unique.set_index('cidade_uf')[['latitude', 'longitude']].to_dict('index')
+
+except Exception as e:
+    print(f"Error loading geographical data: {e}")
+    CITY_OPTIONS = []
+    CITY_LOOKUP = {}
+
 
 # Initialize app with Bootstrap theme and suppress callback exceptions
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
@@ -93,17 +123,51 @@ def get_tab1_layout():
                     dbc.Row([
                         dbc.Col(
                             [
-                                dbc.Label("Nome", className="fw-bold small"),
-                                dbc.Input(id="input-nome", type="text", placeholder="Ex: João Silva", className="mb-16")
+                                dbc.Label("Produto", className="fw-bold small"),
+                                dbc.Input(id="input-produto", type="text", placeholder="Ex: Arroz", className="mb-16")
+                            ],
+                            width=6
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Label("Peso (Kg)", className="fw-bold small"),
+                                dbc.Input(id="input-peso", type="number", placeholder="Ex: 100", className="mb-16")
+                            ],
+                            width=6
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Label("Cidade", className="fw-bold small"),
+                                dcc.Dropdown(
+                                    id="input-cidade",
+                                    options=[{'label': c, 'value': c} for c in CITY_OPTIONS],
+                                    placeholder="Selecione a cidade...",
+                                    className="mb-16",
+                                    searchable=True
+                                )
                             ],
                             width=12
                         ),
                         dbc.Col(
                             [
-                                dbc.Label("Idade", className="fw-bold small"),
-                                dbc.Input(id="input-idade", type="number", placeholder="Ex: 30", className="mb-24")
+                                dbc.Label("Latitude", className="fw-bold small"),
+                                dbc.Input(id="input-lat", type="number", placeholder="Lat", className="mb-16", disabled=True)
                             ],
-                            width=12
+                            width=5
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Label("Longitude", className="fw-bold small"),
+                                dbc.Input(id="input-lon", type="number", placeholder="Lon", className="mb-16", disabled=True)
+                            ],
+                            width=5
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Label("Editar", className="fw-bold small", style={"visibility": "hidden"}),
+                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="w-100", n_clicks=0, title="Editar Manualmente")
+                            ],
+                            width=2
                         ),
                     ]),
                     html.Div(className="d-grid", children=[
@@ -147,7 +211,7 @@ def get_tab1_layout():
 
     # Data Table Card
     # Initial Empty DataFrame
-    initial_df = pd.DataFrame(columns=["Nome", "Idade"])
+    initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
 
     data_table_card = dbc.Card(
         [
@@ -236,7 +300,7 @@ def get_tab1_layout():
 # --- App Layout Assembly ---
 
 content_container = html.Div(id="tabs-content")
-initial_df = pd.DataFrame(columns=["Nome", "Idade"])
+initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
 
 app.layout = html.Div(
     [
@@ -274,7 +338,34 @@ def render_content(active_tab):
         return html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
     return html.Div()
 
-# 1. Upload & Add Row -> Update Store
+# 1. City Selection -> Auto-fill Lat/Lon
+@app.callback(
+    [Output('input-lat', 'value'),
+     Output('input-lon', 'value')],
+    Input('input-cidade', 'value'),
+    prevent_initial_call=True
+)
+def update_lat_lon(city_value):
+    if not city_value or city_value not in CITY_LOOKUP:
+        return no_update, no_update
+
+    data = CITY_LOOKUP[city_value]
+    return data['latitude'], data['longitude']
+
+# 2. Manual Edit Toggle
+@app.callback(
+    [Output('input-lat', 'disabled'),
+     Output('input-lon', 'disabled'),
+     Output('btn-manual-edit', 'children')],
+    Input('btn-manual-edit', 'n_clicks'),
+    prevent_initial_call=True
+)
+def toggle_manual_edit(n_clicks):
+    if n_clicks % 2 == 1:
+        return False, False, "🔓" # Enable
+    return True, True, "🔒" # Disable
+
+# 3. Upload & Add Row -> Update Store
 @app.callback(
     Output('stored-data', 'data'),
     Output('error-modal', 'is_open'),
@@ -285,12 +376,17 @@ def render_content(active_tab):
      Input('close-modal', 'n_clicks')],
     [State('upload-data', 'filename'),
      State('stored-data', 'data'),
-     State('input-nome', 'value'),
-     State('input-idade', 'value'),
+     State('input-produto', 'value'),
+     State('input-peso', 'value'),
+     State('input-cidade', 'value'),
+     State('input-lat', 'value'),
+     State('input-lon', 'value'),
      State('error-modal', 'is_open'),
      State('editable-table', 'data')]
 )
-def update_store(contents, n_add, timestamp, n_close, filename, stored_data, name_val, age_val, is_open, table_data):
+def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
+                 prod_val, peso_val, cidade_val, lat_val, lon_val,
+                 is_open, table_data):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update
@@ -311,6 +407,9 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data, nam
         try:
             if filename.endswith('.xlsx'):
                 df = pd.read_excel(io.BytesIO(decoded))
+                # Ensure columns match expectations, or just allow loose structure but warn?
+                # For now, let's just load it. If columns mismatch, the table will show them but might look weird.
+                # Ideally we align with expected columns.
                 return df.to_json(date_format='iso', orient='split'), False, no_update
             else:
                 return no_update, True, "O arquivo deve ser um Excel (.xlsx)."
@@ -323,13 +422,19 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data, nam
         if stored_data:
              df = pd.read_json(io.StringIO(stored_data), orient='split')
         else:
-             df = pd.DataFrame(columns=["Nome", "Idade"])
+             df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
 
-        if not name_val or not age_val:
-             return no_update, True, "Preencha os campos Nome e Idade para adicionar."
+        if not prod_val or not peso_val or not cidade_val:
+             return no_update, True, "Preencha Produto, Peso e Cidade para adicionar."
 
         try:
-            new_row_data = {'Nome': name_val, 'Idade': age_val}
+            new_row_data = {
+                'Produto': prod_val,
+                'Peso (Kg)': peso_val,
+                'Cidade': cidade_val,
+                'Latitude': lat_val,
+                'Longitude': lon_val
+            }
             new_row_df = pd.DataFrame([new_row_data])
             df = pd.concat([df, new_row_df], ignore_index=True)
             return df.to_json(date_format='iso', orient='split'), False, no_update
