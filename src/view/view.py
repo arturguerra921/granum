@@ -140,7 +140,7 @@ def get_tab1_layout():
                                 dbc.Label("Cidade", className="fw-bold small"),
                                 dcc.Dropdown(
                                     id="input-cidade",
-                                    options=[{'label': c, 'value': c} for c in CITY_OPTIONS],
+                                    options=[],
                                     placeholder="Selecione a cidade...",
                                     className="mb-16",
                                     searchable=True
@@ -165,7 +165,7 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 dbc.Label("Editar", className="fw-bold small", style={"visibility": "hidden"}),
-                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="w-100", n_clicks=0, title="Editar Manualmente")
+                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100", n_clicks=0, title="Editar Lat/Long manualmente")
                             ],
                             width=2
                         ),
@@ -338,7 +338,38 @@ def render_content(active_tab):
         return html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
     return html.Div()
 
-# 1. City Selection -> Auto-fill Lat/Lon
+# 1. City Dropdown Options (Server-side filtering)
+@app.callback(
+    Output("input-cidade", "options"),
+    Input("input-cidade", "search_value"),
+    State("input-cidade", "value")
+)
+def update_city_options(search_value, value):
+    if not search_value:
+        # If no search term, show the selected value (if any) or nothing (or top few)
+        if value:
+            return [{'label': value, 'value': value}]
+        return []
+
+    # Filter options based on search term
+    filtered = [
+        {'label': c, 'value': c}
+        for c in CITY_OPTIONS
+        if search_value.lower() in c.lower()
+    ]
+
+    # Limit results for performance
+    filtered = filtered[:50]
+
+    # Ensure current value is present
+    if value:
+        # Check if value is already in filtered
+        if not any(f['value'] == value for f in filtered):
+            filtered.insert(0, {'label': value, 'value': value})
+
+    return filtered
+
+# 2. City Selection -> Auto-fill Lat/Lon
 @app.callback(
     [Output('input-lat', 'value'),
      Output('input-lon', 'value')],
