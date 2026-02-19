@@ -88,7 +88,15 @@ def get_tab1_layout():
     upload_card = dbc.Card(
         [
             dbc.CardHeader(
-                "Carregar Arquivo",
+                html.Div([
+                    html.Span("Carregar Arquivo", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-upload", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Caso já possua uma planilha pronta (Excel .xlsx ou CSV), carregue-a aqui. Se não tiver, você pode adicionar dados manualmente abaixo.",
+                        target="help-upload",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -98,11 +106,12 @@ def get_tab1_layout():
                         children=html.Div([
                             html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
                             html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
-                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']})
+                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                            html.Div("Formatos: .xlsx, .csv", className="text-muted small mt-2")
                         ]),
                         className="upload-box",
                         multiple=False,
-                        accept='.xlsx'
+                        accept='.xlsx, .csv'
                     )
                 ],
                 className="card-body-custom"
@@ -115,7 +124,15 @@ def get_tab1_layout():
     add_data_card = dbc.Card(
         [
             dbc.CardHeader(
-                "Adicionar Dados",
+                html.Div([
+                    html.Span("Adicionar Dados", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-add", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Inserção manual de dados. Cada inserção será adicionada como uma nova linha na tabela ao lado.",
+                        target="help-add",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -125,10 +142,10 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 html.Div([
-                                    dbc.Label("Produto", className="fw-bold small me-2"),
+                                    dbc.Label("Produto", className="fw-bold small me-2 mb-0"),
                                     html.I(className="bi bi-question-circle-fill text-muted", id="help-produto", style={"cursor": "help", "fontSize": "0.9rem"}),
                                     dbc.Tooltip(
-                                        "Nome do produto a ser transportado (ex: Soja, Milho). O sistema sugerirá produtos já cadastrados.",
+                                        "Nome do produto (ex: Soja, Milho). O sistema ajustará maiúsculas/minúsculas automaticamente e sugerirá produtos já cadastrados.",
                                         target="help-produto",
                                     ),
                                 ], className="d-flex align-items-center mb-1"),
@@ -140,7 +157,7 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 html.Div([
-                                    dbc.Label("Peso (Kg)", className="fw-bold small me-2"),
+                                    dbc.Label("Peso (Kg)", className="fw-bold small me-2 mb-0"),
                                     html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "0.9rem"}),
                                     dbc.Tooltip(
                                         "Peso total da carga em quilogramas.",
@@ -154,7 +171,7 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 html.Div([
-                                    dbc.Label("Cidade", className="fw-bold small me-2"),
+                                    dbc.Label("Cidade", className="fw-bold small me-2 mb-0"),
                                     html.I(className="bi bi-question-circle-fill text-muted", id="help-cidade", style={"cursor": "help", "fontSize": "0.9rem"}),
                                     dbc.Tooltip(
                                         "Selecione a cidade de origem/destino. Digite para filtrar as opções.",
@@ -174,7 +191,7 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 html.Div([
-                                    dbc.Label("Latitude", className="fw-bold small me-2"),
+                                    dbc.Label("Latitude", className="fw-bold small me-2 mb-0"),
                                     html.I(className="bi bi-question-circle-fill text-muted", id="help-lat", style={"cursor": "help", "fontSize": "0.9rem"}),
                                     dbc.Tooltip(
                                         "Coordenada de latitude. Preenchida automaticamente ao selecionar a cidade.",
@@ -188,7 +205,7 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 html.Div([
-                                    dbc.Label("Longitude", className="fw-bold small me-2"),
+                                    dbc.Label("Longitude", className="fw-bold small me-2 mb-0"),
                                     html.I(className="bi bi-question-circle-fill text-muted", id="help-lon", style={"cursor": "help", "fontSize": "0.9rem"}),
                                     dbc.Tooltip(
                                         "Coordenada de longitude. Preenchida automaticamente ao selecionar a cidade.",
@@ -225,7 +242,15 @@ def get_tab1_layout():
     download_card = dbc.Card(
         [
             dbc.CardHeader(
-                "Exportar",
+                html.Div([
+                    html.Span("Exportar", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-export", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Salvar a planilha para usos futuros. Não é necessário exportar para continuar usando as funcionalidades nesta sessão.",
+                        target="help-export",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -532,15 +557,19 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
         try:
             if filename.endswith('.xlsx'):
                 df = pd.read_excel(io.BytesIO(decoded))
-                # Ensure columns match expectations, or just allow loose structure but warn?
-                # For now, let's just load it. If columns mismatch, the table will show them but might look weird.
-                # Ideally we align with expected columns.
-                return df.to_json(date_format='iso', orient='split'), False, no_update
+            elif filename.endswith('.csv'):
+                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
             else:
-                return no_update, True, "O arquivo deve ser um Excel (.xlsx)."
+                return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv)."
+
+            # Normalize "Produto" column if it exists
+            if "Produto" in df.columns:
+                 df["Produto"] = df["Produto"].astype(str).str.title()
+
+            return df.to_json(date_format='iso', orient='split'), False, no_update
         except Exception as e:
             print(f"Error processing file: {e}")
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um Excel válido."
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo válido."
 
     # Add Row
     if trigger_id == 'btn-add-row':
@@ -553,8 +582,12 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
              return no_update, True, "Preencha Produto, Peso e Cidade para adicionar."
 
         try:
+            # Normalize Product Name (Title Case)
+            # Use title() which capitalizes first letter of each word
+            prod_val_normalized = str(prod_val).title()
+
             new_row_data = {
-                'Produto': prod_val,
+                'Produto': prod_val_normalized,
                 'Peso (Kg)': peso_val,
                 'Cidade': cidade_val,
                 'Latitude': lat_val,
@@ -575,6 +608,11 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                 return no_update, no_update, no_update
 
             df = pd.DataFrame(table_data)
+
+            # Normalize "Produto" column on edit
+            if "Produto" in df.columns:
+                 df["Produto"] = df["Produto"].astype(str).str.title()
+
             # Ensure proper JSON structure for store
             return df.to_json(date_format='iso', orient='split'), False, no_update
         except Exception as e:
