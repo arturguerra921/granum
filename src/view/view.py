@@ -213,6 +213,41 @@ def get_tab1_layout():
     # Initial Empty DataFrame
     initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
 
+    # Metrics Section
+    metrics_section = dbc.Row(
+        [
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.H6("Total Peso (Kg)", className="text-muted small text-uppercase fw-bold mb-2"),
+                            html.H3(id="metric-total-weight", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                        ],
+                        className="d-flex flex-column align-items-center justify-content-center py-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "8px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.H6("Produtos Diferentes", className="text-muted small text-uppercase fw-bold mb-2"),
+                            html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                        ],
+                        className="d-flex flex-column align-items-center justify-content-center py-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "8px"}
+                ),
+                width=6
+            ),
+        ],
+        className="mt-24 g-3" # Margin top and gutter
+    )
+
     data_table_card = dbc.Card(
         [
             dbc.CardHeader(
@@ -258,7 +293,8 @@ def get_tab1_layout():
                             )
                         ]),
                         color="primary"
-                    )
+                    ),
+                    metrics_section
                 ],
                 className="card-body-custom"
             ),
@@ -498,23 +534,40 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 @app.callback(
     Output('editable-table', 'data'),
     Output('editable-table', 'columns'),
+    Output('metric-total-weight', 'children'),
+    Output('metric-unique-products', 'children'),
     [Input('stored-data', 'data'),
      Input('main-tabs', 'active_tab')] # Add this to force trigger on tab switch
 )
 def update_table_view(stored_data, active_tab):
     if active_tab != 'tab-input':
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     if stored_data is None:
-        return no_update, no_update
+        return no_update, no_update, "0", "0"
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
         columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
-        return df.to_dict('records'), columns
+
+        # Calculate metrics
+        total_weight = 0
+        unique_products = 0
+
+        if not df.empty:
+            # Ensure weight is numeric, coercing errors to NaN and filling with 0
+            if "Peso (Kg)" in df.columns:
+                total_weight = pd.to_numeric(df["Peso (Kg)"], errors='coerce').fillna(0).sum()
+
+            if "Produto" in df.columns:
+                unique_products = df["Produto"].nunique()
+
+        formatted_weight = f"{total_weight:,.2f}"
+
+        return df.to_dict('records'), columns, formatted_weight, str(unique_products)
     except Exception as e:
         print(f"Error rendering table: {e}")
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
 # 3. Download
 @app.callback(
