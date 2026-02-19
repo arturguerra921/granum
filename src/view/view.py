@@ -124,21 +124,43 @@ def get_tab1_layout():
                     dbc.Row([
                         dbc.Col(
                             [
-                                dbc.Label("Produto", className="fw-bold small"),
-                                dbc.Input(id="input-produto", type="text", placeholder="Ex: Arroz", className="mb-16")
+                                html.Div([
+                                    dbc.Label("Produto", className="fw-bold small me-2"),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-produto", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    dbc.Tooltip(
+                                        "Nome do produto a ser transportado (ex: Soja, Milho). O sistema sugerirá produtos já cadastrados.",
+                                        target="help-produto",
+                                    ),
+                                ], className="d-flex align-items-center mb-1"),
+                                dbc.Input(id="input-produto", type="text", placeholder="Ex: Arroz", list="list-suggested-products", className="mb-16"),
+                                html.Datalist(id="list-suggested-products", children=[])
                             ],
                             width=6
                         ),
                         dbc.Col(
                             [
-                                dbc.Label("Peso (Kg)", className="fw-bold small"),
+                                html.Div([
+                                    dbc.Label("Peso (Kg)", className="fw-bold small me-2"),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    dbc.Tooltip(
+                                        "Peso total da carga em quilogramas.",
+                                        target="help-peso",
+                                    ),
+                                ], className="d-flex align-items-center mb-1"),
                                 dbc.Input(id="input-peso", type="number", placeholder="Ex: 100", className="mb-16")
                             ],
                             width=6
                         ),
                         dbc.Col(
                             [
-                                dbc.Label("Cidade", className="fw-bold small"),
+                                html.Div([
+                                    dbc.Label("Cidade", className="fw-bold small me-2"),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-cidade", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    dbc.Tooltip(
+                                        "Selecione a cidade de origem/destino. Digite para filtrar as opções.",
+                                        target="help-cidade",
+                                    ),
+                                ], className="d-flex align-items-center mb-1"),
                                 dcc.Dropdown(
                                     id="input-cidade",
                                     options=[],
@@ -151,14 +173,28 @@ def get_tab1_layout():
                         ),
                         dbc.Col(
                             [
-                                dbc.Label("Latitude", className="fw-bold small"),
+                                html.Div([
+                                    dbc.Label("Latitude", className="fw-bold small me-2"),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lat", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    dbc.Tooltip(
+                                        "Coordenada de latitude. Preenchida automaticamente ao selecionar a cidade.",
+                                        target="help-lat",
+                                    ),
+                                ], className="d-flex align-items-center mb-1"),
                                 dbc.Input(id="input-lat", type="number", placeholder="Lat", className="mb-16", disabled=True)
                             ],
                             width=5
                         ),
                         dbc.Col(
                             [
-                                dbc.Label("Longitude", className="fw-bold small"),
+                                html.Div([
+                                    dbc.Label("Longitude", className="fw-bold small me-2"),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lon", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    dbc.Tooltip(
+                                        "Coordenada de longitude. Preenchida automaticamente ao selecionar a cidade.",
+                                        target="help-lon",
+                                    ),
+                                ], className="d-flex align-items-center mb-1"),
                                 dbc.Input(id="input-lon", type="number", placeholder="Lon", className="mb-16", disabled=True)
                             ],
                             width=5
@@ -596,6 +632,26 @@ def update_metrics(stored_data):
     except Exception as e:
         print(f"Error calculating metrics: {e}")
         return {'weight': 0, 'count': 0}
+
+# 2.2 Product Suggestions (Datalist)
+@app.callback(
+    Output('list-suggested-products', 'children'),
+    Input('stored-data', 'data')
+)
+def update_product_suggestions(stored_data):
+    if stored_data is None:
+        return []
+
+    try:
+        df = pd.read_json(io.StringIO(stored_data), orient='split')
+        if "Produto" in df.columns:
+            # Get unique products, drop None/NaN, sort
+            products = sorted(df["Produto"].dropna().unique().astype(str).tolist())
+            return [html.Option(value=p) for p in products]
+        return []
+    except Exception as e:
+        print(f"Error updating product suggestions: {e}")
+        return []
 
 # Client-side callback for animating metrics
 app.clientside_callback(
