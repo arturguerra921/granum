@@ -12,6 +12,8 @@ try:
     DATA_DIR = os.path.join(os.path.dirname(__file__), 'assets', 'data')
     MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
     ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
+    BASE_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Base.xlsx')
+    MODELO_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Modelo.xlsx')
 
     df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
     df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
@@ -73,6 +75,7 @@ navbar = dbc.Navbar(
 tabs = dbc.Tabs(
     [
         dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
+        dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
     ],
@@ -82,7 +85,6 @@ tabs = dbc.Tabs(
 )
 
 # 3. Tab 1 Content (Input)
-# Defined as a function to ensure fresh instances if needed, though Dash handles ID reuse fine
 def get_tab1_layout():
     # Upload Card
     upload_card = dbc.Card(
@@ -308,6 +310,54 @@ def get_tab1_layout():
                         [
                             html.Div(
                                 [
+                                    html.I(className="bi bi-bank2 fs-1 me-3", style={"color": "#FFC107"}), # Warning/Yellow color
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Públicas", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-public", children="0", className="mb-0", style={"color": "#FFC107"})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-buildings-fill fs-1 me-3", style={"color": "#6C757D"}), # Secondary/Gray color
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Privadas", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-private", children="0", className="mb-0", style={"color": "#6C757D"})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
                                     html.I(className="bi bi-tags-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
                                     html.Div(
                                         [
@@ -385,19 +435,6 @@ def get_tab1_layout():
         style={"minHeight": "600px"} # Increased min-height to ensure space
     )
 
-    # Error Modal
-    error_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
-            dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
-            dbc.ModalFooter(
-                dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
-            ),
-        ],
-        id="error-modal",
-        is_open=False,
-    )
-
     return html.Div([
         dbc.Row(
             [
@@ -412,12 +449,269 @@ def get_tab1_layout():
                 dbc.Col(data_table_card, width=12, lg=9, className="mb-24"),
             ]
         ),
-        error_modal
     ])
+
+# 4. Tab Armazéns Content
+def get_tab_armazens_layout():
+    # Card 1: Load
+    card_load_restore = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Visualizar Base",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Button("Puxar da Base", id="btn-load-base", className="btn-primary-custom mb-2 w-100"),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom mb-3"
+    )
+
+    # Card 2: Update and Save
+    card_update_save = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Gerenciar Base",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Button("Atualizar a Base", id="btn-update-base", color="info", className="w-100 mb-2 text-white", style={"backgroundColor": "#17a2b8", "borderColor": "#17a2b8"}),
+                    # Upload Component (Initially Hidden)
+                    html.Div(
+                        id="upload-update-container",
+                        children=[
+                            dcc.Upload(
+                                id='upload-update-base',
+                                children=html.Div([
+                                    html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                                    html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                    html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                    html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                ]),
+                                className="upload-box",
+                                multiple=False,
+                                accept='.csv'
+                            )
+                        ],
+                        style={"display": "none"}
+                    ),
+
+                    # Salvar na base (Initially Hidden)
+                    dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100"
+    )
+
+    # Metrics Section for Armazéns
+    armazens_metrics_section = dbc.Row(
+        [
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-building-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Armazenadoras", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
+                                    html.Div(
+                                        [
+                                            html.H6("Capacidade Estática (t)", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-capacity", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+        ],
+        className="mt-auto pt-3 g-3"
+    )
+
+    # Armazens Table Card
+    armazens_table_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Tabela de Armazéns Credenciados",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                     dbc.Spinner(
+                        html.Div(id='table-armazens-container', children=[
+                            dash_table.DataTable(
+                                id='table-armazens',
+                                data=[],
+                                columns=[],
+                                editable=False,
+                                row_deletable=False,
+                                filter_action='native',
+                                page_size=10,
+                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                style_cell={
+                                    'textAlign': 'left',
+                                    'fontFamily': "'Roboto', sans-serif",
+                                    'padding': '12px',
+                                    'fontSize': '0.9rem',
+                                    'color': UNB_THEME['UNB_GRAY_DARK']
+                                },
+                                style_header={
+                                    'backgroundColor': '#F8F9FA',
+                                    'color': UNB_THEME['UNB_BLUE'],
+                                    'fontWeight': 'bold',
+                                    'border': 'none',
+                                    'padding': '12px',
+                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
+                                },
+                                style_data={
+                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
+                                },
+                                style_data_conditional=[
+                                    {
+                                        'if': {'row_index': 'odd'},
+                                        'backgroundColor': '#f8f9fa'
+                                    }
+                                ]
+                            )
+                        ], className="h-100"),
+                        color="primary"
+                    ),
+                    armazens_metrics_section
+                ],
+                className="card-body-custom d-flex flex-column"
+            ),
+        ],
+        className="card-custom h-100",
+        style={"minHeight": "600px"}
+    )
+
+    # Modals
+    tutorial_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Como Atualizar a Base"), close_button=True),
+            dbc.ModalBody(
+                [
+                    html.P("Siga os passos abaixo para atualizar a base de armazéns:"),
+                    html.Ol([
+                        html.Li([
+                            "Acesse o link: ",
+                            html.A("Consulta Conab", href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
+                        ]),
+                        html.Li("Marque apenas a opção 'Armazéns Credenciados'."),
+                        html.Li("Deixe os outros campos em branco."),
+                        html.Li("Preencha o código de segurança e clique em 'Consultar'."),
+                        html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
+                        html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela.")
+                    ]),
+                    html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button("Entendi", id="close-modal-tutorial", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="modal-tutorial",
+        size="lg",
+        is_open=False,
+    )
+
+    confirm_save_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Confirmar Salvamento"), close_button=True),
+            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. O aplicativo será reiniciado e todo seu progresso será perdido. Caso tenha feito trabalho na página de entrada de dados, volte, salve a planilha para fazer o upload novamente."),
+            dbc.ModalFooter(
+                [
+                    dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
+                    dbc.Button("Confirmar e Salvar", id="confirm-save", color="danger", n_clicks=0),
+                ]
+            ),
+        ],
+        id="modal-confirm-save",
+        is_open=False,
+    )
+
+    return html.Div([
+        dbc.Row(
+            [
+                dbc.Col([
+                    card_load_restore,
+                    card_update_save
+                ], width=12, lg=3, className="mb-24"),
+                dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
+            ]
+        ),
+        tutorial_modal,
+        confirm_save_modal
+    ])
+
+
+# Error Modal (Global)
+error_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
+        dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
+        dbc.ModalFooter(
+            dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
+        ),
+    ],
+    id="error-modal",
+    is_open=False,
+)
 
 # --- App Layout Assembly ---
 
-content_container = html.Div(id="tabs-content")
+# Pre-render all tab layouts to ensure IDs exist for callbacks
+tab1_layout = get_tab1_layout()
+tab2_layout = get_tab_armazens_layout()
+tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
+tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
+
+content_container = html.Div(
+    [
+        html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
+        html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
+        html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
+        html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
+    ],
+    id="tabs-content"
+)
+
 initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
 
 app.layout = html.Div(
@@ -429,7 +723,9 @@ app.layout = html.Div(
                 content_container,
                 dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
                 dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
-                dcc.Download(id='download-dataframe-xlsx')
+                dcc.Store(id='store-armazens'), # New Store for Armazéns
+                dcc.Download(id='download-dataframe-xlsx'),
+                error_modal
             ],
             fluid=True,
             className="px-4 pb-48"
@@ -445,17 +741,22 @@ app.layout = html.Div(
 # --- Callbacks ---
 
 @app.callback(
-    Output('tabs-content', 'children'),
-    Input('main-tabs', 'active_tab')
+    [Output("tab-input-container", "style"),
+     Output("tab-armazens-container", "style"),
+     Output("tab-config-container", "style"),
+     Output("tab-results-container", "style")],
+    Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
     if active_tab == 'tab-input':
-        return get_tab1_layout()
+        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+    elif active_tab == 'tab-armazens':
+        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-config':
-        return html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
+        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
     elif active_tab == 'tab-results':
-        return html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
-    return html.Div()
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
+    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
@@ -564,7 +865,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             # Normalize "Produto" column if it exists
             if "Produto" in df.columns:
-                 df["Produto"] = df["Produto"].astype(str).str.title()
+                 df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
             return df.to_json(date_format='iso', orient='split'), False, no_update
         except Exception as e:
@@ -611,7 +912,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             # Normalize "Produto" column on edit
             if "Produto" in df.columns:
-                 df["Produto"] = df["Produto"].astype(str).str.title()
+                 df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
             # Ensure proper JSON structure for store
             return df.to_json(date_format='iso', orient='split'), False, no_update
@@ -762,6 +1063,229 @@ def download_data(n_clicks, stored_data):
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
     return dcc.send_data_frame(df.to_excel, "dados_unb_editados.xlsx", index=False)
+
+
+# --- Armazéns Callbacks ---
+
+# 4. Load Data to Store (and Handle Restore)
+@app.callback(
+    Output('store-armazens', 'data'),
+    Output('error-modal', 'is_open', allow_duplicate=True),
+    Output('modal-body-content', 'children', allow_duplicate=True),
+    Output('btn-save-base', 'style'), # New output for Save button visibility
+    [Input('main-tabs', 'active_tab'),
+     Input('btn-load-base', 'n_clicks'),
+     Input('upload-update-base', 'contents'),
+     Input('table-armazens', 'data_timestamp')],
+    [State('store-armazens', 'data'),
+     State('table-armazens', 'data'),
+     State('upload-update-base', 'filename')],
+    prevent_initial_call=True
+)
+def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
+                         stored_data, table_data, upload_filename):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+         # Initial Load if tab is active
+        if active_tab == 'tab-armazens' and not stored_data:
+             try:
+                df = pd.read_excel(BASE_ARMAZENS_PATH)
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+             except Exception:
+                return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Load from Base
+    if trigger_id == 'main-tabs' and active_tab == 'tab-armazens':
+        # Only load if store is empty to preserve session edits, or if we want to force reload?
+        # Requirement: "load automatico". If user edited and switched tabs, we should probably keep edits.
+        # But if it's the first load, we need data.
+        if not stored_data:
+            try:
+                df = pd.read_excel(BASE_ARMAZENS_PATH)
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+            except Exception:
+                return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update # Keep current state
+
+    if trigger_id == 'btn-load-base':
+        try:
+            df = pd.read_excel(BASE_ARMAZENS_PATH)
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+        except Exception:
+            return no_update, True, "Erro ao carregar a base de dados.", no_update
+
+    # Update from Upload (CSV)
+    if trigger_id == 'upload-update-base' and upload_contents:
+        content_type, content_string = upload_contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        try:
+            # Conab CSV Parsing Rules:
+            # 1. Encoding: iso-8859-1
+            # 2. Separator: ;
+            # 3. Skip Rows: 1 (Header is on line 2, index 1)
+            # 4. Trailing Delimiter: Drop last column
+
+            # Decode using iso-8859-1
+            decoded_str = decoded.decode('iso-8859-1')
+
+            df = pd.read_csv(
+                io.StringIO(decoded_str),
+                sep=';',
+                encoding='iso-8859-1',
+                skiprows=1,
+                index_col=False
+            )
+
+            # Drop the last column if it's completely empty (result of trailing delimiter)
+            # The last column is usually 'Unnamed: X' due to the trailing delimiter
+            if not df.empty:
+                # Drop columns that are entirely null (fixes trailing delimiter issue)
+                df = df.dropna(axis=1, how='all')
+
+                # Also drop if the last column is explicitly unnamed (fallback)
+                if not df.empty and "Unnamed" in str(df.columns[-1]):
+                     df = df.iloc[:, :-1]
+
+            if df is not None:
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}
+            else:
+                return no_update, True, "Arquivo vazio ou inválido.", no_update
+
+        except Exception as e:
+            print(f"Error reconstruction: {e}")
+            return no_update, True, f"Erro ao processar arquivo: {e}", no_update
+
+    # Table Edits (should be disabled now but keeping fallback logic)
+    if trigger_id == 'table-armazens':
+        if table_data:
+             df = pd.DataFrame(table_data)
+             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
+
+    return no_update, no_update, no_update, no_update
+
+# 5. Render Armazéns Table and Metrics
+@app.callback(
+    Output('table-armazens', 'data'),
+    Output('table-armazens', 'columns'),
+    Output('metric-armazens-count', 'children'),
+    Output('metric-armazens-capacity', 'children'),
+    Output('metric-armazens-public', 'children'),
+    Output('metric-armazens-private', 'children'),
+    Input('store-armazens', 'data')
+)
+def update_armazens_table_view(stored_data):
+    if not stored_data:
+        return [], [], "0", "0.00", "0", "0"
+
+    try:
+        df = pd.read_json(io.StringIO(stored_data), orient='split')
+        columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
+
+        # Calculate Metrics
+        count = len(df)
+
+        # Try to find capacity column (case insensitive partial match)
+        capacity = 0
+        cap_col = next((c for c in df.columns if 'cap' in str(c).lower() or 'ton' in str(c).lower()), None)
+
+        if cap_col:
+            # Clean and convert to numeric
+            try:
+                # Force to string first to handle mixed types or already parsed floats
+                series_str = df[cap_col].astype(str)
+
+                # Check if it looks like Brazilian format (1.000,00)
+                # Remove thousands separator (.) and replace decimal separator (,) with (.)
+                series_clean = series_str.str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+
+                capacity = pd.to_numeric(series_clean, errors='coerce').sum()
+            except:
+                capacity = 0
+
+        # Calculate Public vs Private
+        # Requirement: Public = "Armazenador" == "COMPANHIA NACIONAL DE ABASTECIMENTO"
+        # Private = All others
+        public_count = 0
+        private_count = 0
+
+        armazenador_col = next((c for c in df.columns if 'armazenador' in str(c).lower()), None)
+        if armazenador_col:
+             public_mask = df[armazenador_col].astype(str).str.upper() == "COMPANHIA NACIONAL DE ABASTECIMENTO"
+             public_count = public_mask.sum()
+             private_count = len(df) - public_count
+
+        # Format for display
+        count_str = f"{count}"
+        capacity_str = f"{capacity:,.2f}"
+        public_str = f"{public_count}"
+        private_str = f"{private_count}"
+
+        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str
+    except Exception:
+        return [], [], "0", "0.00", "0", "0"
+
+# 6. Save Confirmation Modal
+@app.callback(
+    Output("modal-confirm-save", "is_open"),
+    [Input("btn-save-base", "n_clicks"),
+     Input("confirm-save", "n_clicks"),
+     Input("cancel-save", "n_clicks")],
+    [State("modal-confirm-save", "is_open"),
+     State('store-armazens', 'data')]
+)
+def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == "btn-save-base":
+        return True
+
+    if trigger_id == "cancel-save":
+        return False
+
+    if trigger_id == "confirm-save":
+        # Execute Save
+        if stored_data:
+            try:
+                df = pd.read_json(io.StringIO(stored_data), orient='split')
+                df.to_excel(BASE_ARMAZENS_PATH, index=False)
+            except Exception as e:
+                print(f"Error saving: {e}")
+        return False
+
+    return is_open
+
+
+# 8. Tutorial Modal and Upload Visibility
+@app.callback(
+    Output("modal-tutorial", "is_open"),
+    Output("upload-update-container", "style"),
+    [Input("btn-update-base", "n_clicks"),
+     Input("close-modal-tutorial", "n_clicks")],
+    [State("modal-tutorial", "is_open")]
+)
+def toggle_tutorial_modal(n_update, n_close, is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open, {"display": "none"}
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == "btn-update-base":
+        return True, {"display": "block"} # Open modal, SHOW upload
+
+    if trigger_id == "close-modal-tutorial":
+        return False, {"display": "block"} # Close modal, keep upload shown
+
+    return is_open, {"display": "none"}
 
 
 def view():
