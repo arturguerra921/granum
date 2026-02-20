@@ -405,7 +405,7 @@ def get_tab1_layout():
 
 # 4. Tab Armazéns Content
 def get_tab_armazens_layout():
-    # Card 1: Load and Restore
+    # Card 1: Load
     card_load_restore = dbc.Card(
         [
             dbc.CardHeader(
@@ -415,14 +415,6 @@ def get_tab_armazens_layout():
             dbc.CardBody(
                 [
                     dbc.Button("Puxar da Base", id="btn-load-base", className="btn-primary-custom mb-2 w-100"),
-                    dbc.Button(
-                        "Voltar planilhar da base para os padrões originais",
-                        id="btn-restore-base",
-                        color="danger",
-                        size="sm",
-                        className="w-100 mb-3",
-                        style={"fontSize": "0.75rem", "backgroundColor": "#dc3545", "borderColor": "#dc3545"}
-                    ),
                 ],
                 className="card-body-custom"
             ),
@@ -447,19 +439,12 @@ def get_tab_armazens_layout():
                             dcc.Upload(
                                 id='upload-update-base',
                                 children=html.Div([
-                                    html.Div("📂", style={"fontSize": "1.5rem"}),
-                                    html.Span('Arraste ou Selecione (CSV)', style={"fontSize": "0.8rem"})
+                                    html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                                    html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                    html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                    html.Div("Formatos: .csv", className="text-muted small mt-2")
                                 ]),
-                                style={
-                                    'width': '100%',
-                                    'height': '60px',
-                                    'lineHeight': '60px',
-                                    'borderWidth': '1px',
-                                    'borderStyle': 'dashed',
-                                    'borderRadius': '5px',
-                                    'textAlign': 'center',
-                                    'marginBottom': '10px'
-                                },
+                                className="upload-box",
                                 multiple=False,
                                 accept='.csv'
                             )
@@ -474,6 +459,61 @@ def get_tab_armazens_layout():
             ),
         ],
         className="card-custom h-100"
+    )
+
+    # Metrics Section for Armazéns
+    armazens_metrics_section = dbc.Row(
+        [
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-building-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Armazenadoras", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
+                                    html.Div(
+                                        [
+                                            html.H6("Capacidade Estática (t)", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-capacity", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+        ],
+        className="mt-auto pt-3 g-3"
     )
 
     # Armazens Table Card
@@ -491,7 +531,7 @@ def get_tab_armazens_layout():
                                 id='table-armazens',
                                 data=[],
                                 columns=[],
-                                editable=False, # Changed to False
+                                editable=False,
                                 row_deletable=False,
                                 page_size=10,
                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
@@ -523,8 +563,9 @@ def get_tab_armazens_layout():
                         ], className="h-100"),
                         color="primary"
                     ),
+                    armazens_metrics_section
                 ],
-                className="card-body-custom"
+                className="card-body-custom d-flex flex-column"
             ),
         ],
         className="card-custom h-100",
@@ -576,21 +617,6 @@ def get_tab_armazens_layout():
         is_open=False,
     )
 
-    confirm_restore_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Confirmar Restauração"), close_button=True),
-            dbc.ModalBody("Esta ação irá descartar todas as alterações e restaurar a base original a partir do modelo padrão. Deseja continuar?"),
-            dbc.ModalFooter(
-                [
-                    dbc.Button("Cancelar", id="cancel-restore", className="me-2", n_clicks=0),
-                    dbc.Button("Confirmar", id="confirm-restore", color="danger", n_clicks=0),
-                ]
-            ),
-        ],
-        id="modal-confirm-restore",
-        is_open=False,
-    )
-
     return html.Div([
         dbc.Row(
             [
@@ -602,8 +628,7 @@ def get_tab_armazens_layout():
             ]
         ),
         tutorial_modal,
-        confirm_save_modal,
-        confirm_restore_modal
+        confirm_save_modal
     ])
 
 
@@ -1001,7 +1026,6 @@ def download_data(n_clicks, stored_data):
     Output('btn-save-base', 'style'), # New output for Save button visibility
     [Input('main-tabs', 'active_tab'),
      Input('btn-load-base', 'n_clicks'),
-     Input('confirm-restore', 'n_clicks'),
      Input('upload-update-base', 'contents'),
      Input('table-armazens', 'data_timestamp')],
     [State('store-armazens', 'data'),
@@ -1009,7 +1033,7 @@ def download_data(n_clicks, stored_data):
      State('upload-update-base', 'filename')],
     prevent_initial_call=True
 )
-def manage_armazens_data(active_tab, n_load, n_restore_confirm, upload_contents, timestamp,
+def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
                          stored_data, table_data, upload_filename):
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -1044,49 +1068,38 @@ def manage_armazens_data(active_tab, n_load, n_restore_confirm, upload_contents,
         except Exception:
             return no_update, True, "Erro ao carregar a base de dados.", no_update
 
-    # Restore from Model (Confirmed)
-    if trigger_id == 'confirm-restore':
-        try:
-            # Overwrite Base file with Model file
-            df_model = pd.read_excel(MODELO_ARMAZENS_PATH)
-            df_model.to_excel(BASE_ARMAZENS_PATH, index=False)
-            return df_model.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
-        except Exception as e:
-            print(f"Error restoring base: {e}")
-            return no_update, True, f"Erro ao restaurar a base: {e}", no_update
-
     # Update from Upload (CSV)
     if trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
 
         try:
-            # Try parsing CSV with different separators
-            try:
-                # Try default (comma)
-                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            # Conab CSV Parsing Rules:
+            # 1. Encoding: iso-8859-1
+            # 2. Separator: ;
+            # 3. Skip Rows: 1 (Header is on line 2, index 1)
+            # 4. Trailing Delimiter: Drop last column
 
-                # If only 1 column, maybe it's semicolon separated?
-                if len(df.columns) <= 1:
-                     try:
-                        df_semicolon = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep=';')
-                        if len(df_semicolon.columns) > 1:
-                            df = df_semicolon
-                     except:
-                        pass # Stick with comma result if semicolon fails
-            except:
-                try:
-                    # Try semicolon (common in Brazil)
-                    df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep=';')
-                except Exception as e:
-                    print(f"CSV parse failed: {e}")
-                    return no_update, True, "Erro ao ler o arquivo CSV. Verifique a formatação.", no_update
+            # Decode using iso-8859-1
+            decoded_str = decoded.decode('iso-8859-1')
+
+            df = pd.read_csv(
+                io.StringIO(decoded_str),
+                sep=';',
+                encoding='iso-8859-1',
+                skiprows=1
+            )
+
+            # Drop the last column if it's completely empty (result of trailing delimiter)
+            if not df.empty and df.iloc[:, -1].isnull().all():
+                 df = df.iloc[:, :-1]
+
+            # Also common for pandas to name the last empty column "Unnamed: X"
+            # Double check if last column is unnamed and empty
+            if not df.empty and "Unnamed" in str(df.columns[-1]):
+                 df = df.iloc[:, :-1]
 
             if df is not None:
-                # Basic validation or cleaning if needed?
-                # User says "O sistema já faz as edições necessárias para funcionar a partir do modelo do site da Conab"
-                # Conab CSVs might have headers on first row usually.
-
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}
             else:
                 return no_update, True, "Arquivo vazio ou inválido.", no_update
@@ -1104,22 +1117,50 @@ def manage_armazens_data(active_tab, n_load, n_restore_confirm, upload_contents,
 
     return no_update, no_update, no_update, no_update
 
-# 5. Render Armazéns Table
+# 5. Render Armazéns Table and Metrics
 @app.callback(
     Output('table-armazens', 'data'),
     Output('table-armazens', 'columns'),
+    Output('metric-armazens-count', 'children'),
+    Output('metric-armazens-capacity', 'children'),
     Input('store-armazens', 'data')
 )
 def update_armazens_table_view(stored_data):
     if not stored_data:
-        return [], []
+        return [], [], "0", "0.00"
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
         columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
-        return df.to_dict('records'), columns
+
+        # Calculate Metrics
+        count = len(df)
+
+        # Try to find capacity column (case insensitive partial match)
+        capacity = 0
+        cap_col = next((c for c in df.columns if 'cap' in str(c).lower() or 'ton' in str(c).lower()), None)
+
+        if cap_col:
+            # Clean and convert to numeric
+            try:
+                # Force to string first to handle mixed types or already parsed floats
+                series_str = df[cap_col].astype(str)
+
+                # Check if it looks like Brazilian format (1.000,00)
+                # Remove thousands separator (.) and replace decimal separator (,) with (.)
+                series_clean = series_str.str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+
+                capacity = pd.to_numeric(series_clean, errors='coerce').sum()
+            except:
+                capacity = 0
+
+        # Format for display
+        count_str = f"{count}"
+        capacity_str = f"{capacity:,.2f}"
+
+        return df.to_dict('records'), columns, count_str, capacity_str
     except Exception:
-        return [], []
+        return [], [], "0", "0.00"
 
 # 6. Save Confirmation Modal
 @app.callback(
@@ -1155,28 +1196,6 @@ def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data):
 
     return is_open
 
-# 7. Restore Confirmation Modal
-@app.callback(
-    Output("modal-confirm-restore", "is_open"),
-    [Input("btn-restore-base", "n_clicks"),
-     Input("cancel-restore", "n_clicks"),
-     Input("confirm-restore", "n_clicks")],
-    [State("modal-confirm-restore", "is_open")]
-)
-def toggle_restore_modal(n_restore, n_cancel, n_confirm, is_open):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return is_open
-
-    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-    if trigger_id == "btn-restore-base":
-        return True
-
-    if trigger_id == "cancel-restore" or trigger_id == "confirm-restore":
-        return False
-
-    return is_open
 
 # 8. Tutorial Modal and Upload Visibility
 @app.callback(
