@@ -453,7 +453,7 @@ def get_tab_armazens_layout():
                     ),
 
                     # Salvar na base (Initially Hidden)
-                    dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100", style={"display": "none"}),
+                    dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
                 ],
                 className="card-body-custom"
             ),
@@ -605,7 +605,7 @@ def get_tab_armazens_layout():
     confirm_save_modal = dbc.Modal(
         [
             dbc.ModalHeader(dbc.ModalTitle("Confirmar Salvamento"), close_button=True),
-            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. Deseja continuar?"),
+            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. O aplicativo será reiniciado e todo seu progresso será perdido. Caso tenha feito trabalho na página de entrada de dados, volte, salve a planilha para fazer o upload novamente."),
             dbc.ModalFooter(
                 [
                     dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
@@ -1087,17 +1087,19 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
                 io.StringIO(decoded_str),
                 sep=';',
                 encoding='iso-8859-1',
-                skiprows=1
+                skiprows=1,
+                index_col=False
             )
 
             # Drop the last column if it's completely empty (result of trailing delimiter)
-            if not df.empty and df.iloc[:, -1].isnull().all():
-                 df = df.iloc[:, :-1]
+            # The last column is usually 'Unnamed: X' due to the trailing delimiter
+            if not df.empty:
+                # Drop columns that are entirely null (fixes trailing delimiter issue)
+                df = df.dropna(axis=1, how='all')
 
-            # Also common for pandas to name the last empty column "Unnamed: X"
-            # Double check if last column is unnamed and empty
-            if not df.empty and "Unnamed" in str(df.columns[-1]):
-                 df = df.iloc[:, :-1]
+                # Also drop if the last column is explicitly unnamed (fallback)
+                if not df.empty and "Unnamed" in str(df.columns[-1]):
+                     df = df.iloc[:, :-1]
 
             if df is not None:
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}
