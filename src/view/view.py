@@ -685,9 +685,9 @@ def get_tab_armazens_layout():
         dbc.Row(
             [
                 dbc.Col([
-                    card_load_restore,
-                    card_update_save
-                ], width=12, lg=3, className="mb-24"),
+                    html.Div(card_load_restore, className="mb-3"),
+                    html.Div(card_update_save, className="flex-grow-1 h-100")
+                ], width=12, lg=3, className="mb-24 d-flex flex-column h-100"),
                 dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
             ]
         ),
