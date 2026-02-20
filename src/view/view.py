@@ -12,8 +12,7 @@ try:
     DATA_DIR = os.path.join(os.path.dirname(__file__), 'assets', 'data')
     MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
     ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
-    BASE_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Base.xlsx')
-    MODELO_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Modelo.xlsx')
+    BASE_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Base.csv')
 
     df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
     df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
@@ -310,54 +309,6 @@ def get_tab1_layout():
                         [
                             html.Div(
                                 [
-                                    html.I(className="bi bi-bank2 fs-1 me-3", style={"color": "#FFC107"}), # Warning/Yellow color
-                                    html.Div(
-                                        [
-                                            html.H6("Unidades Públicas", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-armazens-public", children="0", className="mb-0", style={"color": "#FFC107"})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-buildings-fill fs-1 me-3", style={"color": "#6C757D"}), # Secondary/Gray color
-                                    html.Div(
-                                        [
-                                            html.H6("Unidades Privadas", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-armazens-private", children="0", className="mb-0", style={"color": "#6C757D"})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
                                     html.I(className="bi bi-tags-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
                                     html.Div(
                                         [
@@ -457,7 +408,15 @@ def get_tab_armazens_layout():
     card_load_restore = dbc.Card(
         [
             dbc.CardHeader(
-                "Visualizar Base",
+                html.Div([
+                    html.Span("Visualizar Base", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-load-base", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Tabela automaticamente mostrada ao lado. Essa forma foi utilizada para evitar que sempre precise fazer upload dos armazéns, guardando no próprio aplicativo.",
+                        target="help-load-base",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -474,7 +433,15 @@ def get_tab_armazens_layout():
     card_update_save = dbc.Card(
         [
             dbc.CardHeader(
-                "Gerenciar Base",
+                html.Div([
+                    html.Span("Gerenciar Base", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-manage-base", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Isso guardará essa versão para os futuros usos do aplicativo, substituindo a base que hoje é carregada automaticamente.",
+                        target="help-manage-base",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -523,6 +490,54 @@ def get_tab_armazens_layout():
                                         [
                                             html.H6("Unidades Armazenadoras", className="text-muted small text-uppercase fw-bold mb-1"),
                                             html.H3(id="metric-armazens-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-bank2 fs-1 me-3", style={"color": "#FFC107"}), # Warning/Yellow color
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Armazenadoras Públicas", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-public", children="0", className="mb-0", style={"color": "#FFC107"})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-buildings-fill fs-1 me-3", style={"color": "#6C757D"}), # Secondary/Gray color
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Armazenadoras Privadas", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-private", children="0", className="mb-0", style={"color": "#6C757D"})
                                         ]
                                     )
                                 ],
@@ -1089,7 +1104,13 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
          # Initial Load if tab is active
         if active_tab == 'tab-armazens' and not stored_data:
              try:
-                df = pd.read_excel(BASE_ARMAZENS_PATH)
+                # Load CSV
+                df = pd.read_csv(BASE_ARMAZENS_PATH, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
+
+                # Drop trailing empty column if exists
+                if not df.empty and "Unnamed" in str(df.columns[-1]):
+                    df = df.iloc[:, :-1]
+
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
              except Exception:
                 return no_update, no_update, no_update, no_update
@@ -1104,7 +1125,13 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
         # But if it's the first load, we need data.
         if not stored_data:
             try:
-                df = pd.read_excel(BASE_ARMAZENS_PATH)
+                # Load CSV
+                df = pd.read_csv(BASE_ARMAZENS_PATH, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
+
+                # Drop trailing empty column if exists
+                if not df.empty and "Unnamed" in str(df.columns[-1]):
+                    df = df.iloc[:, :-1]
+
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception:
                 return no_update, no_update, no_update, no_update
@@ -1112,7 +1139,13 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
 
     if trigger_id == 'btn-load-base':
         try:
-            df = pd.read_excel(BASE_ARMAZENS_PATH)
+            # Load CSV
+            df = pd.read_csv(BASE_ARMAZENS_PATH, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
+
+            # Drop trailing empty column if exists
+            if not df.empty and "Unnamed" in str(df.columns[-1]):
+                df = df.iloc[:, :-1]
+
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
         except Exception:
             return no_update, True, "Erro ao carregar a base de dados.", no_update
@@ -1256,7 +1289,10 @@ def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data):
         if stored_data:
             try:
                 df = pd.read_json(io.StringIO(stored_data), orient='split')
-                df.to_excel(BASE_ARMAZENS_PATH, index=False)
+                # Save as CSV with header
+                with open(BASE_ARMAZENS_PATH, 'w', encoding='iso-8859-1') as f:
+                    f.write("Armazéns Credenciados e Habilitados\n")
+                    df.to_csv(f, sep=';', index=False, lineterminator='\n')
             except Exception as e:
                 print(f"Error saving: {e}")
         return False
