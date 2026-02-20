@@ -437,7 +437,7 @@ def get_tab_armazens_layout():
                     html.Span("Gerenciar Base", className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-manage-base", style={"cursor": "help", "fontSize": "0.9rem"}),
                     dbc.Tooltip(
-                        "Isso guardará essa versão para os futuros usos do aplicativo, substituindo a base que hoje é carregada automaticamente.",
+                        "Essa função guardará a nova versão que será enviada para os futuros usos do aplicativo, substituindo a base que hoje é carregada automaticamente.",
                         target="help-manage-base",
                         placement="right"
                     ),
@@ -669,7 +669,7 @@ def get_tab_armazens_layout():
     confirm_save_modal = dbc.Modal(
         [
             dbc.ModalHeader(dbc.ModalTitle("Confirmar Salvamento"), close_button=True),
-            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. O aplicativo será reiniciado e todo seu progresso será perdido. Caso tenha feito trabalho na página de entrada de dados, volte, salve a planilha para fazer o upload novamente."),
+            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. O aplicativo será reiniciado e todo seu progresso será perdido. Caso tenha feito trabalho na página de adição de produtos, volte e salve a planilha de produtos para fazer o upload novamente após a reinicialização."),
             dbc.ModalFooter(
                 [
                     dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
