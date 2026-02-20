@@ -750,12 +750,17 @@ def get_tab_prod_armazens_layout():
                                 },
                                 style_data={
                                     'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}",
-                                    'cursor': 'pointer'
+                                    'cursor': 'pointer',
+                                    'fontSize': '1.5rem', # Checkbox size
                                 },
                                 style_data_conditional=[
                                     {
                                         'if': {'row_index': 'odd'},
                                         'backgroundColor': '#f8f9fa'
+                                    },
+                                    {
+                                        'if': {'column_id': 'Produto'},
+                                        'fontSize': '0.9rem' # Product name size
                                     }
                                 ]
                             )
