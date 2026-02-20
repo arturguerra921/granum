@@ -24,7 +24,9 @@ dependencies = [
     "pandas",
     "openpyxl",
     "dash-bootstrap-components",
-    "gunicorn"
+    "gunicorn",
+    "lxml",
+    "xlrd"
 ]
 
 [project.scripts]

@@ -12,6 +12,8 @@ try:
     DATA_DIR = os.path.join(os.path.dirname(__file__), 'assets', 'data')
     MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
     ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
+    BASE_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Base.xlsx')
+    MODELO_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Modelo.xlsx')
 
     df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
     df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
@@ -73,6 +75,7 @@ navbar = dbc.Navbar(
 tabs = dbc.Tabs(
     [
         dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
+        dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
     ],
@@ -82,7 +85,6 @@ tabs = dbc.Tabs(
 )
 
 # 3. Tab 1 Content (Input)
-# Defined as a function to ensure fresh instances if needed, though Dash handles ID reuse fine
 def get_tab1_layout():
     # Upload Card
     upload_card = dbc.Card(
@@ -385,19 +387,6 @@ def get_tab1_layout():
         style={"minHeight": "600px"} # Increased min-height to ensure space
     )
 
-    # Error Modal
-    error_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
-            dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
-            dbc.ModalFooter(
-                dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
-            ),
-        ],
-        id="error-modal",
-        is_open=False,
-    )
-
     return html.Div([
         dbc.Row(
             [
@@ -412,12 +401,223 @@ def get_tab1_layout():
                 dbc.Col(data_table_card, width=12, lg=9, className="mb-24"),
             ]
         ),
-        error_modal
     ])
+
+# 4. Tab Armazéns Content
+def get_tab_armazens_layout():
+    # Management Card
+    management_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Gerenciamento da Base",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    # Puxar da base
+                    html.Div(
+                        [
+                            dbc.Button("Puxar da Base", id="btn-load-base", className="btn-primary-custom mb-2 w-100"),
+                            dbc.Button(
+                                "Voltar planilhar da base para os padrões originais",
+                                id="btn-restore-base",
+                                color="danger",
+                                size="sm",
+                                className="w-100 mb-3",
+                                style={"fontSize": "0.75rem"}
+                            ),
+                        ]
+                    ),
+
+                    # Reconstruir a base
+                    html.Div(
+                        [
+                            dbc.Button("Reconstruir a Base", id="btn-reconstruct-base", color="info", className="w-100 mb-2 text-white"),
+                            # Upload Component (Initially Hidden)
+                             html.Div(
+                                id="upload-reconstruct-container",
+                                children=[
+                                    dcc.Upload(
+                                        id='upload-reconstruct-base',
+                                        children=html.Div([
+                                            html.Div("📂", style={"fontSize": "1.5rem"}),
+                                            html.Span('Arraste ou Selecione', style={"fontSize": "0.8rem"})
+                                        ]),
+                                        style={
+                                            'width': '100%',
+                                            'height': '60px',
+                                            'lineHeight': '60px',
+                                            'borderWidth': '1px',
+                                            'borderStyle': 'dashed',
+                                            'borderRadius': '5px',
+                                            'textAlign': 'center',
+                                            'marginBottom': '10px'
+                                        },
+                                        multiple=False,
+                                        accept='.xls, .xlsx'
+                                    )
+                                ],
+                                style={"display": "none"}
+                             ),
+                        ]
+                    ),
+
+                    # Salvar na base
+                    html.Div(
+                        [
+                            dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100"),
+                        ]
+                    ),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100"
+    )
+
+    # Armazens Table Card
+    armazens_table_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Tabela de Armazéns Credenciados",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                     dbc.Spinner(
+                        html.Div(id='table-armazens-container', children=[
+                            dash_table.DataTable(
+                                id='table-armazens',
+                                data=[],
+                                columns=[],
+                                editable=True,
+                                row_deletable=True,
+                                page_size=10,
+                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                style_cell={
+                                    'textAlign': 'left',
+                                    'fontFamily': "'Roboto', sans-serif",
+                                    'padding': '12px',
+                                    'fontSize': '0.9rem',
+                                    'color': UNB_THEME['UNB_GRAY_DARK']
+                                },
+                                style_header={
+                                    'backgroundColor': '#F8F9FA',
+                                    'color': UNB_THEME['UNB_BLUE'],
+                                    'fontWeight': 'bold',
+                                    'border': 'none',
+                                    'padding': '12px',
+                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
+                                },
+                                style_data={
+                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
+                                },
+                                style_data_conditional=[
+                                    {
+                                        'if': {'row_index': 'odd'},
+                                        'backgroundColor': '#f8f9fa'
+                                    }
+                                ]
+                            )
+                        ], className="h-100"),
+                        color="primary"
+                    ),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100",
+        style={"minHeight": "600px"}
+    )
+
+    # Modals
+    tutorial_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Como Atualizar a Base"), close_button=True),
+            dbc.ModalBody(
+                [
+                    html.P("Siga os passos abaixo para atualizar a base de armazéns:"),
+                    html.Ol([
+                        html.Li([
+                            "Acesse o link: ",
+                            html.A("Consulta Conab", href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
+                        ]),
+                        html.Li("Marque apenas a opção 'Armazéns Credenciados'."),
+                        html.Li("Deixe os outros campos em branco."),
+                        html.Li("Preencha o código de segurança e clique em 'Consultar'."),
+                        html.Li("No final da página de resultados, clique no botão verde para exportar."),
+                        html.Li("Carregue o arquivo baixado na área que aparecerá após fechar esta janela.")
+                    ]),
+                    html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button("Entendi", id="close-modal-tutorial", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="modal-tutorial",
+        size="lg",
+        is_open=False,
+    )
+
+    confirm_save_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Confirmar Salvamento"), close_button=True),
+            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. Deseja continuar?"),
+            dbc.ModalFooter(
+                [
+                    dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
+                    dbc.Button("Confirmar e Salvar", id="confirm-save", color="danger", n_clicks=0),
+                ]
+            ),
+        ],
+        id="modal-confirm-save",
+        is_open=False,
+    )
+
+    return html.Div([
+        dbc.Row(
+            [
+                dbc.Col(management_card, width=12, lg=3, className="mb-24"),
+                dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
+            ]
+        ),
+        tutorial_modal,
+        confirm_save_modal
+    ])
+
+
+# Error Modal (Global)
+error_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
+        dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
+        dbc.ModalFooter(
+            dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
+        ),
+    ],
+    id="error-modal",
+    is_open=False,
+)
 
 # --- App Layout Assembly ---
 
-content_container = html.Div(id="tabs-content")
+# Pre-render all tab layouts to ensure IDs exist for callbacks
+tab1_layout = get_tab1_layout()
+tab2_layout = get_tab_armazens_layout()
+tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
+tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
+
+content_container = html.Div(
+    [
+        html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
+        html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
+        html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
+        html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
+    ],
+    id="tabs-content"
+)
+
 initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
 
 app.layout = html.Div(
@@ -429,7 +629,9 @@ app.layout = html.Div(
                 content_container,
                 dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
                 dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
-                dcc.Download(id='download-dataframe-xlsx')
+                dcc.Store(id='store-armazens'), # New Store for Armazéns
+                dcc.Download(id='download-dataframe-xlsx'),
+                error_modal
             ],
             fluid=True,
             className="px-4 pb-48"
@@ -445,17 +647,22 @@ app.layout = html.Div(
 # --- Callbacks ---
 
 @app.callback(
-    Output('tabs-content', 'children'),
-    Input('main-tabs', 'active_tab')
+    [Output("tab-input-container", "style"),
+     Output("tab-armazens-container", "style"),
+     Output("tab-config-container", "style"),
+     Output("tab-results-container", "style")],
+    Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
     if active_tab == 'tab-input':
-        return get_tab1_layout()
+        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+    elif active_tab == 'tab-armazens':
+        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-config':
-        return html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
+        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
     elif active_tab == 'tab-results':
-        return html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
-    return html.Div()
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
+    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
@@ -564,7 +771,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             # Normalize "Produto" column if it exists
             if "Produto" in df.columns:
-                 df["Produto"] = df["Produto"].astype(str).str.title()
+                 df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
             return df.to_json(date_format='iso', orient='split'), False, no_update
         except Exception as e:
@@ -611,7 +818,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             # Normalize "Produto" column on edit
             if "Produto" in df.columns:
-                 df["Produto"] = df["Produto"].astype(str).str.title()
+                 df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
             # Ensure proper JSON structure for store
             return df.to_json(date_format='iso', orient='split'), False, no_update
@@ -762,6 +969,226 @@ def download_data(n_clicks, stored_data):
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
     return dcc.send_data_frame(df.to_excel, "dados_unb_editados.xlsx", index=False)
+
+
+# --- Armazéns Callbacks ---
+
+# 4. Load Data to Store (and Handle Restore)
+@app.callback(
+    Output('store-armazens', 'data'),
+    Output('error-modal', 'is_open', allow_duplicate=True),
+    Output('modal-body-content', 'children', allow_duplicate=True),
+    [Input('main-tabs', 'active_tab'),
+     Input('btn-load-base', 'n_clicks'),
+     Input('btn-restore-base', 'n_clicks'),
+     Input('upload-reconstruct-base', 'contents'),
+     Input('table-armazens', 'data_timestamp')],
+    [State('store-armazens', 'data'),
+     State('table-armazens', 'data'),
+     State('upload-reconstruct-base', 'filename')],
+    prevent_initial_call=True
+)
+def manage_armazens_data(active_tab, n_load, n_restore, upload_contents, timestamp,
+                         stored_data, table_data, upload_filename):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+         # Initial Load if tab is active
+        if active_tab == 'tab-armazens' and not stored_data:
+             try:
+                df = pd.read_excel(BASE_ARMAZENS_PATH)
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+             except Exception:
+                return no_update, no_update, no_update
+        return no_update, no_update, no_update
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Load from Base
+    if trigger_id == 'main-tabs' and active_tab == 'tab-armazens':
+        # Only load if store is empty to preserve session edits, or if we want to force reload?
+        # Requirement: "load automatico". If user edited and switched tabs, we should probably keep edits.
+        # But if it's the first load, we need data.
+        if not stored_data:
+            try:
+                df = pd.read_excel(BASE_ARMAZENS_PATH)
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            except Exception:
+                return no_update, no_update, no_update
+        return no_update, no_update, no_update # Keep current state
+
+    if trigger_id == 'btn-load-base':
+        try:
+            df = pd.read_excel(BASE_ARMAZENS_PATH)
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+        except Exception:
+            return no_update, True, "Erro ao carregar a base de dados."
+
+    # Restore from Model
+    if trigger_id == 'btn-restore-base':
+        try:
+            # Overwrite Base file with Model file
+            df_model = pd.read_excel(MODELO_ARMAZENS_PATH)
+            df_model.to_excel(BASE_ARMAZENS_PATH, index=False)
+            return df_model.to_json(date_format='iso', orient='split'), no_update, no_update
+        except Exception as e:
+            print(f"Error restoring base: {e}")
+            return no_update, True, f"Erro ao restaurar a base: {e}"
+
+    # Reconstruct from Upload
+    if trigger_id == 'upload-reconstruct-base' and upload_contents:
+        content_type, content_string = upload_contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        try:
+            # Try parsing
+            df = None
+
+            # 1. Try HTML (lxml) - Handles .xls that are actually HTML
+            try:
+                # pd.read_html returns a list of dataframes
+                dfs = pd.read_html(io.BytesIO(decoded), encoding='utf-8')
+                if dfs:
+                    df = dfs[0]
+            except Exception as e:
+                # print(f"HTML parse failed: {e}")
+                pass
+
+            # 2. Fallback to standard Excel
+            if df is None:
+                try:
+                    if upload_filename.endswith('.xls'):
+                         df = pd.read_excel(io.BytesIO(decoded), engine='xlrd')
+                    else:
+                         df = pd.read_excel(io.BytesIO(decoded))
+                except Exception as e:
+                    print(f"Excel parse failed: {e}")
+                    pass
+
+            if df is not None:
+                # Dynamic Header Identification
+                header_index = -1
+
+                # 1. Check if columns are already correct (Clean file)
+                cols_str = [str(c).lower() for c in df.columns]
+                has_cda_col = any('cda' in s for s in cols_str)
+                has_armazenador_col = any('armazenador' in s for s in cols_str)
+
+                if has_cda_col and has_armazenador_col:
+                     header_index = -1 # Already correct
+                else:
+                    # 2. Scan first 20 rows
+                    for i in range(min(20, len(df))):
+                        row_str = df.iloc[i].fillna('').astype(str).str.lower().values.tolist()
+                        # Condition: 'cda' AND 'armazenador' (or 'município' and 'latitude')
+                        has_cda = any('cda' in s for s in row_str)
+                        has_armazenador = any('armazenador' in s for s in row_str)
+                        has_municipio = any('município' in s for s in row_str)
+                        has_lat = any('latitude' in s for s in row_str)
+
+                        if (has_cda and has_armazenador) or (has_municipio and has_lat):
+                            header_index = i
+                            break
+
+                if header_index != -1:
+                    # Promote row to header
+                    new_header = df.iloc[header_index]
+                    df = df[header_index + 1:]
+                    df.columns = new_header
+
+                # Clean up columns (optional, to match expected standard if needed)
+                # Ensure we have a valid DataFrame
+                df = df.reset_index(drop=True)
+
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            else:
+                return no_update, True, "Erro ao processar o arquivo. Formato não reconhecido."
+
+        except Exception as e:
+            print(f"Error reconstruction: {e}")
+            return no_update, True, f"Erro ao processar arquivo: {e}"
+
+    # Table Edits
+    if trigger_id == 'table-armazens':
+        if table_data:
+             df = pd.DataFrame(table_data)
+             return df.to_json(date_format='iso', orient='split'), no_update, no_update
+        return no_update, no_update, no_update
+
+    return no_update, no_update, no_update
+
+# 5. Render Armazéns Table
+@app.callback(
+    Output('table-armazens', 'data'),
+    Output('table-armazens', 'columns'),
+    Input('store-armazens', 'data')
+)
+def update_armazens_table_view(stored_data):
+    if not stored_data:
+        return [], []
+
+    try:
+        df = pd.read_json(io.StringIO(stored_data), orient='split')
+        columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
+        return df.to_dict('records'), columns
+    except Exception:
+        return [], []
+
+# 6. Save Confirmation Modal
+@app.callback(
+    Output("modal-confirm-save", "is_open"),
+    [Input("btn-save-base", "n_clicks"),
+     Input("confirm-save", "n_clicks"),
+     Input("cancel-save", "n_clicks")],
+    [State("modal-confirm-save", "is_open"),
+     State('store-armazens', 'data')]
+)
+def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == "btn-save-base":
+        return True
+
+    if trigger_id == "cancel-save":
+        return False
+
+    if trigger_id == "confirm-save":
+        # Execute Save
+        if stored_data:
+            try:
+                df = pd.read_json(io.StringIO(stored_data), orient='split')
+                df.to_excel(BASE_ARMAZENS_PATH, index=False)
+            except Exception as e:
+                print(f"Error saving: {e}")
+        return False
+
+    return is_open
+
+# 7. Tutorial Modal and Upload Visibility
+@app.callback(
+    Output("modal-tutorial", "is_open"),
+    Output("upload-reconstruct-container", "style"),
+    [Input("btn-reconstruct-base", "n_clicks"),
+     Input("close-modal-tutorial", "n_clicks")],
+    [State("modal-tutorial", "is_open")]
+)
+def toggle_tutorial_modal(n_reconstruct, n_close, is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open, {"display": "none"}
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == "btn-reconstruct-base":
+        return True, {"display": "block"} # Open modal, SHOW upload
+
+    if trigger_id == "close-modal-tutorial":
+        return False, {"display": "block"} # Close modal, keep upload shown
+
+    return is_open, {"display": "none"}
 
 
 def view():
