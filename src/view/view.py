@@ -310,6 +310,54 @@ def get_tab1_layout():
                         [
                             html.Div(
                                 [
+                                    html.I(className="bi bi-bank2 fs-1 me-3", style={"color": "#FFC107"}), # Warning/Yellow color
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Públicas", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-public", children="0", className="mb-0", style={"color": "#FFC107"})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
+                                    html.I(className="bi bi-buildings-fill fs-1 me-3", style={"color": "#6C757D"}), # Secondary/Gray color
+                                    html.Div(
+                                        [
+                                            html.H6("Unidades Privadas", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H3(id="metric-armazens-private", children="0", className="mb-0", style={"color": "#6C757D"})
+                                        ]
+                                    )
+                                ],
+                                className="d-flex align-items-center justify-content-center py-2"
+                            )
+                        ],
+                        className="p-3"
+                    ),
+                    className="shadow-sm border-0 h-100",
+                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                ),
+                width=6
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div(
+                                [
                                     html.I(className="bi bi-tags-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
                                     html.Div(
                                         [
@@ -533,6 +581,7 @@ def get_tab_armazens_layout():
                                 columns=[],
                                 editable=False,
                                 row_deletable=False,
+                                filter_action='native',
                                 page_size=10,
                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
                                 style_cell={
@@ -1125,11 +1174,13 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
     Output('table-armazens', 'columns'),
     Output('metric-armazens-count', 'children'),
     Output('metric-armazens-capacity', 'children'),
+    Output('metric-armazens-public', 'children'),
+    Output('metric-armazens-private', 'children'),
     Input('store-armazens', 'data')
 )
 def update_armazens_table_view(stored_data):
     if not stored_data:
-        return [], [], "0", "0.00"
+        return [], [], "0", "0.00", "0", "0"
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
@@ -1156,13 +1207,27 @@ def update_armazens_table_view(stored_data):
             except:
                 capacity = 0
 
+        # Calculate Public vs Private
+        # Requirement: Public = "Armazenador" == "COMPANHIA NACIONAL DE ABASTECIMENTO"
+        # Private = All others
+        public_count = 0
+        private_count = 0
+
+        armazenador_col = next((c for c in df.columns if 'armazenador' in str(c).lower()), None)
+        if armazenador_col:
+             public_mask = df[armazenador_col].astype(str).str.upper() == "COMPANHIA NACIONAL DE ABASTECIMENTO"
+             public_count = public_mask.sum()
+             private_count = len(df) - public_count
+
         # Format for display
         count_str = f"{count}"
         capacity_str = f"{capacity:,.2f}"
+        public_str = f"{public_count}"
+        private_str = f"{private_count}"
 
-        return df.to_dict('records'), columns, count_str, capacity_str
+        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str
     except Exception:
-        return [], [], "0", "0.00"
+        return [], [], "0", "0.00", "0", "0"
 
 # 6. Save Confirmation Modal
 @app.callback(
