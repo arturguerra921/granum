@@ -405,69 +405,70 @@ def get_tab1_layout():
 
 # 4. Tab Armazéns Content
 def get_tab_armazens_layout():
-    # Management Card
-    management_card = dbc.Card(
+    # Card 1: Load and Restore
+    card_load_restore = dbc.Card(
         [
             dbc.CardHeader(
-                "Gerenciamento da Base",
+                "Visualizar Base",
                 className="card-header-custom"
             ),
             dbc.CardBody(
                 [
-                    # Puxar da base
+                    dbc.Button("Puxar da Base", id="btn-load-base", className="btn-primary-custom mb-2 w-100"),
+                    dbc.Button(
+                        "Voltar planilhar da base para os padrões originais",
+                        id="btn-restore-base",
+                        color="danger",
+                        size="sm",
+                        className="w-100 mb-3",
+                        style={"fontSize": "0.75rem", "backgroundColor": "#dc3545", "borderColor": "#dc3545"}
+                    ),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom mb-3"
+    )
+
+    # Card 2: Update and Save
+    card_update_save = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Gerenciar Base",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Button("Atualizar a Base", id="btn-update-base", color="info", className="w-100 mb-2 text-white", style={"backgroundColor": "#17a2b8", "borderColor": "#17a2b8"}),
+                    # Upload Component (Initially Hidden)
                     html.Div(
-                        [
-                            dbc.Button("Puxar da Base", id="btn-load-base", className="btn-primary-custom mb-2 w-100"),
-                            dbc.Button(
-                                "Voltar planilhar da base para os padrões originais",
-                                id="btn-restore-base",
-                                color="danger",
-                                size="sm",
-                                className="w-100 mb-3",
-                                style={"fontSize": "0.75rem"}
-                            ),
-                        ]
+                        id="upload-update-container",
+                        children=[
+                            dcc.Upload(
+                                id='upload-update-base',
+                                children=html.Div([
+                                    html.Div("📂", style={"fontSize": "1.5rem"}),
+                                    html.Span('Arraste ou Selecione (CSV)', style={"fontSize": "0.8rem"})
+                                ]),
+                                style={
+                                    'width': '100%',
+                                    'height': '60px',
+                                    'lineHeight': '60px',
+                                    'borderWidth': '1px',
+                                    'borderStyle': 'dashed',
+                                    'borderRadius': '5px',
+                                    'textAlign': 'center',
+                                    'marginBottom': '10px'
+                                },
+                                multiple=False,
+                                accept='.csv'
+                            )
+                        ],
+                        style={"display": "none"}
                     ),
 
-                    # Reconstruir a base
-                    html.Div(
-                        [
-                            dbc.Button("Reconstruir a Base", id="btn-reconstruct-base", color="info", className="w-100 mb-2 text-white"),
-                            # Upload Component (Initially Hidden)
-                             html.Div(
-                                id="upload-reconstruct-container",
-                                children=[
-                                    dcc.Upload(
-                                        id='upload-reconstruct-base',
-                                        children=html.Div([
-                                            html.Div("📂", style={"fontSize": "1.5rem"}),
-                                            html.Span('Arraste ou Selecione', style={"fontSize": "0.8rem"})
-                                        ]),
-                                        style={
-                                            'width': '100%',
-                                            'height': '60px',
-                                            'lineHeight': '60px',
-                                            'borderWidth': '1px',
-                                            'borderStyle': 'dashed',
-                                            'borderRadius': '5px',
-                                            'textAlign': 'center',
-                                            'marginBottom': '10px'
-                                        },
-                                        multiple=False,
-                                        accept='.xls, .xlsx'
-                                    )
-                                ],
-                                style={"display": "none"}
-                             ),
-                        ]
-                    ),
-
-                    # Salvar na base
-                    html.Div(
-                        [
-                            dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100"),
-                        ]
-                    ),
+                    # Salvar na base (Initially Hidden)
+                    dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100", style={"display": "none"}),
                 ],
                 className="card-body-custom"
             ),
@@ -490,8 +491,8 @@ def get_tab_armazens_layout():
                                 id='table-armazens',
                                 data=[],
                                 columns=[],
-                                editable=True,
-                                row_deletable=True,
+                                editable=False, # Changed to False
+                                row_deletable=False,
                                 page_size=10,
                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
                                 style_cell={
@@ -545,8 +546,8 @@ def get_tab_armazens_layout():
                         html.Li("Marque apenas a opção 'Armazéns Credenciados'."),
                         html.Li("Deixe os outros campos em branco."),
                         html.Li("Preencha o código de segurança e clique em 'Consultar'."),
-                        html.Li("No final da página de resultados, clique no botão verde para exportar."),
-                        html.Li("Carregue o arquivo baixado na área que aparecerá após fechar esta janela.")
+                        html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
+                        html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela.")
                     ]),
                     html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
                 ]
@@ -575,15 +576,34 @@ def get_tab_armazens_layout():
         is_open=False,
     )
 
+    confirm_restore_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Confirmar Restauração"), close_button=True),
+            dbc.ModalBody("Esta ação irá descartar todas as alterações e restaurar a base original a partir do modelo padrão. Deseja continuar?"),
+            dbc.ModalFooter(
+                [
+                    dbc.Button("Cancelar", id="cancel-restore", className="me-2", n_clicks=0),
+                    dbc.Button("Confirmar", id="confirm-restore", color="danger", n_clicks=0),
+                ]
+            ),
+        ],
+        id="modal-confirm-restore",
+        is_open=False,
+    )
+
     return html.Div([
         dbc.Row(
             [
-                dbc.Col(management_card, width=12, lg=3, className="mb-24"),
+                dbc.Col([
+                    card_load_restore,
+                    card_update_save
+                ], width=12, lg=3, className="mb-24"),
                 dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
             ]
         ),
         tutorial_modal,
-        confirm_save_modal
+        confirm_save_modal,
+        confirm_restore_modal
     ])
 
 
@@ -978,17 +998,18 @@ def download_data(n_clicks, stored_data):
     Output('store-armazens', 'data'),
     Output('error-modal', 'is_open', allow_duplicate=True),
     Output('modal-body-content', 'children', allow_duplicate=True),
+    Output('btn-save-base', 'style'), # New output for Save button visibility
     [Input('main-tabs', 'active_tab'),
      Input('btn-load-base', 'n_clicks'),
-     Input('btn-restore-base', 'n_clicks'),
-     Input('upload-reconstruct-base', 'contents'),
+     Input('confirm-restore', 'n_clicks'),
+     Input('upload-update-base', 'contents'),
      Input('table-armazens', 'data_timestamp')],
     [State('store-armazens', 'data'),
      State('table-armazens', 'data'),
-     State('upload-reconstruct-base', 'filename')],
+     State('upload-update-base', 'filename')],
     prevent_initial_call=True
 )
-def manage_armazens_data(active_tab, n_load, n_restore, upload_contents, timestamp,
+def manage_armazens_data(active_tab, n_load, n_restore_confirm, upload_contents, timestamp,
                          stored_data, table_data, upload_filename):
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -996,10 +1017,10 @@ def manage_armazens_data(active_tab, n_load, n_restore, upload_contents, timesta
         if active_tab == 'tab-armazens' and not stored_data:
              try:
                 df = pd.read_excel(BASE_ARMAZENS_PATH)
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
              except Exception:
-                return no_update, no_update, no_update
-        return no_update, no_update, no_update
+                return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -1011,110 +1032,77 @@ def manage_armazens_data(active_tab, n_load, n_restore, upload_contents, timesta
         if not stored_data:
             try:
                 df = pd.read_excel(BASE_ARMAZENS_PATH)
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception:
-                return no_update, no_update, no_update
-        return no_update, no_update, no_update # Keep current state
+                return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update # Keep current state
 
     if trigger_id == 'btn-load-base':
         try:
             df = pd.read_excel(BASE_ARMAZENS_PATH)
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
         except Exception:
-            return no_update, True, "Erro ao carregar a base de dados."
+            return no_update, True, "Erro ao carregar a base de dados.", no_update
 
-    # Restore from Model
-    if trigger_id == 'btn-restore-base':
+    # Restore from Model (Confirmed)
+    if trigger_id == 'confirm-restore':
         try:
             # Overwrite Base file with Model file
             df_model = pd.read_excel(MODELO_ARMAZENS_PATH)
             df_model.to_excel(BASE_ARMAZENS_PATH, index=False)
-            return df_model.to_json(date_format='iso', orient='split'), no_update, no_update
+            return df_model.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
         except Exception as e:
             print(f"Error restoring base: {e}")
-            return no_update, True, f"Erro ao restaurar a base: {e}"
+            return no_update, True, f"Erro ao restaurar a base: {e}", no_update
 
-    # Reconstruct from Upload
-    if trigger_id == 'upload-reconstruct-base' and upload_contents:
+    # Update from Upload (CSV)
+    if trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
 
         try:
-            # Try parsing
-            df = None
-
-            # 1. Try HTML (lxml) - Handles .xls that are actually HTML
+            # Try parsing CSV with different separators
             try:
-                # pd.read_html returns a list of dataframes
-                dfs = pd.read_html(io.BytesIO(decoded), encoding='utf-8')
-                if dfs:
-                    df = dfs[0]
-            except Exception as e:
-                # print(f"HTML parse failed: {e}")
-                pass
+                # Try default (comma)
+                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
 
-            # 2. Fallback to standard Excel
-            if df is None:
+                # If only 1 column, maybe it's semicolon separated?
+                if len(df.columns) <= 1:
+                     try:
+                        df_semicolon = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep=';')
+                        if len(df_semicolon.columns) > 1:
+                            df = df_semicolon
+                     except:
+                        pass # Stick with comma result if semicolon fails
+            except:
                 try:
-                    if upload_filename.endswith('.xls'):
-                         df = pd.read_excel(io.BytesIO(decoded), engine='xlrd')
-                    else:
-                         df = pd.read_excel(io.BytesIO(decoded))
+                    # Try semicolon (common in Brazil)
+                    df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep=';')
                 except Exception as e:
-                    print(f"Excel parse failed: {e}")
-                    pass
+                    print(f"CSV parse failed: {e}")
+                    return no_update, True, "Erro ao ler o arquivo CSV. Verifique a formatação.", no_update
 
             if df is not None:
-                # Dynamic Header Identification
-                header_index = -1
+                # Basic validation or cleaning if needed?
+                # User says "O sistema já faz as edições necessárias para funcionar a partir do modelo do site da Conab"
+                # Conab CSVs might have headers on first row usually.
 
-                # 1. Check if columns are already correct (Clean file)
-                cols_str = [str(c).lower() for c in df.columns]
-                has_cda_col = any('cda' in s for s in cols_str)
-                has_armazenador_col = any('armazenador' in s for s in cols_str)
-
-                if has_cda_col and has_armazenador_col:
-                     header_index = -1 # Already correct
-                else:
-                    # 2. Scan first 20 rows
-                    for i in range(min(20, len(df))):
-                        row_str = df.iloc[i].fillna('').astype(str).str.lower().values.tolist()
-                        # Condition: 'cda' AND 'armazenador' (or 'município' and 'latitude')
-                        has_cda = any('cda' in s for s in row_str)
-                        has_armazenador = any('armazenador' in s for s in row_str)
-                        has_municipio = any('município' in s for s in row_str)
-                        has_lat = any('latitude' in s for s in row_str)
-
-                        if (has_cda and has_armazenador) or (has_municipio and has_lat):
-                            header_index = i
-                            break
-
-                if header_index != -1:
-                    # Promote row to header
-                    new_header = df.iloc[header_index]
-                    df = df[header_index + 1:]
-                    df.columns = new_header
-
-                # Clean up columns (optional, to match expected standard if needed)
-                # Ensure we have a valid DataFrame
-                df = df.reset_index(drop=True)
-
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}
             else:
-                return no_update, True, "Erro ao processar o arquivo. Formato não reconhecido."
+                return no_update, True, "Arquivo vazio ou inválido.", no_update
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}"
+            return no_update, True, f"Erro ao processar arquivo: {e}", no_update
 
-    # Table Edits
+    # Table Edits (should be disabled now but keeping fallback logic)
     if trigger_id == 'table-armazens':
         if table_data:
              df = pd.DataFrame(table_data)
-             return df.to_json(date_format='iso', orient='split'), no_update, no_update
-        return no_update, no_update, no_update
+             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
-    return no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update
 
 # 5. Render Armazéns Table
 @app.callback(
@@ -1167,22 +1155,45 @@ def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data):
 
     return is_open
 
-# 7. Tutorial Modal and Upload Visibility
+# 7. Restore Confirmation Modal
+@app.callback(
+    Output("modal-confirm-restore", "is_open"),
+    [Input("btn-restore-base", "n_clicks"),
+     Input("cancel-restore", "n_clicks"),
+     Input("confirm-restore", "n_clicks")],
+    [State("modal-confirm-restore", "is_open")]
+)
+def toggle_restore_modal(n_restore, n_cancel, n_confirm, is_open):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return is_open
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    if trigger_id == "btn-restore-base":
+        return True
+
+    if trigger_id == "cancel-restore" or trigger_id == "confirm-restore":
+        return False
+
+    return is_open
+
+# 8. Tutorial Modal and Upload Visibility
 @app.callback(
     Output("modal-tutorial", "is_open"),
-    Output("upload-reconstruct-container", "style"),
-    [Input("btn-reconstruct-base", "n_clicks"),
+    Output("upload-update-container", "style"),
+    [Input("btn-update-base", "n_clicks"),
      Input("close-modal-tutorial", "n_clicks")],
     [State("modal-tutorial", "is_open")]
 )
-def toggle_tutorial_modal(n_reconstruct, n_close, is_open):
+def toggle_tutorial_modal(n_update, n_close, is_open):
     ctx = dash.callback_context
     if not ctx.triggered:
         return is_open, {"display": "none"}
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    if trigger_id == "btn-reconstruct-base":
+    if trigger_id == "btn-update-base":
         return True, {"display": "block"} # Open modal, SHOW upload
 
     if trigger_id == "close-modal-tutorial":
