@@ -75,6 +75,7 @@ tabs = dbc.Tabs(
     [
         dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
         dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
+        dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
     ],
@@ -695,6 +696,104 @@ def get_tab_armazens_layout():
         confirm_save_modal
     ])
 
+# 5. Tab Produto e Armazéns Content
+def get_tab_prod_armazens_layout():
+    # Table Card
+    table_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                html.Div([
+                    html.Span("Relação Produto x Tipo de Armazém", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-armazens", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).",
+                        target="help-prod-armazens",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Spinner(
+                        html.Div(id='table-prod-armazens-container', children=[
+                            dash_table.DataTable(
+                                id='table-prod-armazens',
+                                data=[],
+                                columns=[{'name': 'Produto', 'id': 'Produto'}], # Initial column
+                                editable=False, # We handle clicks via active_cell
+                                row_deletable=False,
+                                page_size=15,
+                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                style_cell={
+                                    'textAlign': 'center',
+                                    'fontFamily': "'Roboto', sans-serif",
+                                    'padding': '12px',
+                                    'fontSize': '0.9rem',
+                                    'color': UNB_THEME['UNB_GRAY_DARK']
+                                },
+                                style_cell_conditional=[
+                                    {
+                                        'if': {'column_id': 'Produto'},
+                                        'textAlign': 'left',
+                                        'fontWeight': 'bold'
+                                    }
+                                ],
+                                style_header={
+                                    'backgroundColor': '#F8F9FA',
+                                    'color': UNB_THEME['UNB_BLUE'],
+                                    'fontWeight': 'bold',
+                                    'border': 'none',
+                                    'padding': '12px',
+                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}",
+                                    'textAlign': 'center'
+                                },
+                                style_data={
+                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}",
+                                    'cursor': 'pointer'
+                                },
+                                style_data_conditional=[
+                                    {
+                                        'if': {'row_index': 'odd'},
+                                        'backgroundColor': '#f8f9fa'
+                                    }
+                                ]
+                            )
+                        ], className="h-100"),
+                        color="primary"
+                    ),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom h-100",
+        style={"minHeight": "600px"}
+    )
+
+    # Missing Data Modal
+    missing_data_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=False),
+            dbc.ModalBody(id="modal-missing-data-body", children="Faltam dados."),
+            dbc.ModalFooter(
+                dbc.Button("Confirmar", id="btn-confirm-missing-data", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="modal-missing-data",
+        is_open=False,
+        backdrop="static", # Prevent closing by clicking outside
+        keyboard=False
+    )
+
+    return html.Div([
+        dbc.Row(
+            [
+                dbc.Col(table_card, width=12, className="mb-24"),
+            ]
+        ),
+        missing_data_modal
+    ])
+
 
 # Error Modal (Global)
 error_modal = dbc.Modal(
@@ -714,6 +813,7 @@ error_modal = dbc.Modal(
 # Pre-render all tab layouts to ensure IDs exist for callbacks
 tab1_layout = get_tab1_layout()
 tab2_layout = get_tab_armazens_layout()
+tab_prod_armazens_layout = get_tab_prod_armazens_layout()
 tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
 tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
 
@@ -721,6 +821,7 @@ content_container = html.Div(
     [
         html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
         html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
+        html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
         html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
         html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
     ],
@@ -739,6 +840,7 @@ app.layout = html.Div(
                 dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
                 dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
                 dcc.Store(id='store-armazens'), # New Store for Armazéns
+                dcc.Store(id='store-prod-armazens'), # New Store for Prod x Armazens
                 dcc.Download(id='download-dataframe-xlsx'),
                 error_modal
             ],
@@ -758,20 +860,23 @@ app.layout = html.Div(
 @app.callback(
     [Output("tab-input-container", "style"),
      Output("tab-armazens-container", "style"),
+     Output("tab-prod-armazens-container", "style"),
      Output("tab-config-container", "style"),
      Output("tab-results-container", "style")],
     Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
     if active_tab == 'tab-input':
-        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-armazens':
-        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
+        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+    elif active_tab == 'tab-prod-armazens':
+        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-config':
-        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
     elif active_tab == 'tab-results':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
-    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
+    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
@@ -1322,6 +1427,200 @@ def toggle_tutorial_modal(n_update, n_close, is_open):
         return False, {"display": "block"} # Close modal, keep upload shown
 
     return is_open, {"display": "none"}
+
+# 9. Validation for Tab Prod x Armazens
+@app.callback(
+    Output("modal-missing-data", "is_open"),
+    Output("modal-missing-data-body", "children"),
+    Input("main-tabs", "active_tab"),
+    [State('stored-data', 'data'),
+     State('store-armazens', 'data')]
+)
+def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
+    if active_tab != 'tab-prod-armazens':
+        return False, no_update
+
+    # Check Products
+    has_prod = False
+    if stored_data:
+        try:
+            df = pd.read_json(io.StringIO(stored_data), orient='split')
+            if not df.empty and "Produto" in df.columns:
+                has_prod = True
+        except:
+            pass
+
+    # Check Armazens
+    has_armazens = False
+    if stored_armazens:
+        try:
+            df = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            if not df.empty:
+                has_armazens = True
+        except:
+            pass
+
+    if not has_prod and not has_armazens:
+        return True, "Você precisa adicionar produtos na aba 'Entrada de Dados' e carregar a base na aba 'Armazéns' antes de prosseguir."
+    elif not has_prod:
+        return True, "Você precisa adicionar pelo menos um produto na aba 'Entrada de Dados' antes de prosseguir."
+    elif not has_armazens:
+        return True, "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir."
+
+    return False, no_update
+
+# 10. Redirection from Modal
+@app.callback(
+    Output("main-tabs", "active_tab"),
+    Output("modal-missing-data", "is_open", allow_duplicate=True),
+    Input("btn-confirm-missing-data", "n_clicks"),
+    [State('stored-data', 'data'),
+     State('store-armazens', 'data')],
+    prevent_initial_call=True
+)
+def redirect_missing_data(n_clicks, stored_data, stored_armazens):
+    if not n_clicks:
+        return no_update, no_update
+
+    # Check Products
+    has_prod = False
+    if stored_data:
+        try:
+            df = pd.read_json(io.StringIO(stored_data), orient='split')
+            if not df.empty and "Produto" in df.columns:
+                has_prod = True
+        except:
+            pass
+
+    # Check Armazens
+    has_armazens = False
+    if stored_armazens:
+        try:
+            df = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            if not df.empty:
+                has_armazens = True
+        except:
+            pass
+
+    if not has_prod:
+        return 'tab-input', False
+    elif not has_armazens:
+        return 'tab-armazens', False
+
+    return no_update, False
+
+
+# 11. Populate Product x Armazens Table and Sync Store
+@app.callback(
+    Output('store-prod-armazens', 'data'),
+    Output('table-prod-armazens', 'data'),
+    Output('table-prod-armazens', 'columns'),
+    Input('main-tabs', 'active_tab'),
+    Input('stored-data', 'data'),
+    Input('store-armazens', 'data'),
+    State('store-prod-armazens', 'data')
+)
+def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix):
+    if active_tab != 'tab-prod-armazens':
+        return no_update, no_update, no_update
+
+    # 1. Get Unique Products
+    products = []
+    if stored_data:
+        try:
+            df_prod = pd.read_json(io.StringIO(stored_data), orient='split')
+            if not df_prod.empty and "Produto" in df_prod.columns:
+                products = sorted(df_prod["Produto"].dropna().unique().astype(str).tolist())
+        except Exception as e:
+            print(f"Error reading products: {e}")
+
+    # 2. Get Unique Warehouse Types
+    types = []
+    if stored_armazens:
+        try:
+            df_arm = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            if not df_arm.empty and "Tipo" in df_arm.columns:
+                types = sorted(df_arm["Tipo"].dropna().unique().astype(str).tolist())
+        except Exception as e:
+            print(f"Error reading types: {e}")
+
+    if not products or not types:
+        return no_update, [], []
+
+    # 3. Load or Initialize Matrix
+    try:
+        if stored_matrix:
+            df_matrix = pd.read_json(io.StringIO(stored_matrix), orient='split')
+        else:
+            df_matrix = pd.DataFrame(columns=['Produto'])
+    except:
+        df_matrix = pd.DataFrame(columns=['Produto'])
+
+    # 4. Sync Logic
+    # We want a DataFrame with rows = products, columns = ['Produto'] + types
+    new_matrix = pd.DataFrame({'Produto': products})
+
+    # For each type column, preserve existing values if possible
+    for t in types:
+        if t in df_matrix.columns:
+            # Create lookup: Product -> Value for this type
+            # We need to handle potential duplicates in df_matrix if something went wrong, but set_index should be fine if unique
+            try:
+                # Drop duplicates in old matrix just in case
+                lookup = df_matrix.drop_duplicates(subset=['Produto']).set_index('Produto')[t].to_dict()
+                new_matrix[t] = new_matrix['Produto'].map(lookup).fillna('☐')
+            except:
+                new_matrix[t] = '☐'
+        else:
+            new_matrix[t] = '☐'
+
+    # 5. Prepare Output
+    columns = [
+        {'name': 'Produto', 'id': 'Produto', 'editable': False}
+    ] + [
+        {'name': t, 'id': t, 'editable': False} for t in types
+    ]
+
+    return new_matrix.to_json(date_format='iso', orient='split'), new_matrix.to_dict('records'), columns
+
+
+# 12. Handle Checkbox Toggles
+@app.callback(
+    Output('store-prod-armazens', 'data', allow_duplicate=True),
+    Output('table-prod-armazens', 'data', allow_duplicate=True),
+    Output('table-prod-armazens', 'active_cell'),
+    Input('table-prod-armazens', 'active_cell'),
+    State('table-prod-armazens', 'data'),
+    prevent_initial_call=True
+)
+def toggle_checkbox(active_cell, table_data):
+    if not active_cell or not table_data:
+        return no_update, no_update, no_update
+
+    row_idx = active_cell['row']
+    col_id = active_cell['column_id']
+
+    # Ignore clicks on "Produto" column
+    if col_id == 'Produto':
+        return no_update, no_update, None
+
+    try:
+        df = pd.DataFrame(table_data)
+
+        # Toggle Logic
+        current_val = df.at[row_idx, col_id]
+        if current_val == '☐':
+            new_val = '☑'
+        else:
+            new_val = '☐'
+
+        df.at[row_idx, col_id] = new_val
+
+        return df.to_json(date_format='iso', orient='split'), df.to_dict('records'), None
+
+    except Exception as e:
+        print(f"Error toggling checkbox: {e}")
+        return no_update, no_update, None
 
 
 def view():
