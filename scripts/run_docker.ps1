@@ -1,3 +1,7 @@
+param (
+    [switch]$Build
+)
+
 Write-Host "Iniciando verificação de portas..."
 $port = 8050
 $process = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique
@@ -10,46 +14,36 @@ if ($process) {
     Write-Host "Nenhum processo encontrado na porta $port."
 }
 
-Write-Host "Verificando se o Docker está rodando..."
-if (!(docker info)) {
-    Write-Error "Docker não está rodando. Por favor, inicie o Docker Desktop."
-    exit 1
-}
-
-# --- Download Map Data Logic ---
-$dataDir = "valhalla_data"
-$mapFile = "$dataDir\brazil-latest.osm.pbf"
-$mapUrl = "https://download.geofabrik.de/south-america/brazil-latest.osm.pbf"
-
-if (!(Test-Path -Path $dataDir)) {
-    New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
-    Write-Host "Diretório '$dataDir' criado."
-}
-
-if (!(Test-Path -Path $mapFile)) {
-    Write-Host "Arquivo de mapa não encontrado. Baixando de $mapUrl..."
-    Write-Host "Isso pode levar alguns minutos (arquivo grande)..."
-    try {
-        Invoke-WebRequest -Uri $mapUrl -OutFile $mapFile
-        Write-Host "Download concluído com sucesso."
-    } catch {
-        Write-Error "Falha no download do mapa: $_"
+# --- Python Setup (Download Logic) ---
+Write-Host "Iniciando setup do Valhalla e dados..."
+try {
+    # Assuming python is in PATH
+    python scripts/setup_valhalla.py
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Erro no setup do Valhalla. Verifique se o Python e Docker estão instalados e rodando."
         exit 1
     }
-} else {
-    Write-Host "Arquivo de mapa encontrado em '$mapFile'. Pulando download."
+} catch {
+    Write-Error "Falha ao executar script de setup: $_"
+    exit 1
 }
-# --- End Download Logic ---
+# --- End Setup Logic ---
 
-
-Write-Host "Construindo e iniciando containers..."
-docker-compose up -d --build
+Write-Host "Iniciando containers..."
+if ($Build) {
+    Write-Host "Reconstruindo imagens..."
+    docker-compose up -d --build
+} else {
+    Write-Host "Usando imagens existentes (use -Build para forçar reconstrução)..."
+    docker-compose up -d
+}
 
 Write-Host "Aguardando serviços iniciarem..."
 Start-Sleep -Seconds 5
 
 Write-Host "Aplicação disponível em http://localhost:8050"
 Write-Host "Valhalla disponível em http://localhost:8002"
-Write-Host "Nota: O Valhalla irá processar o arquivo de mapa local agora. Isso pode levar alguns minutos na primeira execução para construir o grafo."
+Write-Host "Nota: Se o Valhalla já processou o mapa, a inicialização será rápida. Caso contrário, aguarde alguns minutos."
+Write-Host "Nota: Alterações no código da aplicação serão aplicadas automaticamente (hot-reload)."
 
 Start-Process "http://localhost:8050"

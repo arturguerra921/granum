@@ -11,6 +11,7 @@ services:
       - valhalla
     environment:
       - VALHALLA_HOST=http://valhalla:8002
+    command: gunicorn -b 0.0.0.0:8050 wsgi:server --reload
 
   valhalla:
     image: ghcr.io/nilsnolde/docker-valhalla/valhalla:latest
@@ -24,4 +25,3 @@ services:
       - build_admins=True
       - build_time_zones=True
       - server_threads=2
-      # tile_urls is removed so it builds from the mounted /custom_files
