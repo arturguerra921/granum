@@ -10,10 +10,12 @@ COPY pyproject.toml README.md ./
 COPY src/ src/
 
 # Install the application and dependencies
-RUN pip install --no-cache-dir .
+# We install with -e (editable) so we can run directly from source in /app
+RUN pip install --no-cache-dir -e .
 
 # Expose the port the app runs on
 EXPOSE 8050
 
-# Command to run the application
-CMD ["granum-run"]
+# Command to run the application directly from source
+# This ensures it uses the files in /app/src, not site-packages
+CMD ["python", "-m", "src.__main__"]
