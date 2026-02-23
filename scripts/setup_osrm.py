@@ -107,13 +107,21 @@ def process_osrm():
     print("Running extraction (this may take a while using disk swap)...")
     run_command(extract_cmd)
 
-    # 2. Contract (CH) - More optimized for query speed
-    contract_cmd = (
+    # 2. Partition (MLD) - Partition the graph
+    partition_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-contract /data/{OSRM_FILE_BASE} -t 4"
+        f"osrm-partition /data/{OSRM_FILE_BASE} -t 4"
     )
-    print("Running contraction...")
-    run_command(contract_cmd)
+    print("Running partitioning (MLD)...")
+    run_command(partition_cmd)
+
+    # 3. Customize (MLD) - Customize the graph
+    customize_cmd = (
+        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
+        f"osrm-customize /data/{OSRM_FILE_BASE} -t 4"
+    )
+    print("Running customization (MLD)...")
+    run_command(customize_cmd)
 
     # Cleanup stxxl file to free space
     stxxl_data = os.path.join(DATA_DIR, "stxxl")
