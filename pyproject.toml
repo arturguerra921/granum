@@ -26,7 +26,8 @@ dependencies = [
     "dash-bootstrap-components",
     "gunicorn",
     "lxml",
-    "xlrd"
+    "xlrd",
+    "requests"
 ]
 
 [project.scripts]

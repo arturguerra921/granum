@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8050:8050"
+    environment:
+      - OSRM_URL=http://osrm:5000
+    depends_on:
+      - osrm
+    volumes:
+      - ./src:/app/src  # For development: live reload if possible (needs reloading server)
+      - ./data:/app/data # Access to data files if needed
+
+  osrm:
+    image: osrm/osrm-backend
+    command: osrm-routed --algorithm ch /data/brazil-filtered.osrm
+    volumes:
+      - ./data/osrm:/data
+    ports:
+      - "5000:5000"
+    restart: always
