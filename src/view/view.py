@@ -5,6 +5,8 @@ import pandas as pd
 from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
+from src.view.pages.distance_matrix import get_tab_distance_matrix_layout
+from src.logic.osrm import OSRMClient
 import dash
 
 # --- Data Loading ---
@@ -76,6 +78,7 @@ tabs = dbc.Tabs(
         dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
         dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
+        dbc.Tab(label="Matriz de Distâncias", tab_id="tab-distance-matrix", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
     ],
@@ -819,6 +822,7 @@ error_modal = dbc.Modal(
 tab1_layout = get_tab1_layout()
 tab2_layout = get_tab_armazens_layout()
 tab_prod_armazens_layout = get_tab_prod_armazens_layout()
+tab_distance_matrix_layout = get_tab_distance_matrix_layout()
 tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
 tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
 
@@ -827,6 +831,7 @@ content_container = html.Div(
         html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
         html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
         html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
+        html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
         html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
         html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
     ],
@@ -846,6 +851,7 @@ app.layout = html.Div(
                 dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
                 dcc.Store(id='store-armazens'), # New Store for Armazéns
                 dcc.Store(id='store-prod-armazens'), # New Store for Prod x Armazens
+                dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
                 dcc.Download(id='download-dataframe-xlsx'),
                 error_modal
             ],
@@ -866,22 +872,28 @@ app.layout = html.Div(
     [Output("tab-input-container", "style"),
      Output("tab-armazens-container", "style"),
      Output("tab-prod-armazens-container", "style"),
+     Output("tab-distance-matrix-container", "style"),
      Output("tab-config-container", "style"),
      Output("tab-results-container", "style")],
     Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
+    base_styles = [{"display": "none"}] * 6
+
     if active_tab == 'tab-input':
-        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        base_styles[0] = {"display": "block"}
     elif active_tab == 'tab-armazens':
-        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        base_styles[1] = {"display": "block"}
     elif active_tab == 'tab-prod-armazens':
-        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
+        base_styles[2] = {"display": "block"}
+    elif active_tab == 'tab-distance-matrix':
+        base_styles[3] = {"display": "block"}
     elif active_tab == 'tab-config':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
+        base_styles[4] = {"display": "block"}
     elif active_tab == 'tab-results':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
-    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        base_styles[5] = {"display": "block"}
+
+    return tuple(base_styles)
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
@@ -1626,6 +1638,174 @@ def toggle_checkbox(active_cell, table_data):
     except Exception as e:
         print(f"Error toggling checkbox: {e}")
         return no_update, no_update, None
+
+
+# 13. Distance Matrix Calculation
+@app.callback(
+    Output('store-distance-matrix', 'data'),
+    Output('table-distance-matrix', 'data'),
+    Output('table-distance-matrix', 'columns'),
+    Output('calc-status-message', 'children'),
+    Output('btn-download-matrix', 'disabled'),
+    Input('btn-calc-matrix', 'n_clicks'),
+    [State('stored-data', 'data'),
+     State('store-armazens', 'data')],
+    prevent_initial_call=True
+)
+def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
+    if not n_clicks:
+        return no_update, no_update, no_update, no_update, True
+
+    if not stored_data or not stored_armazens:
+        return no_update, [], [], "Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", True
+
+    try:
+        # Load Data
+        df_input = pd.read_json(io.StringIO(stored_data), orient='split')
+        df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+
+        if df_input.empty or df_armazens.empty:
+            return no_update, [], [], "As tabelas de entrada ou armazéns estão vazias.", True
+
+        # Prepare Coordinates
+        # Origins: Unique cities from input
+        # Note: We need unique coordinate pairs. If multiple products come from same city, we only need one origin.
+        if "Latitude" not in df_input.columns or "Longitude" not in df_input.columns:
+             return no_update, [], [], "Colunas de Latitude/Longitude ausentes na entrada.", True
+
+        origins_df = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+        origins = list(zip(origins_df['Latitude'], origins_df['Longitude']))
+        origin_names = origins_df['Cidade'].tolist()
+
+        if not origins:
+             return no_update, [], [], "Nenhuma origem válida (com coordenadas) encontrada.", True
+
+        # Destinations: Warehouses
+        # We try to use 'Município' or similar if available for labeling, but use lat/lon for routing
+        # Assuming warehouse table has Lat/Lon?
+        # WAIT: The provided memory says "Lembre-se que todos tem latitude e longitude."
+        # But the loaded CSV 'Armazens_Credenciados_Habilitados_Base.csv' might not have them explicitly if it's raw Conab data.
+        # Let's check if we have Lat/Lon in armazens.
+
+        # Checking columns...
+        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+
+        # If no Lat/Lon in warehouses, we need to geocode them based on City/UF?
+        # The user said "Lembre-se que todos tem latitude e longitude." so I assume they are in the data or derived.
+        # If they are not in the CSV, I might need to merge with my city lookup.
+
+        if not lat_col or not lon_col:
+            # Attempt to look up by City - UF
+            # Warehouse CSV usually has "Municipio" and "UF".
+            mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
+            uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+
+            if mun_col and uf_col:
+                # Create a temporary key
+                df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+
+                # We need to map this key to our CITY_LOOKUP
+                # CITY_LOOKUP keys are "City - UF"
+
+                def get_coords(key):
+                    if key in CITY_LOOKUP:
+                        return CITY_LOOKUP[key]
+                    return {'latitude': None, 'longitude': None}
+
+                coords = df_armazens['lookup_key'].apply(get_coords)
+                df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
+                df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
+
+                # Filter out those without coords
+                dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+            else:
+                return no_update, [], [], "Não foi possível identificar coordenadas ou colunas de Município/UF nos armazéns.", True
+        else:
+            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            # Rename for consistency
+            dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
+
+        if dests_df.empty:
+             return no_update, [], [], "Nenhum armazém com coordenadas válidas encontrado.", True
+
+        destinations = list(zip(dests_df['Latitude'], dests_df['Longitude']))
+
+        # Determine labels for destinations (e.g., Name of warehouse or City)
+        # Prefer "Armazenador" - "Municipio"
+        name_col = next((c for c in dests_df.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
+        mun_col_dest = next((c for c in dests_df.columns if 'munic' in str(c).lower()), None)
+
+        dest_labels = []
+        for idx, row in dests_df.iterrows():
+            label = f"Dest {idx}"
+            if name_col and mun_col_dest:
+                label = f"{row[name_col]} ({row[mun_col_dest]})"
+            elif name_col:
+                label = str(row[name_col])
+            elif mun_col_dest:
+                label = str(row[mun_col_dest])
+            dest_labels.append(label)
+
+
+        # Call OSRM
+        # Use service name 'osrm' if in docker, or 'localhost' if testing locally outside docker.
+        # Since this code runs inside the container (production) or local (dev), we try both or env var.
+        osrm_url = os.environ.get("OSRM_URL", "http://localhost:5000") # Default to localhost for dev
+        # Inside docker-compose, the app container can reach osrm container via 'http://osrm:5000'
+        # Check if we are in docker network?
+        # Let's assume the user set OSRM_URL in docker-compose (I did: OSRM_URL=http://osrm:5000)
+
+        client = OSRMClient(base_url=osrm_url)
+
+        try:
+            matrix = client.get_distance_matrix(origins, destinations)
+        except Exception as e:
+             return no_update, [], [], f"Erro de conexão com OSRM: {str(e)}", True
+
+        # Format Result
+        # Rows: Origins, Cols: Destinations
+        # We want a table with "Origem" column + columns for each destination
+
+        # Since matrix is [origins][destinations]
+
+        final_data = []
+        for i, row_vals in enumerate(matrix):
+            row_dict = {'Origem': origin_names[i]}
+            for j, val in enumerate(row_vals):
+                col_name = dest_labels[j]
+                # Convert meters to km
+                if val is not None:
+                    row_dict[col_name] = round(val / 1000, 2)
+                else:
+                    row_dict[col_name] = "N/A"
+            final_data.append(row_dict)
+
+        final_df = pd.DataFrame(final_data)
+
+        columns = [{"name": i, "id": i} for i in final_df.columns]
+
+        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, "Cálculo concluído com sucesso!", False
+
+    except Exception as e:
+        print(f"Calculation error: {e}")
+        import traceback
+        traceback.print_exc()
+        return no_update, [], [], f"Erro inesperado: {str(e)}", True
+
+# 14. Download Matrix
+@app.callback(
+    Output("download-matrix-xlsx", "data"),
+    Input("btn-download-matrix", "n_clicks"),
+    State('store-distance-matrix', 'data'),
+    prevent_initial_call=True,
+)
+def download_matrix(n_clicks, stored_matrix):
+    if not n_clicks or not stored_matrix:
+        return no_update
+
+    df = pd.read_json(io.StringIO(stored_matrix), orient='split')
+    return dcc.send_data_frame(df.to_excel, "matriz_distancias.xlsx", index=False)
 
 
 def view():
