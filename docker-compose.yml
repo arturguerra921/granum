@@ -11,7 +11,7 @@ services:
     restart: always
 
   valhalla:
-    image: ghcr.io/valhalla/valhalla:latest
+    image: ghcr.io/nilsnolde/docker-valhalla/valhalla:latest
     container_name: valhalla
     ports:
       - "8002:8002"
