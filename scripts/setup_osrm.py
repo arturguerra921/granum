@@ -90,19 +90,38 @@ def process_osrm():
 
     print("Processing OSRM data (Extract & Contract)...")
 
+    # Create .stxxl config for disk-based processing (avoid OOM)
+    # This tells OSRM to use a 10GB swap file in /data/stxxl
+    stxxl_path = os.path.join(DATA_DIR, ".stxxl")
+    with open(stxxl_path, "w") as f:
+        f.write("disk=/data/stxxl,10000,syscall")
+
     # 1. Extract
+    # We use -t 4 to limit threads (reduce memory usage per thread)
+    # We mount the .stxxl file to /opt/.stxxl (where OSRM looks for it by default or we set env var)
+    # Actually easier to just map it to /data/.stxxl and point STXXLCFG env var
     extract_cmd = (
-        f"docker run --rm -v \"{DATA_DIR}:/data\" osrm/osrm-backend "
-        f"osrm-extract -p /opt/car.lua /data/{FILTERED_PBF_FILE}"
+        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
+        f"osrm-extract -p /opt/car.lua /data/{FILTERED_PBF_FILE} -t 4"
     )
+    print("Running extraction (this may take a while using disk swap)...")
     run_command(extract_cmd)
 
     # 2. Contract (CH) - More optimized for query speed
     contract_cmd = (
-        f"docker run --rm -v \"{DATA_DIR}:/data\" osrm/osrm-backend "
-        f"osrm-contract /data/{OSRM_FILE_BASE}"
+        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
+        f"osrm-contract /data/{OSRM_FILE_BASE} -t 4"
     )
+    print("Running contraction...")
     run_command(contract_cmd)
+
+    # Cleanup stxxl file to free space
+    stxxl_data = os.path.join(DATA_DIR, "stxxl")
+    if os.path.exists(stxxl_data):
+        try:
+            os.remove(stxxl_data)
+        except OSError:
+            pass
 
     # Cleanup intermediate files? Maybe keep them for now.
     print("OSRM processing complete.")
