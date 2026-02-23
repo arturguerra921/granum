@@ -18,10 +18,10 @@ services:
     ports:
       - "8002:8002"
     volumes:
-      - ./valhalla_data:/data/valhalla
+      - ./valhalla_data:/custom_files
     environment:
-      - tile_urls=https://download.geofabrik.de/south-america/brazil-latest.osm.pbf
       - build_elevation=False
       - build_admins=True
       - build_time_zones=True
       - server_threads=2
+      # tile_urls is removed so it builds from the mounted /custom_files
