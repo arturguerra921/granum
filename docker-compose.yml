@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   granum:
     build: .
@@ -13,7 +11,7 @@ services:
     restart: always
 
   valhalla:
-    image: gisops/valhalla:latest
+    image: ghcr.io/valhalla/valhalla:latest
     container_name: valhalla
     ports:
       - "8002:8002"
