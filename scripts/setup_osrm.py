@@ -91,10 +91,10 @@ def process_osrm():
     print("Processing OSRM data (Extract & Contract)...")
 
     # Create .stxxl config for disk-based processing (avoid OOM)
-    # This tells OSRM to use a 10GB swap file in /data/stxxl
+    # This tells OSRM to use a 30GB swap file in /data/stxxl (20GB+ safe margin)
     stxxl_path = os.path.join(DATA_DIR, ".stxxl")
     with open(stxxl_path, "w") as f:
-        f.write("disk=/data/stxxl,10000,syscall")
+        f.write("disk=/data/stxxl,30000,syscall")
 
     # 1. Extract
     # We use -t 4 to limit threads (reduce memory usage per thread)
