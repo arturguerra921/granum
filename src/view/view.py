@@ -6,6 +6,11 @@ from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 import dash
+import plotly.graph_objects as go
+import polyline
+
+from src.view.tabs.valhalla_tab import get_valhalla_tab_layout
+from src.logic.valhalla import ValhallaClient
 
 # --- Data Loading ---
 try:
@@ -76,6 +81,7 @@ tabs = dbc.Tabs(
         dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
         dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
+        dbc.Tab(label="Matriz de Distâncias", tab_id="tab-valhalla", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
     ],
@@ -819,6 +825,7 @@ error_modal = dbc.Modal(
 tab1_layout = get_tab1_layout()
 tab2_layout = get_tab_armazens_layout()
 tab_prod_armazens_layout = get_tab_prod_armazens_layout()
+tab_valhalla_layout = get_valhalla_tab_layout()
 tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
 tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
 
@@ -827,6 +834,7 @@ content_container = html.Div(
         html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
         html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
         html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
+        html.Div(id="tab-valhalla-container", children=tab_valhalla_layout, style={"display": "none"}),
         html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
         html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
     ],
@@ -866,22 +874,25 @@ app.layout = html.Div(
     [Output("tab-input-container", "style"),
      Output("tab-armazens-container", "style"),
      Output("tab-prod-armazens-container", "style"),
+     Output("tab-valhalla-container", "style"),
      Output("tab-config-container", "style"),
      Output("tab-results-container", "style")],
     Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
     if active_tab == 'tab-input':
-        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-armazens':
-        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-prod-armazens':
-        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
+        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+    elif active_tab == 'tab-valhalla':
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
     elif active_tab == 'tab-config':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
     elif active_tab == 'tab-results':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
-    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
+    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
@@ -1630,3 +1641,176 @@ def toggle_checkbox(active_cell, table_data):
 
 def view():
     app.run(debug=True)
+
+# --- Valhalla Callbacks ---
+
+@app.callback(
+    [Output("valhalla-status", "children"),
+     Output("valhalla-map", "figure")],
+    Input("btn-calculate-matrix", "n_clicks"),
+    [State('stored-data', 'data'),
+     State('store-armazens', 'data')],
+    prevent_initial_call=True
+)
+def calculate_matrix_and_routes(n_clicks, stored_origins, stored_destinations):
+    if not n_clicks:
+        return no_update, no_update
+
+    if not stored_origins or not stored_destinations:
+        return "Dados insuficientes (Origens ou Destinos ausentes).", no_update
+
+    try:
+        # Load Data
+        df_origins = pd.read_json(io.StringIO(stored_origins), orient='split')
+        df_destinations = pd.read_json(io.StringIO(stored_destinations), orient='split')
+
+        if df_origins.empty:
+            return "Nenhuma origem cadastrada.", no_update
+        if df_destinations.empty:
+            return "Nenhum armazém carregado.", no_update
+
+        # Ensure Latitude and Longitude columns exist and are numeric
+        req_cols = ['Latitude', 'Longitude']
+        if not all(col in df_origins.columns for col in req_cols):
+             return "Colunas Latitude/Longitude faltando nas origens.", no_update
+        if not all(col in df_destinations.columns for col in req_cols):
+             return "Colunas Latitude/Longitude faltando nos armazéns.", no_update
+
+        # Filter out invalid coordinates
+        origins = df_origins.dropna(subset=req_cols).to_dict('records')
+        destinations = df_destinations.dropna(subset=req_cols).to_dict('records')
+
+        if not origins:
+             return "Nenhuma origem válida (com Lat/Lon).", no_update
+        if not destinations:
+             return "Nenhum destino válido (com Lat/Lon).", no_update
+
+        # Prepare for Valhalla
+        # Format: [{'lat': ..., 'lon': ...}, ...]
+        valhalla_origins = [{'lat': r['Latitude'], 'lon': r['Longitude']} for r in origins]
+        valhalla_destinations = [{'lat': r['Latitude'], 'lon': r['Longitude']} for r in destinations]
+
+        client = ValhallaClient()
+
+        # 1. Get Matrix
+        # matrix is list of lists (rows = origins, cols = destinations)
+        # We can't update status iteratively in a single callback without background callbacks
+
+        matrix = client.get_matrix(valhalla_origins, valhalla_destinations)
+
+        if not matrix:
+            return "Erro ao calcular a matriz (Valhalla retornou vazio ou erro). Verifique se o serviço está rodando.", no_update
+
+        # 2. Find Farthest Destination for each Origin
+        routes_to_fetch = [] # List of (origin_record, dest_record, distance)
+
+        for i, row in enumerate(matrix):
+            # row is list of {distance, time, ...}
+            # Filter out None values
+            valid_entries = [(j, val) for j, val in enumerate(row) if val and val.get('distance') is not None]
+
+            if valid_entries:
+                # Find max distance
+                max_entry = max(valid_entries, key=lambda x: x[1]['distance'])
+                j_max = max_entry[0]
+                dist_max = max_entry[1]['distance']
+
+                routes_to_fetch.append({
+                    'origin': origins[i],
+                    'destination': destinations[j_max],
+                    'distance': dist_max
+                })
+
+        # 3. Fetch Routes and Plot
+        fig = go.Figure()
+
+        # Add map style
+        fig.update_layout(
+            mapbox_style="carto-positron",
+            mapbox_center={"lat": -15.7801, "lon": -47.9292}, # Brasilia center default
+            mapbox_zoom=3,
+            margin={"r":0,"t":0,"l":0,"b":0}
+        )
+
+        success_count = 0
+
+        lats_all = []
+        lons_all = []
+
+        for item in routes_to_fetch:
+            origin = item['origin']
+            dest = item['destination']
+
+            # Fetch geometry
+            route_data = client.get_route(
+                {'lat': origin['Latitude'], 'lon': origin['Longitude']},
+                {'lat': dest['Latitude'], 'lon': dest['Longitude']}
+            )
+
+            if route_data and 'trip' in route_data and 'legs' in route_data['trip']:
+                try:
+                    # Extract geometry string
+                    # Valhalla response: trip -> legs -> [0] -> shape
+                    shape = route_data['trip']['legs'][0]['shape']
+
+                    # Decode polyline
+                    # polyline.decode returns [(lat, lon), ...]
+                    coords = polyline.decode(shape, precision=6) # Valhalla uses precision 6
+
+                    lats = [c[0] for c in coords]
+                    lons = [c[1] for c in coords]
+
+                    lats_all.extend(lats)
+                    lats_all.append(None)
+                    lons_all.extend(lons)
+                    lons_all.append(None)
+
+                    success_count += 1
+                except Exception as e:
+                    print(f"Error parsing route: {e}")
+
+        if lats_all:
+             # Add Route Line
+            fig.add_trace(go.Scattermapbox(
+                mode="lines",
+                lat=lats_all,
+                lon=lons_all,
+                line=dict(width=2, color='blue'),
+                opacity=0.6,
+                hoverinfo='skip',
+                name='Rotas'
+            ))
+
+        # Add Markers for Origins (Green)
+        fig.add_trace(go.Scattermapbox(
+            mode="markers",
+            lat=[r['Latitude'] for r in origins],
+            lon=[r['Longitude'] for r in origins],
+            marker=dict(size=8, color='green'),
+            name="Origens",
+            text=[r.get('Cidade', 'Origem') for r in origins]
+        ))
+
+        # Add Markers for Farthest Destinations (Red)
+        if routes_to_fetch:
+            unique_dests = {}
+            for r in routes_to_fetch:
+                key = (r['destination']['Latitude'], r['destination']['Longitude'])
+                if key not in unique_dests:
+                    unique_dests[key] = r['destination']
+
+            fig.add_trace(go.Scattermapbox(
+                mode="markers",
+                lat=[v['Latitude'] for v in unique_dests.values()],
+                lon=[v['Longitude'] for v in unique_dests.values()],
+                marker=dict(size=8, color='red'),
+                name="Destinos (Mais Distantes)",
+                text=[v.get('Município', v.get('Cidade', 'Armazém')) for v in unique_dests.values()]
+            ))
+
+        return f"Concluído! {success_count} rotas calculadas (de {len(origins)} origens).", fig
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Erro interno: {str(e)}", no_update

@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  granum:
+    build: .
+    container_name: granum
+    ports:
+      - "8050:8050"
+    environment:
+      - VALHALLA_URL=http://valhalla:8002
+    depends_on:
+      - valhalla
+    restart: always
+
+  valhalla:
+    image: gisops/valhalla:latest
+    container_name: valhalla
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./valhalla_data:/custom_files
+    environment:
+      - tile_urls=https://download.geofabrik.de/south-america/brazil-latest.osm.pbf
+      - build_elevation=True
+      - build_admins=True
+      - build_time_zones=True
+      - serve_tiles=True
+    restart: unless-stopped
