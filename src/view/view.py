@@ -1809,4 +1809,7 @@ def download_matrix(n_clicks, stored_matrix):
 
 
 def view():
-    app.run(debug=True)
+    # Use environment variable to determine if we are in Docker or dev
+    # '0.0.0.0' allows external access (from host to docker container)
+    host = os.environ.get("HOST", "127.0.0.1")
+    app.run(debug=True, host=host)
