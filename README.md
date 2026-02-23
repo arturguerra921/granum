@@ -31,7 +31,18 @@ python scripts/setup_osrm.py
 
 Start the application and the OSRM service:
 
+**Linux / Mac:**
 ```bash
+docker-compose up --build
+```
+
+**Windows (Shortcut):**
+You can simply run the provided PowerShell script:
+```powershell
+.\scripts\start_osrm_app.ps1
+```
+Or manually:
+```powershell
 docker-compose up --build
 ```
 
