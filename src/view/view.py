@@ -1916,13 +1916,23 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         lats = [p[1] for p in geometry['coordinates']]
         lons = [p[0] for p in geometry['coordinates']]
 
+        is_fallback = route_data.get('type') == 'fallback'
+
+        # Line Style based on type
+        line_style = {'width': 4, 'color': UNB_THEME['UNB_BLUE']}
+        line_name = "Rota (OSRM)"
+
+        if is_fallback:
+            line_style = {'width': 4, 'color': '#FF9900', 'dash': 'dot'} # Orange dashed
+            line_name = "Rota Estimada (Linha Reta x 1.3)"
+
         # Create Figure
         fig = go.Figure(go.Scattermapbox(
             mode="lines",
             lon=lons,
             lat=lats,
-            line={'width': 4, 'color': UNB_THEME['UNB_BLUE']},
-            name="Rota"
+            line=line_style,
+            name=line_name
         ))
 
         # Add Origin Marker

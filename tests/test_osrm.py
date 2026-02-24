@@ -79,8 +79,10 @@ class TestOSRMClient(unittest.TestCase):
 
         matrix = self.client.get_distance_matrix(origins, destinations)
 
-        # Should return matrix with None
-        self.assertEqual(matrix[0][0], None)
+        # Should return estimated distance (fallback), not None
+        # Coords (0,0) to (1,1) is approx 157km * 1.3 = 204km
+        self.assertIsNotNone(matrix[0][0])
+        self.assertGreater(matrix[0][0], 0)
 
 if __name__ == '__main__':
     unittest.main()

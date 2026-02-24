@@ -7,9 +7,27 @@ class OSRMClient:
         self.base_url = base_url.rstrip("/")
         self.max_table_size = max_table_size
 
+    def _haversine_distance(self, coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
+        """
+        Calculates the great-circle distance between two points on the Earth surface.
+        """
+        lat1, lon1 = coord1
+        lat2, lon2 = coord2
+        R = 6371000  # Earth radius in meters
+
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+
+        a = math.sin(dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        return R * c
+
     def get_distance_matrix(self, origins: List[Tuple[float, float]], destinations: List[Tuple[float, float]]) -> List[List[Optional[float]]]:
         """
         Calculates the distance matrix between origins and destinations using OSRM Table API.
+        Falls back to Haversine distance * 1.3 (correction factor) if OSRM fails or returns None.
 
         Args:
             origins: List of (latitude, longitude) tuples.
@@ -17,7 +35,6 @@ class OSRMClient:
 
         Returns:
             A 2D list (matrix) where matrix[i][j] is the distance in meters from origins[i] to destinations[j].
-            Returns None for unreachable pairs.
         """
         if not origins or not destinations:
             return []
@@ -86,6 +103,14 @@ class OSRMClient:
                     # Keep None in matrix for failed chunks
                     pass
 
+        # Fallback pass: If any cell is None, calculate estimated distance
+        # Estimation: Haversine Distance * 1.3 (Tortuosity factor)
+        for i in range(num_origins):
+            for j in range(num_destinations):
+                if matrix[i][j] is None:
+                    dist_straight = self._haversine_distance(origins[i], destinations[j])
+                    matrix[i][j] = dist_straight * 1.3
+
         return matrix
 
     def get_route(self, origin: Tuple[float, float], destination: Tuple[float, float]) -> Optional[dict]:
@@ -117,18 +142,39 @@ class OSRMClient:
 
             if data["code"] != "Ok" or not data["routes"]:
                 print(f"OSRM Route Error: {data.get('message', 'No route found')}")
-                return None
+                # Return fallback straight line
+                dist_straight = self._haversine_distance(origin, destination)
+                return {
+                    'geometry': {
+                        'type': 'LineString',
+                        'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+                    },
+                    'distance': dist_straight * 1.3,
+                    'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
+                    'type': 'fallback'
+                }
 
             route = data["routes"][0]
             return {
                 'geometry': route['geometry'], # This is a GeoJSON object (type: LineString, coordinates: [[lon, lat], ...])
                 'distance': route['distance'],
-                'duration': route['duration']
+                'duration': route['duration'],
+                'type': 'osrm'
             }
 
         except requests.RequestException as e:
             print(f"Route request failed: {e}")
-            return None
+            # Return fallback straight line
+            dist_straight = self._haversine_distance(origin, destination)
+            return {
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+                },
+                'distance': dist_straight * 1.3,
+                'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
+                'type': 'fallback'
+            }
 
 # Example usage (commented out)
 # if __name__ == "__main__":
