@@ -1919,11 +1919,15 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         is_fallback = route_data.get('type') == 'fallback'
 
         # Line Style based on type
-        line_style = {'width': 4, 'color': UNB_THEME['UNB_BLUE']}
+        # Note: Scattermapbox does NOT support 'dash' property for lines.
+        # We use distinct colors instead.
+        line_color = UNB_THEME['UNB_BLUE']
+        line_width = 4
         line_name = "Rota (OSRM)"
 
         if is_fallback:
-            line_style = {'width': 4, 'color': '#FF9900', 'dash': 'dot'} # Orange dashed
+            line_color = '#FF4500' # OrangeRed for visibility
+            line_width = 3
             line_name = "Rota Estimada (Linha Reta x 1.3)"
 
         # Create Figure
@@ -1931,7 +1935,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             mode="lines",
             lon=lons,
             lat=lats,
-            line=line_style,
+            line={'width': line_width, 'color': line_color},
             name=line_name
         ))
 

@@ -65,7 +65,7 @@ def get_tab_distance_matrix_layout():
                                 id='table-distance-matrix',
                                 data=[],
                                 columns=[],
-                                page_size=15,
+                                page_size=5, # Reduced page size to bring map closer
                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
                                 style_cell={
                                     'textAlign': 'center',
@@ -98,8 +98,7 @@ def get_tab_distance_matrix_layout():
                 className="card-body-custom d-flex flex-column"
             ),
         ],
-        className="card-custom h-100 mb-3",
-        style={"minHeight": "300px"} # Reduced min-height
+        className="card-custom mb-3", # Removed h-100 and minHeight to shrink to fit content
     )
 
     # Map Card
