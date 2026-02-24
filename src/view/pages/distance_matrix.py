@@ -118,7 +118,7 @@ def get_tab_distance_matrix_layout():
                             "displayModeBar": True,
                             "scrollZoom": True,
                             "showAxisDragHandles": True,
-                            "modeBarButtons.add": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
+                            "modeBarButtonsToAdd": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
                         }
                     )
                 ],
