@@ -93,12 +93,34 @@ def get_tab_distance_matrix_layout():
                         ], className="h-100"),
                         color="primary"
                     ),
+                    html.Div("Clique em uma célula da tabela para visualizar a rota no mapa abaixo.", className="text-muted small mt-2")
                 ],
                 className="card-body-custom d-flex flex-column"
             ),
         ],
-        className="card-custom h-100",
-        style={"minHeight": "600px"}
+        className="card-custom h-100 mb-24",
+        style={"minHeight": "400px"}
+    )
+
+    # Map Card
+    map_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                "Visualização da Rota",
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dcc.Graph(
+                        id="graph-route-map",
+                        style={"height": "500px"},
+                        config={"displayModeBar": False}
+                    )
+                ],
+                className="card-body-custom"
+            )
+        ],
+        className="card-custom h-100"
     )
 
     return html.Div([
@@ -108,7 +130,10 @@ def get_tab_distance_matrix_layout():
                     calc_card,
                     export_card
                 ], width=12, lg=3, className="mb-24"),
-                dbc.Col(table_card, width=12, lg=9, className="mb-24"),
+                dbc.Col([
+                    table_card,
+                    map_card
+                ], width=12, lg=9, className="mb-24"),
             ]
         ),
     ])

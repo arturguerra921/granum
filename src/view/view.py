@@ -8,6 +8,9 @@ from src.view.theme import UNB_THEME
 from src.view.pages.distance_matrix import get_tab_distance_matrix_layout
 from src.logic.osrm import OSRMClient
 import dash
+import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
 
 # --- Data Loading ---
 try:
@@ -1806,6 +1809,172 @@ def download_matrix(n_clicks, stored_matrix):
 
     df = pd.read_json(io.StringIO(stored_matrix), orient='split')
     return dcc.send_data_frame(df.to_excel, "matriz_distancias.xlsx", index=False)
+
+# 15. Route Visualization
+@app.callback(
+    Output("graph-route-map", "figure"),
+    Input("table-distance-matrix", "active_cell"),
+    [State('stored-data', 'data'),
+     State('store-armazens', 'data'),
+     State('table-distance-matrix', 'data')],
+    prevent_initial_call=True
+)
+def update_route_map(active_cell, stored_data, stored_armazens, table_data):
+    # Default map centered on Brazil
+    default_fig = go.Figure(go.Scattermapbox())
+    default_fig.update_layout(
+        mapbox_style="open-street-map",
+        mapbox_zoom=3,
+        mapbox_center={"lat": -14.2350, "lon": -51.9253},
+        margin={"r": 0, "t": 0, "l": 0, "b": 0}
+    )
+
+    if not active_cell or not stored_data or not stored_armazens or not table_data:
+        return default_fig
+
+    try:
+        # Get Origin and Destination from active cell
+        # Table data has 'Origem' column and destination columns
+        row_idx = active_cell['row']
+        col_id = active_cell['column_id']
+
+        # If clicked on 'Origem' column, maybe show all routes? Or just ignore.
+        # Let's ignore for now or pick the first destination?
+        if col_id == 'Origem':
+            return default_fig
+
+        row_data = table_data[row_idx]
+        origin_name = row_data['Origem']
+        dest_label = col_id
+
+        # Retrieve Coordinates
+        df_input = pd.read_json(io.StringIO(stored_data), orient='split')
+        df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+
+        # Origin Coords
+        # We need to find the lat/lon for the origin_name (City)
+        # Assuming unique city names for simplicity or taking first match
+        origin_row = df_input[df_input['Cidade'] == origin_name].iloc[0]
+        origin_coords = (origin_row['Latitude'], origin_row['Longitude'])
+
+        # Destination Coords
+        # This is trickier because dest_label is a formatted string "Name (City)" or similar
+        # We need to reconstruct the logic from calculation callback or store dest coords
+        # Re-running logic for now (could be optimized by storing mapping)
+
+        # Re-resolve warehouses logic
+        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+
+        if not lat_col or not lon_col:
+             # Using lookup logic
+             mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
+             uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+             df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+             def get_coords(key):
+                 if key in CITY_LOOKUP: return CITY_LOOKUP[key]
+                 return {'latitude': None, 'longitude': None}
+             coords = df_armazens['lookup_key'].apply(get_coords)
+             df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
+             df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
+             dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+        else:
+            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
+
+        # Match label
+        name_col = next((c for c in dests_df.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
+        mun_col_dest = next((c for c in dests_df.columns if 'munic' in str(c).lower()), None)
+
+        dest_coords = None
+        for idx, row in dests_df.iterrows():
+            label = f"Dest {idx}"
+            if name_col and mun_col_dest:
+                label = f"{row[name_col]} ({row[mun_col_dest]})"
+            elif name_col:
+                label = str(row[name_col])
+            elif mun_col_dest:
+                label = str(row[mun_col_dest])
+
+            if label == dest_label:
+                dest_coords = (row['Latitude'], row['Longitude'])
+                break
+
+        if not dest_coords:
+            return default_fig
+
+        # Call OSRM for Route
+        osrm_url = os.environ.get("OSRM_URL", "http://localhost:5000")
+        client = OSRMClient(base_url=osrm_url)
+        route_data = client.get_route(origin_coords, dest_coords)
+
+        if not route_data:
+             return default_fig
+
+        # Process Geometry (GeoJSON LineString)
+        geometry = route_data['geometry']
+        lats = [p[1] for p in geometry['coordinates']]
+        lons = [p[0] for p in geometry['coordinates']]
+
+        # Create Figure
+        fig = go.Figure(go.Scattermapbox(
+            mode="lines",
+            lon=lons,
+            lat=lats,
+            line={'width': 4, 'color': UNB_THEME['UNB_BLUE']},
+            name="Rota"
+        ))
+
+        # Add Origin Marker
+        fig.add_trace(go.Scattermapbox(
+            mode="markers",
+            lon=[origin_coords[1]],
+            lat=[origin_coords[0]],
+            marker={'size': 12, 'color': UNB_THEME['UNB_GREEN']},
+            name=f"Origem: {origin_name}"
+        ))
+
+        # Add Destination Marker
+        fig.add_trace(go.Scattermapbox(
+            mode="markers",
+            lon=[dest_coords[1]],
+            lat=[dest_coords[0]],
+            marker={'size': 12, 'color': 'red'},
+            name=f"Destino: {dest_label}"
+        ))
+
+        # Center map on route
+        center_lat = np.mean(lats)
+        center_lon = np.mean(lons)
+
+        # Simple zoom estimation (could be better)
+        # distance in degrees
+        lat_diff = max(lats) - min(lats)
+        lon_diff = max(lons) - min(lons)
+        max_diff = max(lat_diff, lon_diff)
+
+        zoom = 5
+        if max_diff < 0.1: zoom = 11
+        elif max_diff < 0.5: zoom = 9
+        elif max_diff < 2: zoom = 7
+        elif max_diff < 5: zoom = 6
+        elif max_diff < 10: zoom = 5
+        else: zoom = 4
+
+        fig.update_layout(
+            mapbox_style="open-street-map",
+            mapbox_zoom=zoom,
+            mapbox_center={"lat": center_lat, "lon": center_lon},
+            margin={"r": 0, "t": 0, "l": 0, "b": 0},
+            showlegend=True,
+            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        )
+
+        return fig
+
+    except Exception as e:
+        print(f"Error plotting route: {e}")
+        return default_fig
 
 
 def view():

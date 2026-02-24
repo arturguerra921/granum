@@ -88,6 +88,48 @@ class OSRMClient:
 
         return matrix
 
+    def get_route(self, origin: Tuple[float, float], destination: Tuple[float, float]) -> Optional[dict]:
+        """
+        Calculates the route between an origin and a destination using OSRM Route API.
+
+        Args:
+            origin: (latitude, longitude) tuple.
+            destination: (latitude, longitude) tuple.
+
+        Returns:
+            A dictionary containing:
+            - 'geometry': Polyline string or coordinates (depending on request, here we use overview=full -> geometry string or geojson)
+            - 'distance': Distance in meters.
+            - 'duration': Duration in seconds.
+            Returns None if unreachable.
+        """
+        # OSRM expects: lon,lat
+        origin_str = f"{origin[1]},{origin[0]}"
+        dest_str = f"{destination[1]},{destination[0]}"
+
+        # Request full geometry (overview=full) and geometries=geojson for easy plotting in Plotly
+        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson"
+
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+
+            if data["code"] != "Ok" or not data["routes"]:
+                print(f"OSRM Route Error: {data.get('message', 'No route found')}")
+                return None
+
+            route = data["routes"][0]
+            return {
+                'geometry': route['geometry'], # This is a GeoJSON object (type: LineString, coordinates: [[lon, lat], ...])
+                'distance': route['distance'],
+                'duration': route['duration']
+            }
+
+        except requests.RequestException as e:
+            print(f"Route request failed: {e}")
+            return None
+
 # Example usage (commented out)
 # if __name__ == "__main__":
 #     client = OSRMClient()
