@@ -100,9 +100,10 @@ def process_osrm():
     # We use -t 4 to limit threads (reduce memory usage per thread)
     # We mount the .stxxl file to /opt/.stxxl (where OSRM looks for it by default or we set env var)
     # Actually easier to just map it to /data/.stxxl and point STXXLCFG env var
+    # Added --small-component-size 50000 to keep larger isolated networks (rural areas)
     extract_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-extract -p /opt/car.lua /data/{FILTERED_PBF_FILE} -t 4"
+        f"osrm-extract -p /opt/car.lua /data/{FILTERED_PBF_FILE} -t 4 --small-component-size 50000"
     )
     print("Running extraction (this may take a while using disk swap)...")
     run_command(extract_cmd)
