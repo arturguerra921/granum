@@ -98,8 +98,8 @@ def get_tab_distance_matrix_layout():
                 className="card-body-custom d-flex flex-column"
             ),
         ],
-        className="card-custom h-100 mb-24",
-        style={"minHeight": "400px"}
+        className="card-custom h-100 mb-3",
+        style={"minHeight": "300px"} # Reduced min-height
     )
 
     # Map Card
@@ -113,8 +113,13 @@ def get_tab_distance_matrix_layout():
                 [
                     dcc.Graph(
                         id="graph-route-map",
-                        style={"height": "500px"},
-                        config={"displayModeBar": False}
+                        style={"height": "600px"}, # Increased height for better view
+                        config={
+                            "displayModeBar": True,
+                            "scrollZoom": True,
+                            "showAxisDragHandles": True,
+                            "modeBarButtons.add": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
+                        }
                     )
                 ],
                 className="card-body-custom"
