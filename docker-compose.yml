@@ -16,7 +16,9 @@ services:
 
   osrm:
     image: osrm/osrm-backend
-    command: osrm-routed --algorithm mld /data/brazil-filtered.osrm
+    # Increased max-matching-size to 10000 to allow snapping to roads further away (helps with isolated points)
+    # Increased max-table-size to 10000 to allow larger matrices in one go (though client chunks it too)
+    command: osrm-routed --algorithm mld /data/brazil-filtered.osrm --max-matching-size 10000 --max-table-size 10000
     volumes:
       - ./data/osrm:/data
     ports:
