@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  granum:
+    build: .
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      - valhalla
+    environment:
+      - VALHALLA_HOST=http://valhalla:8002
+    command: gunicorn -b 0.0.0.0:8050 wsgi:server --reload
+
+  valhalla:
+    image: ghcr.io/nilsnolde/docker-valhalla/valhalla:latest
+    container_name: valhalla_route_engine
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./valhalla_data:/custom_files
+    environment:
+      - build_elevation=False
+      - build_admins=True
+      - build_time_zones=True
+      - server_threads=2

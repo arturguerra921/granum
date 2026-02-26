@@ -4,7 +4,9 @@ import os
 import pandas as pd
 from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
 import dash_bootstrap_components as dbc
+import plotly.graph_objects as go
 from src.view.theme import UNB_THEME
+from src.logic.valhalla.client import ValhallaClient
 import dash
 
 # --- Data Loading ---
@@ -41,6 +43,9 @@ except Exception as e:
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP], suppress_callback_exceptions=True)
 app.title = "Granum"
 
+# Initialize Valhalla Client
+valhalla_client = ValhallaClient()
+
 # --- Layout Components ---
 
 # 1. Navbar / Header
@@ -76,6 +81,7 @@ tabs = dbc.Tabs(
         dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
         dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
+        dbc.Tab(label="Matriz de Distâncias", tab_id="tab-matrix", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
     ],
@@ -799,6 +805,46 @@ def get_tab_prod_armazens_layout():
         missing_data_modal
     ])
 
+# 6. Tab Matrix Content
+def get_tab_matrix_layout():
+    control_card = dbc.Card(
+        [
+            dbc.CardHeader("Controle da Matriz", className="card-header-custom"),
+            dbc.CardBody(
+                [
+                    html.P("Clique no botão abaixo para calcular a matriz de distâncias e visualizar as rotas para o armazém mais distante de cada origem.", className="text-muted small mb-3"),
+                    dbc.Button("Calcular Matriz", id="btn-calc-matrix", className="btn-primary-custom w-100 mb-3"),
+                    html.Div(id="matrix-status", className="text-muted small")
+                ],
+                className="card-body-custom"
+            )
+        ],
+        className="card-custom h-100 mb-3"
+    )
+
+    map_card = dbc.Card(
+        [
+            dbc.CardHeader("Visualização das Rotas (Nó Mais Distante)", className="card-header-custom"),
+            dbc.CardBody(
+                dbc.Spinner(
+                    dcc.Graph(id="matrix-map", style={"height": "600px"}),
+                    color="primary"
+                ),
+                className="card-body-custom p-0" # No padding for map
+            )
+        ],
+        className="card-custom h-100"
+    )
+
+    return html.Div([
+        dbc.Row(
+            [
+                dbc.Col(control_card, width=12, lg=3),
+                dbc.Col(map_card, width=12, lg=9),
+            ]
+        )
+    ])
+
 
 # Error Modal (Global)
 error_modal = dbc.Modal(
@@ -819,6 +865,7 @@ error_modal = dbc.Modal(
 tab1_layout = get_tab1_layout()
 tab2_layout = get_tab_armazens_layout()
 tab_prod_armazens_layout = get_tab_prod_armazens_layout()
+tab_matrix_layout = get_tab_matrix_layout()
 tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
 tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
 
@@ -827,6 +874,7 @@ content_container = html.Div(
         html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
         html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
         html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
+        html.Div(id="tab-matrix-container", children=tab_matrix_layout, style={"display": "none"}),
         html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
         html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
     ],
@@ -846,6 +894,7 @@ app.layout = html.Div(
                 dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
                 dcc.Store(id='store-armazens'), # New Store for Armazéns
                 dcc.Store(id='store-prod-armazens'), # New Store for Prod x Armazens
+                dcc.Store(id='store-matrix-routes'), # Store for map routes
                 dcc.Download(id='download-dataframe-xlsx'),
                 error_modal
             ],
@@ -866,22 +915,26 @@ app.layout = html.Div(
     [Output("tab-input-container", "style"),
      Output("tab-armazens-container", "style"),
      Output("tab-prod-armazens-container", "style"),
+     Output("tab-matrix-container", "style"),
      Output("tab-config-container", "style"),
      Output("tab-results-container", "style")],
     Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
+    styles = [{"display": "none"}] * 6
     if active_tab == 'tab-input':
-        return {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        styles[0] = {"display": "block"}
     elif active_tab == 'tab-armazens':
-        return {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        styles[1] = {"display": "block"}
     elif active_tab == 'tab-prod-armazens':
-        return {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}, {"display": "none"}
+        styles[2] = {"display": "block"}
+    elif active_tab == 'tab-matrix':
+        styles[3] = {"display": "block"}
     elif active_tab == 'tab-config':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}, {"display": "none"}
+        styles[4] = {"display": "block"}
     elif active_tab == 'tab-results':
-        return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "block"}
-    return {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}
+        styles[5] = {"display": "block"}
+    return styles
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
@@ -1626,6 +1679,194 @@ def toggle_checkbox(active_cell, table_data):
     except Exception as e:
         print(f"Error toggling checkbox: {e}")
         return no_update, no_update, None
+
+# 13. Calculate Matrix and Routes
+@app.callback(
+    Output("matrix-status", "children"),
+    Output("store-matrix-routes", "data"),
+    Input("btn-calc-matrix", "n_clicks"),
+    State("stored-data", "data"), # Origins
+    State("store-armazens", "data"), # Destinations
+    prevent_initial_call=True
+)
+def calculate_matrix_logic(n_clicks, stored_input, stored_armazens):
+    if not n_clicks:
+        return no_update, no_update
+
+    if not stored_input or not stored_armazens:
+        return "Dados insuficientes (Origens ou Destinos faltando).", no_update
+
+    try:
+        # Load Data
+        df_origins = pd.read_json(io.StringIO(stored_input), orient='split')
+        df_dests = pd.read_json(io.StringIO(stored_armazens), orient='split')
+
+        if df_origins.empty or df_dests.empty:
+            return "Dados insuficientes.", no_update
+
+        # Filter Valid Coords
+        # We need unique locations from origins (many rows might be same city)
+        # Drop duplicates by Lat/Lon
+        origins_unique = df_origins.drop_duplicates(subset=['Latitude', 'Longitude'])
+
+        # Prepare Locations for Valhalla
+        origins_payload = []
+        for _, row in origins_unique.iterrows():
+            origins_payload.append({"lat": row['Latitude'], "lon": row['Longitude']})
+
+        dests_payload = []
+        # Keep track of indices to map back to warehouse info
+        dest_mapping = []
+        for i, row in df_dests.iterrows():
+            # Assuming Lat/Lon columns exist in Armazens base
+            # Standard Conab CSV usually has 'LATITUDE' and 'LONGITUDE' or similar
+            # Let's try to find them case-insensitive
+            lat_col = next((c for c in df_dests.columns if 'lat' in str(c).lower()), None)
+            lon_col = next((c for c in df_dests.columns if 'lon' in str(c).lower()), None)
+
+            if lat_col and lon_col:
+                # Clean coords (replace comma with dot if string)
+                try:
+                    lat = float(str(row[lat_col]).replace(',', '.'))
+                    lon = float(str(row[lon_col]).replace(',', '.'))
+                    dests_payload.append({"lat": lat, "lon": lon})
+                    dest_mapping.append(i)
+                except:
+                    continue
+
+        if not origins_payload or not dests_payload:
+            return "Coordenadas inválidas encontradas.", no_update
+
+        # Call Matrix API
+        # Warning: This might be heavy if N x M is large. Valhalla handles it well though.
+        matrix = valhalla_client.get_matrix(origins_payload, dests_payload)
+
+        if not matrix:
+            return "Erro ao calcular matriz (Verifique se o Valhalla está rodando).", no_update
+
+        # Process Results: Find Farthest for each Origin
+        routes_data = [] # List of geometries to plot
+
+        for i, row_distances in enumerate(matrix):
+            # i corresponds to index in origins_payload / origins_unique
+
+            # Find max distance index
+            max_dist = -1
+            max_idx = -1
+
+            for j, dist in enumerate(row_distances):
+                if dist is not None and dist > max_dist:
+                    max_dist = dist
+                    max_idx = j
+
+            if max_idx != -1:
+                # Get route geometry for this pair
+                origin = origins_payload[i]
+                destination = dests_payload[max_idx]
+
+                route_info = valhalla_client.get_route(origin, destination)
+
+                if route_info:
+                    routes_data.append({
+                        'origin': origin,
+                        'destination': destination,
+                        'geometry': route_info['geometry'], # List of [lat, lon]
+                        'distance': route_info['distance']
+                    })
+
+        return f"Cálculo concluído. {len(routes_data)} rotas encontradas.", routes_data
+
+    except Exception as e:
+        print(f"Matrix Calc Error: {e}")
+        return f"Erro: {str(e)}", no_update
+
+# 14. Render Map
+@app.callback(
+    Output("matrix-map", "figure"),
+    Input("store-matrix-routes", "data"),
+    Input("main-tabs", "active_tab")
+)
+def update_map(routes_data, active_tab):
+    if active_tab != 'tab-matrix':
+        return no_update
+
+    fig = go.Figure()
+
+    # Base Map Style
+    fig.update_layout(
+        mapbox_style="open-street-map", # Free, no token needed
+        margin={"r":0,"t":0,"l":0,"b":0},
+        showlegend=False
+    )
+
+    if not routes_data:
+        # Default center Brazil
+        fig.update_layout(
+            mapbox={
+                'center': {'lat': -15.793889, 'lon': -47.882778},
+                'zoom': 3
+            }
+        )
+        return fig
+
+    # Plot Routes
+    lats = []
+    lons = []
+
+    # 1. Plot Lines (Routes)
+    for route in routes_data:
+        geo = route['geometry']
+        # Unzip geometry
+        r_lats, r_lons = zip(*geo)
+
+        # Add trace for route
+        fig.add_trace(go.Scattermapbox(
+            mode="lines",
+            lat=r_lats,
+            lon=r_lons,
+            line=dict(width=2, color='blue'),
+            hoverinfo='none' # Performance
+        ))
+
+        lats.extend(r_lats)
+        lons.extend(r_lons)
+
+    # 2. Plot Endpoints (Origins and Destinations)
+    # We can extract them from routes_data
+    org_lats = [r['origin']['lat'] for r in routes_data]
+    org_lons = [r['origin']['lon'] for r in routes_data]
+
+    dest_lats = [r['destination']['lat'] for r in routes_data]
+    dest_lons = [r['destination']['lon'] for r in routes_data]
+
+    fig.add_trace(go.Scattermapbox(
+        mode="markers",
+        lat=org_lats,
+        lon=org_lons,
+        marker=dict(size=8, color='green'),
+        name="Origem"
+    ))
+
+    fig.add_trace(go.Scattermapbox(
+        mode="markers",
+        lat=dest_lats,
+        lon=dest_lons,
+        marker=dict(size=8, color='red'),
+        name="Destino (Mais Distante)"
+    ))
+
+    # Auto-center
+    if lats and lons:
+        center_lat = sum(lats) / len(lats)
+        center_lon = sum(lons) / len(lons)
+        fig.update_layout(
+            mapbox={
+                'center': {'lat': center_lat, 'lon': center_lon},
+                'zoom': 3
+            }
+        )
+
+    return fig
 
 
 def view():

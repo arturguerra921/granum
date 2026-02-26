@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "ualivent", email="ualivent@gmail.com"}
 ]
-description = "Google Calendar for terminal usage."
+description = "Otimização de Localização - Universidade de Brasília"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.10"
@@ -26,7 +26,9 @@ dependencies = [
     "dash-bootstrap-components",
     "gunicorn",
     "lxml",
-    "xlrd"
+    "xlrd",
+    "requests",
+    "polyline"
 ]
 
 [project.scripts]
