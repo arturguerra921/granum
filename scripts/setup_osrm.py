@@ -67,13 +67,12 @@ def process_osrm():
         f.write("disk=/data/stxxl,50000,syscall")
 
     # 1. Extract
-    # We use -t 1 to limit threads to 1 (minimizes RAM usage at the cost of processing time)
     # We mount the .stxxl file to /opt/.stxxl (where OSRM looks for it by default or we set env var)
     # Actually easier to just map it to /data/.stxxl and point STXXLCFG env var
     # Added --small-component-size 50000 to keep larger isolated networks (rural areas)
     extract_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-extract -p /opt/car.lua /data/{OSM_PBF_FILE} -t 1 --small-component-size 50000"
+        f"osrm-extract -p /opt/car.lua /data/{OSM_PBF_FILE} --small-component-size 50000"
     )
     print("Running extraction (this may take a while using disk swap)...")
     run_command(extract_cmd)
@@ -81,7 +80,7 @@ def process_osrm():
     # 2. Partition (MLD) - Partition the graph
     partition_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-partition /data/{OSRM_FILE_BASE} -t 1"
+        f"osrm-partition /data/{OSRM_FILE_BASE}"
     )
     print("Running partitioning (MLD)...")
     run_command(partition_cmd)
@@ -89,7 +88,7 @@ def process_osrm():
     # 3. Customize (MLD) - Customize the graph
     customize_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-customize /data/{OSRM_FILE_BASE} -t 1"
+        f"osrm-customize /data/{OSRM_FILE_BASE}"
     )
     print("Running customization (MLD)...")
     run_command(customize_cmd)
