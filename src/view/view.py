@@ -226,10 +226,10 @@ def get_tab1_layout():
                         ),
                         dbc.Col(
                             [
-                                dbc.Label("Editar", className="fw-bold small", style={"visibility": "hidden"}),
-                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100", n_clicks=0, title="Editar Lat/Long manualmente")
+                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
                             ],
-                            width=2
+                            width=2,
+                            className="d-flex align-items-end"
                         ),
                     ]),
                     html.Div(className="d-grid", children=[
@@ -1310,6 +1310,8 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
                      df = df.iloc[:, :-1]
 
             if df is not None:
+                if "Estoque Inicial" not in df.columns:
+                    df["Estoque Inicial"] = 0
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}
             else:
                 return no_update, True, "Arquivo vazio ou inválido.", no_update
@@ -1322,6 +1324,8 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
     if trigger_id == 'table-armazens':
         if table_data:
              df = pd.DataFrame(table_data)
+             if "Estoque Inicial" not in df.columns:
+                 df["Estoque Inicial"] = 0
              return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
         return no_update, no_update, no_update, no_update
 
@@ -1343,6 +1347,11 @@ def update_armazens_table_view(stored_data):
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
+
+        # Ensure 'Estoque Inicial' is in columns list, and ideally at a reasonable position or end
+        if "Estoque Inicial" not in df.columns:
+            df["Estoque Inicial"] = 0
+
         columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
 
         # Calculate Metrics
@@ -1384,8 +1393,12 @@ def update_armazens_table_view(stored_data):
         public_str = f"{public_count}"
         private_str = f"{private_count}"
 
+        # To ensure the column shows even if the JSON parsing somehow missed my initial addition,
+        # we check the dicts too. `df.to_dict('records')` uses `df.columns` which now definitely has 'Estoque Inicial'.
+
         return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str
-    except Exception:
+    except Exception as e:
+        print(f"Error in update_armazens_table_view: {e}")
         return [], [], "0", "0.00", "0", "0"
 
 # 6. Save Confirmation Modal
