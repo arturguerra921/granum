@@ -7,11 +7,7 @@ import shutil
 OSM_PBF_URL = "https://download.geofabrik.de/south-america/brazil-latest.osm.pbf"
 DATA_DIR = os.path.join(os.getcwd(), "data", "osrm")
 OSM_PBF_FILE = "brazil-latest.osm.pbf"
-FILTERED_PBF_FILE = "brazil-filtered.osm.pbf"
-OSRM_FILE_BASE = "brazil-filtered.osrm"
-
-# Filter tags based on user requirements (added service and track for rural areas)
-FILTER_TAGS = "w/highway=motorway,trunk,primary,secondary,tertiary,unclassified,residential,service,track"
+OSRM_FILE_BASE = "brazil-latest.osrm"
 
 def run_command(command, check=True):
     """Runs a shell command and prints output."""
@@ -54,32 +50,6 @@ def download_pbf():
     urllib.request.urlretrieve(OSM_PBF_URL, pbf_path, reporthook=report)
     print("\nDownload complete.")
 
-def filter_pbf():
-    """Filters the PBF file using osmium inside a Docker container."""
-    input_path = os.path.join(DATA_DIR, OSM_PBF_FILE)
-    output_path = os.path.join(DATA_DIR, FILTERED_PBF_FILE)
-
-    if os.path.exists(output_path):
-        print(f"Filtered file {output_path} already exists. Skipping filtering.")
-        return
-
-    print("Filtering PBF file with osmium...")
-    # Use debian:bullseye-slim to install osmium-tool and run it
-    # We mount the DATA_DIR to /data
-
-    # Command to run inside the container
-    # 1. Update apt
-    # 2. Install osmium-tool
-    # 3. Run osmium tags-filter
-
-    docker_cmd = (
-        f"docker run --rm -v \"{DATA_DIR}:/data\" debian:bullseye-slim "
-        f"bash -c \"apt-get update && apt-get install -y osmium-tool && "
-        f"osmium tags-filter /data/{OSM_PBF_FILE} {FILTER_TAGS} -o /data/{FILTERED_PBF_FILE}\""
-    )
-    run_command(docker_cmd)
-    print("Filtering complete.")
-
 def process_osrm():
     """Runs OSRM extraction and contraction."""
     # Check if .osrm.hsgr exists (result of contraction)
@@ -91,19 +61,19 @@ def process_osrm():
     print("Processing OSRM data (Extract & Contract)...")
 
     # Create .stxxl config for disk-based processing (avoid OOM)
-    # This tells OSRM to use a 30GB swap file in /data/stxxl (20GB+ safe margin)
+    # This tells OSRM to use a 50GB swap file in /data/stxxl (increase safety margin for whole Brazil)
     stxxl_path = os.path.join(DATA_DIR, ".stxxl")
     with open(stxxl_path, "w") as f:
-        f.write("disk=/data/stxxl,30000,syscall")
+        f.write("disk=/data/stxxl,50000,syscall")
 
     # 1. Extract
-    # We use -t 4 to limit threads (reduce memory usage per thread)
+    # We use -t 1 to limit threads to 1 (minimizes RAM usage at the cost of processing time)
     # We mount the .stxxl file to /opt/.stxxl (where OSRM looks for it by default or we set env var)
     # Actually easier to just map it to /data/.stxxl and point STXXLCFG env var
     # Added --small-component-size 50000 to keep larger isolated networks (rural areas)
     extract_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-extract -p /opt/car.lua /data/{FILTERED_PBF_FILE} -t 4 --small-component-size 50000"
+        f"osrm-extract -p /opt/car.lua /data/{OSM_PBF_FILE} -t 1 --small-component-size 50000"
     )
     print("Running extraction (this may take a while using disk swap)...")
     run_command(extract_cmd)
@@ -111,7 +81,7 @@ def process_osrm():
     # 2. Partition (MLD) - Partition the graph
     partition_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-partition /data/{OSRM_FILE_BASE} -t 4"
+        f"osrm-partition /data/{OSRM_FILE_BASE} -t 1"
     )
     print("Running partitioning (MLD)...")
     run_command(partition_cmd)
@@ -119,7 +89,7 @@ def process_osrm():
     # 3. Customize (MLD) - Customize the graph
     customize_cmd = (
         f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
-        f"osrm-customize /data/{OSRM_FILE_BASE} -t 4"
+        f"osrm-customize /data/{OSRM_FILE_BASE} -t 1"
     )
     print("Running customization (MLD)...")
     run_command(customize_cmd)
@@ -143,7 +113,6 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
 
     download_pbf()
-    filter_pbf()
     process_osrm()
 
     print("\nSetup finished successfully!")
