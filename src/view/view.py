@@ -601,7 +601,7 @@ def get_tab_armazens_layout():
                                 id='table-armazens',
                                 data=[],
                                 columns=[],
-                                editable=False,
+                                editable=True,
                                 row_deletable=False,
                                 filter_action='native',
                                 page_size=10,
@@ -659,7 +659,8 @@ def get_tab_armazens_layout():
                         html.Li("Deixe os outros campos em branco."),
                         html.Li("Preencha o código de segurança e clique em 'Consultar'."),
                         html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
-                        html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela.")
+                        html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela."),
+                        html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base da Conab não fornece essa informação."))
                     ]),
                     html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
                 ]
