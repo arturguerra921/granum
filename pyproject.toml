@@ -32,8 +32,10 @@ dependencies = [
     "xlrd",
     "requests",
     "pyomo",
+    "dash[diskcache]",
     "diskcache",
-    "multiprocess"
+    "multiprocess",
+    "psutil"
 ]
 
 [project.scripts]
