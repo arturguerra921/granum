@@ -1722,8 +1722,20 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
              return no_update, [], [], "Colunas de Latitude/Longitude ausentes na entrada.", True
 
         origins_df = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+
+        # Check for duplicate city names with different coordinates
+        city_counts = origins_df['Cidade'].value_counts()
+        duplicate_cities = set(city_counts[city_counts > 1].index)
+
+        origin_names = []
+        for idx, row in origins_df.iterrows():
+            cidade = row['Cidade']
+            if cidade in duplicate_cities:
+                origin_names.append(f"{cidade} ({row['Latitude']}, {row['Longitude']})")
+            else:
+                origin_names.append(cidade)
+
         origins = list(zip(origins_df['Latitude'], origins_df['Longitude']))
-        origin_names = origins_df['Cidade'].tolist()
 
         if not origins:
              return no_update, [], [], "Nenhuma origem válida (com coordenadas) encontrada.", True

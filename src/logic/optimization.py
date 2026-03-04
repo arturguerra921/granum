@@ -11,6 +11,21 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     # 1. Preparação dos dados
 
     # Oferta (Supply)
+    # Primeiro, ajustar os nomes das origens para bater com a matriz de distâncias.
+    # Cidades duplicadas com diferentes lat/lon recebem "(Lat, Lon)".
+    if 'Latitude' in df_supply.columns and 'Longitude' in df_supply.columns:
+        origins_df = df_supply[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+        city_counts = origins_df['Cidade'].value_counts()
+        duplicate_cities = set(city_counts[city_counts > 1].index)
+
+        def format_cidade(row):
+            cidade = row['Cidade']
+            if cidade in duplicate_cities and pd.notna(row['Latitude']) and pd.notna(row['Longitude']):
+                return f"{cidade} ({row['Latitude']}, {row['Longitude']})"
+            return cidade
+
+        df_supply['Cidade'] = df_supply.apply(format_cidade, axis=1)
+
     # Group by Cidade and Produto, sum over Peso (ton)
     supply = df_supply.groupby(['Cidade', 'Produto'])['Peso (ton)'].sum().to_dict()
 
