@@ -44,10 +44,6 @@ class OSRMClient:
         num_destinations = len(destinations)
         matrix = [[None for _ in range(num_destinations)] for _ in range(num_origins)]
 
-        # Max snap distance in meters. If the coordinate snapped by OSRM is further than this from
-        # the requested coordinate, we consider the point "outside the map" (e.g., out of Brazil).
-        MAX_SNAP_DISTANCE_METERS = 50000
-
         # Chunk processing to respect OSRM limits
         # We need to split origins and destinations such that the total number of coordinates
         # sent in one request does not exceed max_table_size.
@@ -92,44 +88,12 @@ class OSRMClient:
 
                     distances = data["distances"]
 
-                    # Verify if origins or destinations snapped too far away (outside the map coverage)
-                    valid_sources = []
-                    if "sources" in data:
-                        for s_idx, src in enumerate(data["sources"]):
-                            if src and "location" in src:
-                                snapped_lon, snapped_lat = src["location"]
-                                requested_lat, requested_lon = origin_chunk[s_idx]
-                                snap_dist = self._haversine_distance((requested_lat, requested_lon), (snapped_lat, snapped_lon))
-                                valid_sources.append(snap_dist <= MAX_SNAP_DISTANCE_METERS)
-                            else:
-                                valid_sources.append(False)
-                    else:
-                        valid_sources = [True] * len(origin_chunk)
-
-                    valid_destinations = []
-                    if "destinations" in data:
-                        for d_idx, dst in enumerate(data["destinations"]):
-                            if dst and "location" in dst:
-                                snapped_lon, snapped_lat = dst["location"]
-                                requested_lat, requested_lon = dest_chunk[d_idx]
-                                snap_dist = self._haversine_distance((requested_lat, requested_lon), (snapped_lat, snapped_lon))
-                                valid_destinations.append(snap_dist <= MAX_SNAP_DISTANCE_METERS)
-                            else:
-                                valid_destinations.append(False)
-                    else:
-                        valid_destinations = [True] * len(dest_chunk)
-
                     # Fill the result matrix
                     for r_idx, row in enumerate(distances):
-                        if not valid_sources[r_idx]:
-                            for c_idx in range(len(row)):
-                                matrix[i + r_idx][j + c_idx] = None
-                            continue
-
                         for c_idx, dist in enumerate(row):
-                            if not valid_destinations[c_idx]:
-                                matrix[i + r_idx][j + c_idx] = None
-                            elif dist is not None:
+                            # matrix[i + r_idx][j + c_idx] = dist
+                            # Handle None (unreachable)
+                            if dist is not None:
                                 matrix[i + r_idx][j + c_idx] = float(dist)
                             else:
                                 matrix[i + r_idx][j + c_idx] = None
@@ -168,24 +132,8 @@ class OSRMClient:
         origin_str = f"{origin[1]},{origin[0]}"
         dest_str = f"{destination[1]},{destination[0]}"
 
-        # Max snap distance in meters
-        MAX_SNAP_DISTANCE_METERS = 50000
-
         # Request full geometry (overview=full) and geometries=geojson for easy plotting in Plotly
         url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson"
-
-        # Helper to create fallback dict
-        def get_fallback():
-            dist_straight = self._haversine_distance(origin, destination)
-            return {
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
-                },
-                'distance': dist_straight * 1.3,
-                'duration': (dist_straight * 1.3) / (60 * 1000 / 3600),
-                'type': 'fallback'
-            }
 
         try:
             response = requests.get(url)
@@ -194,21 +142,17 @@ class OSRMClient:
 
             if data["code"] != "Ok" or not data["routes"]:
                 print(f"OSRM Route Error: {data.get('message', 'No route found')}")
-                return get_fallback()
-
-            # Verify if OSRM snapped to a coordinate too far away (outside the map coverage)
-            if "waypoints" in data and len(data["waypoints"]) >= 2:
-                # Check origin snap
-                snapped_lon_o, snapped_lat_o = data["waypoints"][0]["location"]
-                if self._haversine_distance(origin, (snapped_lat_o, snapped_lon_o)) > MAX_SNAP_DISTANCE_METERS:
-                    print(f"OSRM Snap Error: Origin coordinate is too far from nearest road ({MAX_SNAP_DISTANCE_METERS}m max). Likely outside map bounds.")
-                    return get_fallback()
-
-                # Check destination snap
-                snapped_lon_d, snapped_lat_d = data["waypoints"][-1]["location"]
-                if self._haversine_distance(destination, (snapped_lat_d, snapped_lon_d)) > MAX_SNAP_DISTANCE_METERS:
-                    print(f"OSRM Snap Error: Destination coordinate is too far from nearest road ({MAX_SNAP_DISTANCE_METERS}m max). Likely outside map bounds.")
-                    return get_fallback()
+                # Return fallback straight line
+                dist_straight = self._haversine_distance(origin, destination)
+                return {
+                    'geometry': {
+                        'type': 'LineString',
+                        'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+                    },
+                    'distance': dist_straight * 1.3,
+                    'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
+                    'type': 'fallback'
+                }
 
             route = data["routes"][0]
             return {
@@ -220,7 +164,17 @@ class OSRMClient:
 
         except requests.RequestException as e:
             print(f"Route request failed: {e}")
-            return get_fallback()
+            # Return fallback straight line
+            dist_straight = self._haversine_distance(origin, destination)
+            return {
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+                },
+                'distance': dist_straight * 1.3,
+                'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
+                'type': 'fallback'
+            }
 
 # Example usage (commented out)
 # if __name__ == "__main__":
