@@ -30,7 +30,10 @@ dependencies = [
     "gunicorn",
     "lxml",
     "xlrd",
-    "requests"
+    "requests",
+    "pyomo",
+    "diskcache",
+    "multiprocess"
 ]
 
 [project.scripts]

@@ -211,3 +211,4 @@ __marimo__/
 
 # OSRM and map data
 data/osrm/
+cache/
