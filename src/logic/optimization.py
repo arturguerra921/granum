@@ -20,11 +20,21 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # Identify Public/Private warehouse.
     armazenador_col = next((c for c in df_demand.columns if 'armazenador' in str(c).lower()), None)
+    name_col = next((c for c in df_demand.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
+    mun_col_dest = next((c for c in df_demand.columns if 'munic' in str(c).lower()), None)
 
     demand_capacity = {}
     is_public = {}
     for idx, row in df_demand.iterrows():
+        # Match the exact naming convention used in the distance matrix view
         dest_name = f"Dest {idx}"
+        if name_col and mun_col_dest:
+            dest_name = f"{row[name_col]} ({row[mun_col_dest]})"
+        elif name_col:
+            dest_name = str(row[name_col])
+        elif mun_col_dest:
+            dest_name = str(row[mun_col_dest])
+
         # Parse capacity correctly (cleaning Brazilian number formats)
         try:
             val_str = str(row[cap_col]).replace('.', '').replace(',', '.')
@@ -66,6 +76,13 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     for prod in all_products:
         for idx, row in df_demand.iterrows():
             dest_name = f"Dest {idx}"
+            if name_col and mun_col_dest:
+                dest_name = f"{row[name_col]} ({row[mun_col_dest]})"
+            elif name_col:
+                dest_name = str(row[name_col])
+            elif mun_col_dest:
+                dest_name = str(row[mun_col_dest])
+
             tipo_armazem = row[tipo_col] if tipo_col else None
 
             # Se não temos informação de tipo, assumimos que aceita (ou podemos rejeitar, mas assumir True é mais seguro se falhar)
