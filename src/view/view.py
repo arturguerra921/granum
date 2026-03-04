@@ -1017,7 +1017,16 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             else:
                 return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv)."
 
-            # Normalize "Produto" column if it exists
+            # Validar colunas esperadas
+            expected_cols = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
+            # Checar se todas as colunas esperadas existem
+            if not all(col in df.columns for col in expected_cols):
+                return no_update, True, f"Aviso: O arquivo carregado deve conter exatamente as colunas: {', '.join(expected_cols)}."
+
+            # Garantir que apenas as colunas esperadas (na ordem correta) sejam mantidas, caso o usuário tenha colunas extras
+            df = df[expected_cols]
+
+            # Normalize "Produto" column se existir (vai existir devido a verificação anterior)
             if "Produto" in df.columns:
                  df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
@@ -1216,7 +1225,7 @@ def download_data(n_clicks, stored_data):
         return no_update
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "dados_unb_editados.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "Oferta_Editada.xlsx", index=False)
 
 
 # --- Armazéns Callbacks ---
