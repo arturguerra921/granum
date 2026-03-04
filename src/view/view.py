@@ -6,8 +6,12 @@ from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 from src.view.pages.distance_matrix import get_tab_distance_matrix_layout
+from src.view.pages.model_config import get_tab_model_config_layout
 from src.logic.osrm import OSRMClient
+from src.logic.optimization import run_optimization_model
 import dash
+from dash import DiskcacheManager
+import diskcache
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
@@ -42,8 +46,17 @@ except Exception as e:
     CITY_LOOKUP = {}
 
 
+# Initialize diskcache manager for background callbacks
+cache = diskcache.Cache("./cache")
+background_callback_manager = DiskcacheManager(cache)
+
 # Initialize app with Bootstrap theme and suppress callback exceptions
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP], suppress_callback_exceptions=True)
+app = Dash(
+    __name__,
+    external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP],
+    suppress_callback_exceptions=True,
+    background_callback_manager=background_callback_manager
+)
 app.title = "Granum"
 
 # --- Layout Components ---
@@ -165,7 +178,7 @@ def get_tab1_layout():
                         dbc.Col(
                             [
                                 html.Div([
-                                    dbc.Label("Peso (Kg)", className="fw-bold small me-2 mb-0"),
+                                    dbc.Label("Peso (ton)", className="fw-bold small me-2 mb-0"),
                                     html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "0.9rem"}),
                                     dbc.Tooltip(
                                         "Peso total da carga em quilogramas.",
@@ -281,7 +294,7 @@ def get_tab1_layout():
 
     # Data Table Card
     # Initial Empty DataFrame
-    initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
+    initial_df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
     # Metrics Section
     metrics_section = dbc.Row(
@@ -295,7 +308,7 @@ def get_tab1_layout():
                                     html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
                                     html.Div(
                                         [
-                                            html.H6("Total Peso (Kg)", className="text-muted small text-uppercase fw-bold mb-1"),
+                                            html.H6("Total Peso (ton)", className="text-muted small text-uppercase fw-bold mb-1"),
                                             html.H3(id="metric-total-weight", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
                                         ]
                                     )
@@ -827,7 +840,7 @@ tab1_layout = get_tab1_layout()
 tab2_layout = get_tab_armazens_layout()
 tab_prod_armazens_layout = get_tab_prod_armazens_layout()
 tab_distance_matrix_layout = get_tab_distance_matrix_layout()
-tab3_layout = html.H3('Configuração do Modelo (Placeholder)', className="text-center mt-48 text-muted")
+tab_config_layout = get_tab_model_config_layout()
 tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
 
 content_container = html.Div(
@@ -836,13 +849,13 @@ content_container = html.Div(
         html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
         html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
         html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
-        html.Div(id="tab-config-container", children=tab3_layout, style={"display": "none"}),
+        html.Div(id="tab-config-container", children=tab_config_layout, style={"display": "none"}),
         html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
     ],
     id="tabs-content"
 )
 
-initial_df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
+initial_df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
 app.layout = html.Div(
     [
@@ -1018,7 +1031,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
         if stored_data:
              df = pd.read_json(io.StringIO(stored_data), orient='split')
         else:
-             df = pd.DataFrame(columns=["Produto", "Peso (Kg)", "Cidade", "Latitude", "Longitude"])
+             df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
         if not prod_val or not peso_val or not cidade_val:
              return no_update, True, "Preencha Produto, Peso e Cidade para adicionar."
@@ -1030,7 +1043,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             new_row_data = {
                 'Produto': prod_val_normalized,
-                'Peso (Kg)': peso_val,
+                'Peso (ton)': peso_val,
                 'Cidade': cidade_val,
                 'Latitude': lat_val,
                 'Longitude': lon_val
@@ -1102,8 +1115,8 @@ def update_metrics(stored_data):
         unique_products = 0
 
         if not df.empty:
-            if "Peso (Kg)" in df.columns:
-                total_weight = pd.to_numeric(df["Peso (Kg)"], errors='coerce').fillna(0).sum()
+            if "Peso (ton)" in df.columns:
+                total_weight = pd.to_numeric(df["Peso (ton)"], errors='coerce').fillna(0).sum()
 
             if "Produto" in df.columns:
                 unique_products = df["Produto"].nunique()
@@ -2003,6 +2016,73 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
     except Exception as e:
         print(f"Error plotting route: {e}")
         return default_fig
+
+
+# 16. Run Optimization Model (Background Callback)
+@app.callback(
+    output=Output("model-output-text", "children"),
+    inputs=[
+        Input("btn-run-model", "n_clicks"),
+        State('stored-data', 'data'),
+        State('store-armazens', 'data'),
+        State('store-prod-armazens', 'data'),
+        State('store-distance-matrix', 'data')
+    ],
+    background=True,
+    running=[
+        (Output("btn-run-model", "disabled"), True, False),
+        (Output("btn-cancel-model", "disabled"), False, True),
+        (Output("modal-model-running", "is_open"), True, False),
+    ],
+    cancel=[Input("btn-cancel-model", "n_clicks")],
+    prevent_initial_call=True
+)
+def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix):
+    if not n_clicks:
+        return dash.no_update
+
+    if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
+        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Entrada de Dados, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo."
+
+    try:
+        # Load DataFrames
+        df_supply = pd.read_json(io.StringIO(stored_data), orient='split')
+        df_demand = pd.read_json(io.StringIO(stored_armazens), orient='split')
+        df_compat = pd.read_json(io.StringIO(stored_prod_armazens), orient='split')
+        df_dist = pd.read_json(io.StringIO(stored_matrix), orient='split')
+
+        # Load local CSVs for Freight and Storage
+        import os
+        data_dir = os.path.join(os.path.dirname(__file__), 'assets', 'data')
+
+        try:
+            df_freight = pd.read_csv(os.path.join(data_dir, 'Valor_Tonelada_km.csv'), sep=';', encoding='iso-8859-1')
+        except Exception as e:
+            print(f"Warning: Could not load Freight CSV: {e}")
+            df_freight = pd.DataFrame()
+
+        try:
+            df_storage = pd.read_csv(os.path.join(data_dir, 'Tarifa_de_Armazenagem.csv'), sep=';', encoding='iso-8859-1')
+        except Exception as e:
+            print(f"Warning: Could not load Storage CSV: {e}")
+            df_storage = pd.DataFrame()
+
+        # Run model
+        output_text = run_optimization_model(
+            df_supply=df_supply,
+            df_demand=df_demand,
+            df_compat=df_compat,
+            df_dist=df_dist,
+            df_freight=df_freight,
+            df_storage=df_storage
+        )
+
+        return output_text
+
+    except Exception as e:
+        import traceback
+        err_msg = f"Erro fatal ao executar o modelo:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        return err_msg
 
 
 def view():

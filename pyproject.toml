@@ -30,7 +30,12 @@ dependencies = [
     "gunicorn",
     "lxml",
     "xlrd",
-    "requests"
+    "requests",
+    "pyomo",
+    "dash[diskcache]",
+    "diskcache",
+    "multiprocess",
+    "psutil"
 ]
 
 [project.scripts]

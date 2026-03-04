@@ -2,8 +2,8 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies if any (none for now based on pyproject.toml)
-# Maybe git if setuptools needs it for versioning, but simple setup doesn't.
+# Install system dependencies (e.g., CBC solver for Pyomo)
+RUN apt-get update && apt-get install -y coinor-cbc && rm -rf /var/lib/apt/lists/*
 
 # Copy project files
 COPY pyproject.toml README.md ./
