@@ -1762,19 +1762,29 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         destinations = list(zip(dests_df['Latitude'], dests_df['Longitude']))
 
         # Determine labels for destinations (e.g., Name of warehouse or City)
-        # Prefer "Armazenador" - "Municipio"
+        # Prefer "CDA - Armazenador - Municipio"
+        cda_col = next((c for c in dests_df.columns if 'cda' in str(c).lower()), None)
         name_col = next((c for c in dests_df.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
         mun_col_dest = next((c for c in dests_df.columns if 'munic' in str(c).lower()), None)
 
         dest_labels = []
         for idx, row in dests_df.iterrows():
-            label = f"Dest {idx}"
-            if name_col and mun_col_dest:
-                label = f"{row[name_col]} ({row[mun_col_dest]})"
-            elif name_col:
-                label = str(row[name_col])
-            elif mun_col_dest:
-                label = str(row[mun_col_dest])
+            # Construir o rótulo base
+            parts = []
+            if cda_col and pd.notna(row[cda_col]):
+                parts.append(str(row[cda_col]).strip())
+
+            if name_col and pd.notna(row[name_col]):
+                parts.append(str(row[name_col]).strip())
+
+            if mun_col_dest and pd.notna(row[mun_col_dest]):
+                parts.append(str(row[mun_col_dest]).strip())
+
+            if parts:
+                label = " - ".join(parts)
+            else:
+                label = f"Dest {idx}"
+
             dest_labels.append(label)
 
 
@@ -1910,18 +1920,26 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
         # Match label
+        cda_col = next((c for c in dests_df.columns if 'cda' in str(c).lower()), None)
         name_col = next((c for c in dests_df.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
         mun_col_dest = next((c for c in dests_df.columns if 'munic' in str(c).lower()), None)
 
         dest_coords = None
         for idx, row in dests_df.iterrows():
-            label = f"Dest {idx}"
-            if name_col and mun_col_dest:
-                label = f"{row[name_col]} ({row[mun_col_dest]})"
-            elif name_col:
-                label = str(row[name_col])
-            elif mun_col_dest:
-                label = str(row[mun_col_dest])
+            parts = []
+            if cda_col and pd.notna(row[cda_col]):
+                parts.append(str(row[cda_col]).strip())
+
+            if name_col and pd.notna(row[name_col]):
+                parts.append(str(row[name_col]).strip())
+
+            if mun_col_dest and pd.notna(row[mun_col_dest]):
+                parts.append(str(row[mun_col_dest]).strip())
+
+            if parts:
+                label = " - ".join(parts)
+            else:
+                label = f"Dest {idx}"
 
             if label == dest_label:
                 dest_coords = (row['Latitude'], row['Longitude'])
