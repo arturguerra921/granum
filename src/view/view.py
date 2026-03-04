@@ -1715,6 +1715,25 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             # Enforce column order and remove extras
             df = df[expected_cols]
 
+            # Function to normalize string
+            import unicodedata
+            def normalize_str(s):
+                if pd.isna(s):
+                    return ""
+                s_str = str(s).strip()
+                s_nfkd = unicodedata.normalize('NFKD', s_str)
+                s_ascii = s_nfkd.encode('ASCII', 'ignore').decode('utf-8')
+                return s_ascii.lower()
+
+            # Ensure "Outros" exists
+            df['Prod_Norm'] = df['Produto'].apply(normalize_str)
+            if not (df['Prod_Norm'] == 'outros').any():
+                # Append "Outros" row at the beginning
+                new_row = pd.DataFrame([{'Produto': 'Outros', 'Armazenar_Publico': 50, 'Armazenar_Privado': 50}])
+                df = pd.concat([new_row, df.drop(columns=['Prod_Norm'])], ignore_index=True)
+            else:
+                df = df.drop(columns=['Prod_Norm'])
+
             # Save to disk
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update

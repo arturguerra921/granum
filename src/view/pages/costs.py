@@ -15,9 +15,10 @@ def get_tab_costs_layout():
                     html.Span("Tarifa de Armazenagem", className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-storage-costs", style={"cursor": "help", "fontSize": "0.9rem"}),
                     dbc.Tooltip(
-                        "Valores para armazenamento de cada produto. Atualizações na tabela serão salvas automaticamente.",
+                        "Valores para armazenamento de cada produto. O sistema buscará o nome exato do produto (ignorando acentos e maiúsculas/minúsculas). Caso não encontre, utilizará a tarifa da linha 'Outros'. A linha 'Outros' é obrigatória e será criada automaticamente com valor 50 caso não exista em um novo arquivo. Atualizações na tabela serão salvas automaticamente.",
                         target="help-storage-costs",
-                        placement="right"
+                        placement="right",
+                        style={"maxWidth": "400px"}
                     ),
                 ], className="d-flex align-items-center"),
                 className="card-header-custom"

@@ -174,25 +174,46 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # Tarifas de Armazenagem
     # df_storage tem 'Produto', 'Armazenar_Publico', 'Armazenar_Privado'
+    storage_cost = {}
     try:
-        # Pega a tarifa (assumimos que "Graos_Geral" serve para todos se não houver específico)
-        # Parse Brazilian numbers
+        import unicodedata
+        def normalize_str(s):
+            if pd.isna(s):
+                return ""
+            s_str = str(s).strip()
+            s_nfkd = unicodedata.normalize('NFKD', s_str)
+            s_ascii = s_nfkd.encode('ASCII', 'ignore').decode('utf-8')
+            return s_ascii.lower()
+
         df_storage['Pub'] = df_storage['Armazenar_Publico'].astype(str).str.replace('.', '').str.replace(',', '.').astype(float)
         df_storage['Priv'] = df_storage['Armazenar_Privado'].astype(str).str.replace('.', '').str.replace(',', '.').astype(float)
+        df_storage['Prod_Norm'] = df_storage['Produto'].apply(normalize_str)
 
-        # Pega a primeira linha como default
-        default_pub = df_storage['Pub'].iloc[0]
-        default_priv = df_storage['Priv'].iloc[0]
-    except:
-        default_pub = 0.0
-        default_priv = 0.0
+        # Build lookup dictionaries
+        pub_dict = df_storage.set_index('Prod_Norm')['Pub'].to_dict()
+        priv_dict = df_storage.set_index('Prod_Norm')['Priv'].to_dict()
 
-    storage_cost = {}
-    for dest in demand_capacity.keys():
-        if is_public.get(dest, False):
-            storage_cost[dest] = default_pub
-        else:
-            storage_cost[dest] = default_priv
+        # Try to find "outros" as fallback, otherwise use 50.0
+        fallback_pub = pub_dict.get('outros', 50.0)
+        fallback_priv = priv_dict.get('outros', 50.0)
+
+        for prod in all_products:
+            prod_norm = normalize_str(prod)
+            pub_val = pub_dict.get(prod_norm, fallback_pub)
+            priv_val = priv_dict.get(prod_norm, fallback_priv)
+
+            for dest in demand_capacity.keys():
+                if is_public.get(dest, False):
+                    storage_cost[(dest, prod)] = pub_val
+                else:
+                    storage_cost[(dest, prod)] = priv_val
+
+    except Exception as e:
+        print(f"Erro ao processar tarifas de armazenagem: {e}")
+        # Default fallback
+        for prod in all_products:
+            for dest in demand_capacity.keys():
+                storage_cost[(dest, prod)] = 50.0
 
 
     # 2. Construção do Modelo Pyomo
@@ -249,9 +270,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             return freight_cost.get(o, avg_freight)
         model.Freight = pyo.Param(model.Origins, initialize=freight_init)
 
-        def storage_init(model, d):
-            return storage_cost.get(d, 0.0)
-        model.Storage = pyo.Param(model.Destinations, initialize=storage_init)
+        def storage_init(model, d, p):
+            return storage_cost.get((d, p), 50.0)
+        model.Storage = pyo.Param(model.Destinations, model.Products, initialize=storage_init)
 
         # Calcular um big_M dinâmico com base nos custos máximos possíveis
         max_freight = max(freight_cost.values()) if freight_cost else 0.0
@@ -275,7 +296,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         def objective_rule(model):
             normal_costs = sum(
                 model.Flow[o, d, p] * model.Distance[o, d] * model.Freight[o] +
-                model.Flow[o, d, p] * model.Storage[d]
+                model.Flow[o, d, p] * model.Storage[d, p]
                 for (o, d, p) in model.ValidRoutes
             )
             dummy_capacity_costs = sum(model.DummyCapacity[d] * big_M_capacity for d in model.Destinations)
