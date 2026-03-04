@@ -1615,11 +1615,11 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
             try:
                 # Drop duplicates in old matrix just in case
                 lookup = df_matrix.drop_duplicates(subset=['Produto']).set_index('Produto')[t].to_dict()
-                new_matrix[t] = new_matrix['Produto'].map(lookup).fillna('☐')
+                new_matrix[t] = new_matrix['Produto'].map(lookup).fillna('☑')
             except:
-                new_matrix[t] = '☐'
+                new_matrix[t] = '☑'
         else:
-            new_matrix[t] = '☐'
+            new_matrix[t] = '☑'
 
     # 5. Prepare Output
     columns = [
