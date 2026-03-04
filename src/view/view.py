@@ -2125,4 +2125,4 @@ def view():
     # Use environment variable to determine if we are in Docker or dev
     # '0.0.0.0' allows external access (from host to docker container)
     host = os.environ.get("HOST", "127.0.0.1")
-    app.run(debug=True, host=host)
+    app.run(debug=False, host=host)
