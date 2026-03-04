@@ -24,6 +24,19 @@ class OSRMClient:
 
         return R * c
 
+    def _fallback_route(self, origin, destination):
+        dist_straight = self._haversine_distance(origin, destination)
+        return {
+            'geometry': {
+                'type': 'LineString',
+                'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+            },
+            'distance': dist_straight * 1.3,
+            'duration': (dist_straight * 1.3) / (60 * 1000 / 3600),
+            'type': 'fallback'
+        }
+
+
     def get_distance_matrix(self, origins: List[Tuple[float, float]], destinations: List[Tuple[float, float]]) -> List[List[Optional[float]]]:
         """
         Calculates the distance matrix between origins and destinations using OSRM Table API.
@@ -173,17 +186,6 @@ class OSRMClient:
                 'type': 'osrm'
             }
 
-    def _fallback_route(self, origin, destination):
-        dist_straight = self._haversine_distance(origin, destination)
-        return {
-            'geometry': {
-                'type': 'LineString',
-                'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
-            },
-            'distance': dist_straight * 1.3,
-            'duration': (dist_straight * 1.3) / (60 * 1000 / 3600),
-            'type': 'fallback'
-        }
 
         except requests.RequestException as e:
             print(f"Route request failed: {e}")
