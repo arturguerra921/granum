@@ -91,7 +91,7 @@ navbar = dbc.Navbar(
 # 2. Tabs
 tabs = dbc.Tabs(
     [
-        dbc.Tab(label="Entrada de Dados", tab_id="tab-input", label_class_name="px-4"),
+        dbc.Tab(label="Oferta", tab_id="tab-input", label_class_name="px-4"),
         dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
         dbc.Tab(label="Matriz de Distâncias", tab_id="tab-distance-matrix", label_class_name="px-4"),
@@ -1333,12 +1333,21 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
             print(f"Error reconstruction: {e}")
             return no_update, True, f"Erro ao processar arquivo: {e}", no_update
 
-    # Table Edits (should be disabled now but keeping fallback logic)
+    # Table Edits (Auto-save)
     if trigger_id == 'table-armazens':
         if table_data:
              df = pd.DataFrame(table_data)
              if "Estoque Inicial" not in df.columns:
                  df["Estoque Inicial"] = 0
+
+             # Salvar na base (Auto-save)
+             try:
+                 with open(BASE_ARMAZENS_PATH, 'w', encoding='iso-8859-1') as f:
+                     f.write("Armazéns Credenciados e Habilitados\n")
+                     df.to_csv(f, sep=';', index=False, lineterminator='\n')
+             except Exception as e:
+                 print(f"Error auto-saving armazens table edit: {e}")
+
              return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
         return no_update, no_update, no_update, no_update
 
@@ -1508,9 +1517,9 @@ def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
             pass
 
     if not has_prod and not has_armazens:
-        return True, "Você precisa adicionar produtos na aba 'Entrada de Dados' e carregar a base na aba 'Armazéns' antes de prosseguir."
+        return True, "Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir."
     elif not has_prod:
-        return True, "Você precisa adicionar pelo menos um produto na aba 'Entrada de Dados' antes de prosseguir."
+        return True, "Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir."
     elif not has_armazens:
         return True, "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir."
 
@@ -2060,7 +2069,7 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
         return dash.no_update
 
     if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Entrada de Dados, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo."
+        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo."
 
     try:
         # Load DataFrames
