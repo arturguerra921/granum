@@ -1722,8 +1722,19 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
              return no_update, [], [], "Colunas de Latitude/Longitude ausentes na entrada.", True
 
         origins_df = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+
+        # Add (Lat, Lon) to duplicate city names with different coordinates
+        city_counts = origins_df['Cidade'].value_counts()
+        duplicates = city_counts[city_counts > 1].index
+
+        origins_df['Cidade_Display'] = origins_df.apply(
+            lambda row: f"{row['Cidade']} ({row['Latitude']:.4f}, {row['Longitude']:.4f})"
+            if row['Cidade'] in duplicates else row['Cidade'],
+            axis=1
+        )
+
         origins = list(zip(origins_df['Latitude'], origins_df['Longitude']))
-        origin_names = origins_df['Cidade'].tolist()
+        origin_names = origins_df['Cidade_Display'].tolist()
 
         if not origins:
              return no_update, [], [], "Nenhuma origem válida (com coordenadas) encontrada.", True
@@ -1909,7 +1920,24 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         # Origin Coords
         # We need to find the lat/lon for the origin_name (City)
         # Assuming unique city names for simplicity or taking first match
-        origin_row = df_input[df_input['Cidade'] == origin_name].iloc[0]
+        # Apply the same deduplication logic to find the exact match
+        origins_df_map = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+        city_counts_map = origins_df_map['Cidade'].value_counts()
+        duplicates_map = city_counts_map[city_counts_map > 1].index
+
+        origins_df_map['Cidade_Display'] = origins_df_map.apply(
+            lambda row: f"{row['Cidade']} ({row['Latitude']:.4f}, {row['Longitude']:.4f})"
+            if row['Cidade'] in duplicates_map else row['Cidade'],
+            axis=1
+        )
+
+        origin_row = origins_df_map[origins_df_map['Cidade_Display'] == origin_name]
+        if origin_row.empty:
+            # Fallback to just Cidade if not found
+            origin_row = df_input[df_input['Cidade'] == origin_name].iloc[0]
+        else:
+            origin_row = origin_row.iloc[0]
+
         origin_coords = (origin_row['Latitude'], origin_row['Longitude'])
 
         # Destination Coords

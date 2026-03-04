@@ -75,7 +75,10 @@ class OSRMClient:
                 sources_str = ";".join(map(str, origin_indices))
                 dest_str = ";".join(map(str, dest_indices))
 
-                url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance"
+                # Create radiuses array for all coordinates: 10km (10000m)
+                radiuses_str = ";".join(["10000"] * len(coords))
+
+                url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance&radiuses={radiuses_str}"
 
                 try:
                     response = requests.get(url)
@@ -133,7 +136,8 @@ class OSRMClient:
         dest_str = f"{destination[1]},{destination[0]}"
 
         # Request full geometry (overview=full) and geometries=geojson for easy plotting in Plotly
-        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson"
+        # Add 10km radius for both origin and destination to prevent extreme snapping
+        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson&radiuses=10000;10000"
 
         try:
             response = requests.get(url)
