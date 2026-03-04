@@ -11,7 +11,7 @@ def get_tab_distance_matrix_layout():
                     html.Span("Cálculo da Matriz de Distâncias", className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-calc-matrix", style={"cursor": "help", "fontSize": "0.9rem"}),
                     dbc.Tooltip(
-                        "Calcula a distância rodoviária real entre cada cidade de origem (Entrada de Dados) e cada armazém (Armazéns).",
+                        "Calcula a distância rodoviária real entre cada cidade de origem (Oferta) e cada armazém (Armazéns).",
                         target="help-calc-matrix",
                         placement="right"
                     ),
@@ -105,7 +105,15 @@ def get_tab_distance_matrix_layout():
     map_card = dbc.Card(
         [
             dbc.CardHeader(
-                "Visualização da Rota",
+                html.Div([
+                    html.Span("Visualização da Rota", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-route-map", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    dbc.Tooltip(
+                        "Clique na tabela acima para visualizar a rota desejada. Apenas é possível visualizar uma rota de cada vez.",
+                        target="help-route-map",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
