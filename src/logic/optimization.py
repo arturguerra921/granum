@@ -17,6 +17,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     # Demanda (Demand) - Usando Capacidade em toneladas do Armazém (nó destino)
     # Identify the capacity column correctly. Often it is "Capacidade Estática (t)" or similar.
     cap_col = next((c for c in df_demand.columns if 'cap' in str(c).lower() or 'ton' in str(c).lower()), None)
+    estoque_col = next((c for c in df_demand.columns if 'estoque' in str(c).lower()), None)
 
     # Identify Public/Private warehouse.
     armazenador_col = next((c for c in df_demand.columns if 'armazenador' in str(c).lower()), None)
@@ -60,7 +61,17 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         except:
             cap = 0.0
 
-        demand_capacity[cda] = cap
+        # Parse initial stock correctly
+        try:
+            est_str = str(row[estoque_col]).replace('.', '').replace(',', '.')
+            estoque = float(est_str)
+        except:
+            estoque = 0.0
+
+        # A capacidade disponível é a capacidade total menos o estoque inicial
+        available_cap = max(0.0, cap - estoque)
+
+        demand_capacity[cda] = available_cap
 
         # Determine if public or private
         if armazenador_col and str(row[armazenador_col]).upper() == "COMPANHIA NACIONAL DE ABASTECIMENTO":
