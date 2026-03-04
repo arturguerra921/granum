@@ -210,4 +210,4 @@ marimo/_lsp/
 __marimo__/
 
 # OSRM and map data
-data/
+data/osrm/
