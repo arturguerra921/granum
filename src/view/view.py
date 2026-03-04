@@ -690,7 +690,7 @@ def get_tab_armazens_layout():
     confirm_save_modal = dbc.Modal(
         [
             dbc.ModalHeader(dbc.ModalTitle("Confirmar Salvamento"), close_button=True),
-            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. O aplicativo será reiniciado e todo seu progresso será perdido. Caso tenha feito trabalho na página de adição de produtos, volte e salve a planilha de produtos para fazer o upload novamente após a reinicialização."),
+            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. A nova base enviada será utilizada para todos os futuros usos do aplicativo. Tem certeza que deseja continuar?"),
             dbc.ModalFooter(
                 [
                     dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
