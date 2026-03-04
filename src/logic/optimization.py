@@ -201,21 +201,31 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         # 1. Supply limit: A oferta deve ser totalmente alocada
         def supply_rule(model, o, p):
-            flow_sum = sum(model.Flow[o, d, p] for d in model.Destinations if (o, d, p) in model.ValidRoutes)
-            # Apenas criar restrição se houver oferta, senão fixa em 0 implicitamente pela falta de rotas
-            if model.Supply[o, p] > 0:
-                return flow_sum == model.Supply[o, p]
-            else:
+            if model.Supply[o, p] <= 0:
                 return pyo.Constraint.Skip
+
+            valid_dests = [d for d in model.Destinations if (o, d, p) in model.ValidRoutes]
+            if not valid_dests:
+                # Não tem rotas válidas para escoar esta oferta.
+                # Retorna Infeasible para avisar o Pyomo (já que a soma seria 0 == Supply)
+                return pyo.Constraint.Infeasible
+
+            flow_sum = sum(model.Flow[o, d, p] for d in valid_dests)
+            return flow_sum == model.Supply[o, p]
 
         model.SupplyConstraint = pyo.Constraint(model.Origins, model.Products, rule=supply_rule)
 
         # 2. Capacity limit: Não exceder a capacidade máxima do nó de demanda (soma de todos produtos de todas origens)
         def capacity_rule(model, d):
-            flow_sum = sum(model.Flow[o, d, p] for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes)
+            valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
+            if not valid_ops:
+                return pyo.Constraint.Skip
+
+            flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
             if model.Capacity[d] > 0:
                 return flow_sum <= model.Capacity[d]
             else:
+                # Se a capacidade é 0, o fluxo deve ser 0
                 return flow_sum == 0
 
         model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule)
