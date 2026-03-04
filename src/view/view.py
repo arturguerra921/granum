@@ -1700,14 +1700,26 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         decoded = base64.b64decode(content_string)
         try:
             df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
-            if not all(col in df.columns for col in ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']):
-                return no_update, True, "O CSV de Tarifas de Armazenagem deve ter as colunas: Produto, Armazenar_Publico, Armazenar_Privado."
+
+            # Normalize and clean columns to prevent trailing delimiter issues
+            df = df.dropna(axis=1, how='all')
+            if not df.empty and "Unnamed" in str(df.columns[-1]):
+                 df = df.iloc[:, :-1]
+
+            # Expected columns strictly required
+            expected_cols = ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']
+
+            if not all(col in df.columns for col in expected_cols):
+                return no_update, True, f"O CSV de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}."
+
+            # Enforce column order and remove extras
+            df = df[expected_cols]
 
             # Save to disk
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update
         except Exception as e:
-            return no_update, True, f"Erro ao processar o CSV: {e}"
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;)."
 
     # Add Row
     if trigger_id == 'btn-add-storage-row':
@@ -1793,14 +1805,26 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         decoded = base64.b64decode(content_string)
         try:
             df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
-            if not all(col in df.columns for col in ['Estado', 'Frete Tonelada Km']):
-                return no_update, True, "O CSV de Valor do Frete deve ter as colunas: Estado, Frete Tonelada Km."
+
+            # Normalize and clean columns to prevent trailing delimiter issues
+            df = df.dropna(axis=1, how='all')
+            if not df.empty and "Unnamed" in str(df.columns[-1]):
+                 df = df.iloc[:, :-1]
+
+            # Expected columns strictly required
+            expected_cols = ['Estado', 'Frete Tonelada Km']
+
+            if not all(col in df.columns for col in expected_cols):
+                return no_update, True, f"O CSV de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}."
+
+            # Enforce column order and remove extras
+            df = df[expected_cols]
 
             # Save to disk
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update
         except Exception as e:
-            return no_update, True, f"Erro ao processar o CSV: {e}"
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;)."
 
     # Add Row
     if trigger_id == 'btn-add-freight-row':

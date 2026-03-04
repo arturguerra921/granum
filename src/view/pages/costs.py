@@ -29,16 +29,17 @@ def get_tab_costs_layout():
                             dbc.Col(
                                 [
                                     dbc.Button("Adicionar Linha", id="btn-add-storage-row", color="primary", className="w-100 mb-2"),
-                                    html.Div(
-                                        dcc.Upload(
-                                            id='upload-storage-csv',
-                                            children=html.Div([
-                                                html.A('Selecionar CSV', className="text-decoration-underline text-primary", style={"cursor": "pointer"})
-                                            ], className="text-center"),
-                                            multiple=False,
-                                            accept='.csv'
-                                        ),
-                                        className="mb-2 p-2 border rounded bg-light"
+                                    dcc.Upload(
+                                        id='upload-storage-csv',
+                                        children=html.Div([
+                                            html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                            html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                        ]),
+                                        className="upload-box mb-3",
+                                        multiple=False,
+                                        accept='.csv'
                                     ),
                                     dbc.Button("Baixar CSV", id="btn-download-storage", color="success", className="w-100 mb-2"),
                                     dcc.Download(id="download-storage-csv")
@@ -54,8 +55,8 @@ def get_tab_costs_layout():
                                                 data=[],
                                                 columns=[
                                                     {'name': 'Produto', 'id': 'Produto'},
-                                                    {'name': 'Armazenar_Publico', 'id': 'Armazenar_Publico'},
-                                                    {'name': 'Armazenar_Privado', 'id': 'Armazenar_Privado'}
+                                                    {'name': 'Armazenar Público', 'id': 'Armazenar_Publico'},
+                                                    {'name': 'Armazenar Privado', 'id': 'Armazenar_Privado'}
                                                 ],
                                                 editable=True,
                                                 row_deletable=True,
@@ -123,16 +124,17 @@ def get_tab_costs_layout():
                             dbc.Col(
                                 [
                                     dbc.Button("Adicionar Linha", id="btn-add-freight-row", color="primary", className="w-100 mb-2"),
-                                    html.Div(
-                                        dcc.Upload(
-                                            id='upload-freight-csv',
-                                            children=html.Div([
-                                                html.A('Selecionar CSV', className="text-decoration-underline text-primary", style={"cursor": "pointer"})
-                                            ], className="text-center"),
-                                            multiple=False,
-                                            accept='.csv'
-                                        ),
-                                        className="mb-2 p-2 border rounded bg-light"
+                                    dcc.Upload(
+                                        id='upload-freight-csv',
+                                        children=html.Div([
+                                            html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                            html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                        ]),
+                                        className="upload-box mb-3",
+                                        multiple=False,
+                                        accept='.csv'
                                     ),
                                     dbc.Button("Baixar CSV", id="btn-download-freight", color="success", className="w-100 mb-2"),
                                     dcc.Download(id="download-freight-csv")
@@ -148,7 +150,7 @@ def get_tab_costs_layout():
                                                 data=[],
                                                 columns=[
                                                     {'name': 'Estado', 'id': 'Estado'},
-                                                    {'name': 'Frete Tonelada Km', 'id': 'Frete Tonelada Km'}
+                                                    {'name': 'Frete (R$/ton.km)', 'id': 'Frete Tonelada Km'}
                                                 ],
                                                 editable=True,
                                                 row_deletable=True,
