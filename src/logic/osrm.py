@@ -75,7 +75,10 @@ class OSRMClient:
                 sources_str = ";".join(map(str, origin_indices))
                 dest_str = ";".join(map(str, dest_indices))
 
-                url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance"
+                # Limit snapping radius to 25km (25000 meters)
+                radiuses = ";".join(["25000"] * len(coords))
+
+                url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance&radiuses={radiuses}"
 
                 try:
                     response = requests.get(url)
@@ -133,7 +136,8 @@ class OSRMClient:
         dest_str = f"{destination[1]},{destination[0]}"
 
         # Request full geometry (overview=full) and geometries=geojson for easy plotting in Plotly
-        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson"
+        # Limit snapping radius to 25km (25000 meters)
+        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson&radiuses=25000;25000"
 
         try:
             response = requests.get(url)
