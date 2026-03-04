@@ -75,10 +75,7 @@ class OSRMClient:
                 sources_str = ";".join(map(str, origin_indices))
                 dest_str = ";".join(map(str, dest_indices))
 
-                # Create radiuses array for all coordinates: 10km (10000m)
-                radiuses_str = ";".join(["10000"] * len(coords))
-
-                url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance&radiuses={radiuses_str}"
+                url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance"
 
                 try:
                     response = requests.get(url)
@@ -91,12 +88,25 @@ class OSRMClient:
 
                     distances = data["distances"]
 
+                    # Check for extreme snapping (e.g. point in ocean snapped to coast)
+                    # We look at the 'sources' and 'destinations' arrays in the response
+                    bad_source_indices = set()
+                    bad_dest_indices = set()
+
+                    for idx, src in enumerate(data.get("sources", [])):
+                        if src.get("distance", 0) > 50000:
+                            bad_source_indices.add(idx)
+
+                    for idx, dst in enumerate(data.get("destinations", [])):
+                        if dst.get("distance", 0) > 50000:
+                            bad_dest_indices.add(idx)
+
                     # Fill the result matrix
                     for r_idx, row in enumerate(distances):
                         for c_idx, dist in enumerate(row):
-                            # matrix[i + r_idx][j + c_idx] = dist
-                            # Handle None (unreachable)
-                            if dist is not None:
+                            if r_idx in bad_source_indices or c_idx in bad_dest_indices:
+                                matrix[i + r_idx][j + c_idx] = None # Will be handled by fallback
+                            elif dist is not None:
                                 matrix[i + r_idx][j + c_idx] = float(dist)
                             else:
                                 matrix[i + r_idx][j + c_idx] = None
@@ -136,8 +146,7 @@ class OSRMClient:
         dest_str = f"{destination[1]},{destination[0]}"
 
         # Request full geometry (overview=full) and geometries=geojson for easy plotting in Plotly
-        # Add 10km radius for both origin and destination to prevent extreme snapping
-        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson&radiuses=10000;10000"
+        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson"
 
         try:
             response = requests.get(url)
@@ -146,39 +155,39 @@ class OSRMClient:
 
             if data["code"] != "Ok" or not data["routes"]:
                 print(f"OSRM Route Error: {data.get('message', 'No route found')}")
-                # Return fallback straight line
-                dist_straight = self._haversine_distance(origin, destination)
-                return {
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
-                    },
-                    'distance': dist_straight * 1.3,
-                    'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
-                    'type': 'fallback'
-                }
+                return self._fallback_route(origin, destination)
+
+            # Check snapping distance of waypoints. Max allowed is 50km (50000 meters)
+            waypoints = data.get("waypoints", [])
+            for wp in waypoints:
+                snap_dist = wp.get("distance", 0)
+                if snap_dist > 50000:
+                    print(f"OSRM Route snapped too far: {snap_dist}m. Falling back to straight line.")
+                    return self._fallback_route(origin, destination)
 
             route = data["routes"][0]
             return {
-                'geometry': route['geometry'], # This is a GeoJSON object (type: LineString, coordinates: [[lon, lat], ...])
+                'geometry': route['geometry'],
                 'distance': route['distance'],
                 'duration': route['duration'],
                 'type': 'osrm'
             }
 
+    def _fallback_route(self, origin, destination):
+        dist_straight = self._haversine_distance(origin, destination)
+        return {
+            'geometry': {
+                'type': 'LineString',
+                'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+            },
+            'distance': dist_straight * 1.3,
+            'duration': (dist_straight * 1.3) / (60 * 1000 / 3600),
+            'type': 'fallback'
+        }
+
         except requests.RequestException as e:
             print(f"Route request failed: {e}")
-            # Return fallback straight line
-            dist_straight = self._haversine_distance(origin, destination)
-            return {
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
-                },
-                'distance': dist_straight * 1.3,
-                'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
-                'type': 'fallback'
-            }
+            return self._fallback_route(origin, destination)
 
 # Example usage (commented out)
 # if __name__ == "__main__":
