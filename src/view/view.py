@@ -1919,9 +1919,21 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
 
         # Origin Coords
-        # We need to find the lat/lon for the origin_name (City)
-        # Assuming unique city names for simplicity or taking first match
-        origin_row = df_input[df_input['Cidade'] == origin_name].iloc[0]
+        # The origin_name might be a raw city name or 'City (Lat, Lon)' if duplicated.
+        # Let's apply the exact same transformation to the input dataframe to find the matching row.
+        origins_df = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+        city_counts = origins_df['Cidade'].value_counts()
+        duplicate_cities = set(city_counts[city_counts > 1].index)
+
+        def format_cidade(row):
+            cidade = row['Cidade']
+            if cidade in duplicate_cities and pd.notna(row['Latitude']) and pd.notna(row['Longitude']):
+                return f"{cidade} ({row['Latitude']}, {row['Longitude']})"
+            return cidade
+
+        origins_df['Formatted_Name'] = origins_df.apply(format_cidade, axis=1)
+
+        origin_row = origins_df[origins_df['Formatted_Name'] == origin_name].iloc[0]
         origin_coords = (origin_row['Latitude'], origin_row['Longitude'])
 
         # Destination Coords
