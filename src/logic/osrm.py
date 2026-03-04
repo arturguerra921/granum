@@ -75,13 +75,14 @@ class OSRMClient:
                 sources_str = ";".join(map(str, origin_indices))
                 dest_str = ";".join(map(str, dest_indices))
 
-                # Limit snapping radius to 25km (25000 meters)
-                radiuses = ";".join(["25000"] * len(coords))
+                # Limit snapping radius to 10km (10000 meters) to avoid overloading the routing engine
+                radiuses = ";".join(["10000"] * len(coords))
 
                 url = f"{self.base_url}/table/v1/driving/{coords_str}?sources={sources_str}&destinations={dest_str}&annotations=distance&radiuses={radiuses}"
 
                 try:
-                    response = requests.get(url)
+                    # Setting a timeout ensures the request doesn't hang forever
+                    response = requests.get(url, timeout=10)
                     response.raise_for_status()
                     data = response.json()
 
@@ -101,9 +102,9 @@ class OSRMClient:
                             else:
                                 matrix[i + r_idx][j + c_idx] = None
 
-                except requests.RequestException as e:
-                    print(f"Request failed: {e}")
-                    # Keep None in matrix for failed chunks
+                except Exception as e:
+                    print(f"Table Request failed or connection refused: {e}")
+                    # Keep None in matrix for failed chunks so the Haversine fallback can fill them
                     pass
 
         # Fallback pass: If any cell is None, calculate estimated distance
@@ -136,11 +137,12 @@ class OSRMClient:
         dest_str = f"{destination[1]},{destination[0]}"
 
         # Request full geometry (overview=full) and geometries=geojson for easy plotting in Plotly
-        # Limit snapping radius to 25km (25000 meters)
-        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson&radiuses=25000;25000"
+        # Limit snapping radius to 10km (10000 meters)
+        url = f"{self.base_url}/route/v1/driving/{origin_str};{dest_str}?overview=full&geometries=geojson&radiuses=10000;10000"
 
         try:
-            response = requests.get(url)
+            # Setting a timeout ensures the request doesn't hang forever
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -166,8 +168,8 @@ class OSRMClient:
                 'type': 'osrm'
             }
 
-        except requests.RequestException as e:
-            print(f"Route request failed: {e}")
+        except Exception as e:
+            print(f"Route request failed or connection refused: {e}")
             # Return fallback straight line
             dist_straight = self._haversine_distance(origin, destination)
             return {

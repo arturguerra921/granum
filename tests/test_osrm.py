@@ -32,7 +32,7 @@ class TestOSRMClient(unittest.TestCase):
         # We need to simulate the OSRM response structure: {"code": "Ok", "distances": [[...]]}
         # The size of returned matrix depends on the chunk
 
-        def side_effect(url):
+        def side_effect(url, timeout=None):
             # Parse URL to determine chunk size
             # url contains coordinates and sources/destinations params
             # Simplified mock: just return a matrix of correct size filled with 1.0
