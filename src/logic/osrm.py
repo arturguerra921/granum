@@ -24,6 +24,19 @@ class OSRMClient:
 
         return R * c
 
+    def _fallback_route(self, origin, destination):
+        dist_straight = self._haversine_distance(origin, destination)
+        return {
+            'geometry': {
+                'type': 'LineString',
+                'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
+            },
+            'distance': dist_straight * 1.3,
+            'duration': (dist_straight * 1.3) / (60 * 1000 / 3600),
+            'type': 'fallback'
+        }
+
+
     def get_distance_matrix(self, origins: List[Tuple[float, float]], destinations: List[Tuple[float, float]]) -> List[List[Optional[float]]]:
         """
         Calculates the distance matrix between origins and destinations using OSRM Table API.
@@ -88,12 +101,25 @@ class OSRMClient:
 
                     distances = data["distances"]
 
+                    # Check for extreme snapping (e.g. point in ocean snapped to coast)
+                    # We look at the 'sources' and 'destinations' arrays in the response
+                    bad_source_indices = set()
+                    bad_dest_indices = set()
+
+                    for idx, src in enumerate(data.get("sources", [])):
+                        if src.get("distance", 0) > 50000:
+                            bad_source_indices.add(idx)
+
+                    for idx, dst in enumerate(data.get("destinations", [])):
+                        if dst.get("distance", 0) > 50000:
+                            bad_dest_indices.add(idx)
+
                     # Fill the result matrix
                     for r_idx, row in enumerate(distances):
                         for c_idx, dist in enumerate(row):
-                            # matrix[i + r_idx][j + c_idx] = dist
-                            # Handle None (unreachable)
-                            if dist is not None:
+                            if r_idx in bad_source_indices or c_idx in bad_dest_indices:
+                                matrix[i + r_idx][j + c_idx] = None # Will be handled by fallback
+                            elif dist is not None:
                                 matrix[i + r_idx][j + c_idx] = float(dist)
                             else:
                                 matrix[i + r_idx][j + c_idx] = None
@@ -142,39 +168,28 @@ class OSRMClient:
 
             if data["code"] != "Ok" or not data["routes"]:
                 print(f"OSRM Route Error: {data.get('message', 'No route found')}")
-                # Return fallback straight line
-                dist_straight = self._haversine_distance(origin, destination)
-                return {
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
-                    },
-                    'distance': dist_straight * 1.3,
-                    'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
-                    'type': 'fallback'
-                }
+                return self._fallback_route(origin, destination)
+
+            # Check snapping distance of waypoints. Max allowed is 50km (50000 meters)
+            waypoints = data.get("waypoints", [])
+            for wp in waypoints:
+                snap_dist = wp.get("distance", 0)
+                if snap_dist > 50000:
+                    print(f"OSRM Route snapped too far: {snap_dist}m. Falling back to straight line.")
+                    return self._fallback_route(origin, destination)
 
             route = data["routes"][0]
             return {
-                'geometry': route['geometry'], # This is a GeoJSON object (type: LineString, coordinates: [[lon, lat], ...])
+                'geometry': route['geometry'],
                 'distance': route['distance'],
                 'duration': route['duration'],
                 'type': 'osrm'
             }
 
+
         except requests.RequestException as e:
             print(f"Route request failed: {e}")
-            # Return fallback straight line
-            dist_straight = self._haversine_distance(origin, destination)
-            return {
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': [[origin[1], origin[0]], [destination[1], destination[0]]]
-                },
-                'distance': dist_straight * 1.3,
-                'duration': (dist_straight * 1.3) / (60 * 1000 / 3600), # Estimate 60km/h average
-                'type': 'fallback'
-            }
+            return self._fallback_route(origin, destination)
 
 # Example usage (commented out)
 # if __name__ == "__main__":
