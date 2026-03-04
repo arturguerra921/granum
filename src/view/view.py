@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 from src.view.pages.distance_matrix import get_tab_distance_matrix_layout
 from src.view.pages.model_config import get_tab_model_config_layout
+from src.view.pages.costs import get_tab_costs_layout
 from src.logic.osrm import OSRMClient
 from src.logic.optimization import run_optimization_model
 import dash
@@ -22,6 +23,8 @@ try:
     MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
     ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
     BASE_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Base.csv')
+    STORAGE_COSTS_PATH = os.path.join(DATA_DIR, 'Tarifa_de_Armazenagem.csv')
+    FREIGHT_COSTS_PATH = os.path.join(DATA_DIR, 'Valor_Tonelada_km.csv')
 
     df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
     df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
@@ -94,6 +97,7 @@ tabs = dbc.Tabs(
         dbc.Tab(label="Oferta", tab_id="tab-input", label_class_name="px-4"),
         dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
         dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
+        dbc.Tab(label="Custos", tab_id="tab-costs", label_class_name="px-4"),
         dbc.Tab(label="Matriz de Distâncias", tab_id="tab-distance-matrix", label_class_name="px-4"),
         dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
         dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
@@ -839,6 +843,7 @@ error_modal = dbc.Modal(
 tab1_layout = get_tab1_layout()
 tab2_layout = get_tab_armazens_layout()
 tab_prod_armazens_layout = get_tab_prod_armazens_layout()
+tab_costs_layout = get_tab_costs_layout()
 tab_distance_matrix_layout = get_tab_distance_matrix_layout()
 tab_config_layout = get_tab_model_config_layout()
 tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
@@ -848,6 +853,7 @@ content_container = html.Div(
         html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
         html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
         html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
+        html.Div(id="tab-costs-container", children=tab_costs_layout, style={"display": "none"}),
         html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
         html.Div(id="tab-config-container", children=tab_config_layout, style={"display": "none"}),
         html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
@@ -868,6 +874,8 @@ app.layout = html.Div(
                 dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
                 dcc.Store(id='store-armazens'), # New Store for Armazéns
                 dcc.Store(id='store-prod-armazens'), # New Store for Prod x Armazens
+                dcc.Store(id='store-costs-storage'), # New Store for Storage Costs
+                dcc.Store(id='store-costs-freight'), # New Store for Freight Costs
                 dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
                 dcc.Download(id='download-dataframe-xlsx'),
                 error_modal
@@ -889,13 +897,14 @@ app.layout = html.Div(
     [Output("tab-input-container", "style"),
      Output("tab-armazens-container", "style"),
      Output("tab-prod-armazens-container", "style"),
+     Output("tab-costs-container", "style"),
      Output("tab-distance-matrix-container", "style"),
      Output("tab-config-container", "style"),
      Output("tab-results-container", "style")],
     Input("main-tabs", "active_tab")
 )
 def render_content(active_tab):
-    base_styles = [{"display": "none"}] * 6
+    base_styles = [{"display": "none"}] * 7
 
     if active_tab == 'tab-input':
         base_styles[0] = {"display": "block"}
@@ -903,12 +912,14 @@ def render_content(active_tab):
         base_styles[1] = {"display": "block"}
     elif active_tab == 'tab-prod-armazens':
         base_styles[2] = {"display": "block"}
-    elif active_tab == 'tab-distance-matrix':
+    elif active_tab == 'tab-costs':
         base_styles[3] = {"display": "block"}
-    elif active_tab == 'tab-config':
+    elif active_tab == 'tab-distance-matrix':
         base_styles[4] = {"display": "block"}
-    elif active_tab == 'tab-results':
+    elif active_tab == 'tab-config':
         base_styles[5] = {"display": "block"}
+    elif active_tab == 'tab-results':
+        base_styles[6] = {"display": "block"}
 
     return tuple(base_styles)
 
@@ -1647,6 +1658,218 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
     ]
 
     return new_matrix.to_json(date_format='iso', orient='split'), new_matrix.to_dict('records'), columns
+
+
+# --- Costs Callbacks ---
+
+# Storage Cost Data Logic
+@app.callback(
+    Output('store-costs-storage', 'data'),
+    Output('error-modal', 'is_open', allow_duplicate=True),
+    Output('modal-body-content', 'children', allow_duplicate=True),
+    [Input('main-tabs', 'active_tab'),
+     Input('upload-storage-csv', 'contents'),
+     Input('btn-add-storage-row', 'n_clicks'),
+     Input('table-costs-storage', 'data_timestamp')],
+    [State('store-costs-storage', 'data'),
+     State('table-costs-storage', 'data'),
+     State('upload-storage-csv', 'filename')],
+    prevent_initial_call=True
+)
+def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return no_update, no_update, no_update
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Initial Load
+    if trigger_id == 'main-tabs' and active_tab == 'tab-costs':
+        if not stored_data:
+            try:
+                df = pd.read_csv(STORAGE_COSTS_PATH, sep=';', encoding='iso-8859-1')
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            except Exception as e:
+                print(f"Error loading storage costs: {e}")
+                return no_update, True, "Erro ao carregar a tabela de Tarifas de Armazenagem."
+        return no_update, no_update, no_update
+
+    # Upload
+    if trigger_id == 'upload-storage-csv' and upload_contents:
+        content_type, content_string = upload_contents.split(',')
+        decoded = base64.b64decode(content_string)
+        try:
+            df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
+
+            # Normalize and clean columns to prevent trailing delimiter issues
+            df = df.dropna(axis=1, how='all')
+            if not df.empty and "Unnamed" in str(df.columns[-1]):
+                 df = df.iloc[:, :-1]
+
+            # Expected columns strictly required
+            expected_cols = ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']
+
+            if not all(col in df.columns for col in expected_cols):
+                return no_update, True, f"O CSV de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}."
+
+            # Enforce column order and remove extras
+            df = df[expected_cols]
+
+            # Save to disk
+            df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+        except Exception as e:
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;)."
+
+    # Add Row
+    if trigger_id == 'btn-add-storage-row':
+        if stored_data:
+            df = pd.read_json(io.StringIO(stored_data), orient='split')
+        else:
+            df = pd.DataFrame(columns=['Produto', 'Armazenar_Publico', 'Armazenar_Privado'])
+
+        new_row = pd.DataFrame([{'Produto': '', 'Armazenar_Publico': 0, 'Armazenar_Privado': 0}])
+        df = pd.concat([df, new_row], ignore_index=True)
+        # Save to disk
+        df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+        return df.to_json(date_format='iso', orient='split'), no_update, no_update
+
+    # Edit Table
+    if trigger_id == 'table-costs-storage':
+        if table_data is not None:
+            df = pd.DataFrame(table_data)
+            # Save to disk
+            df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+
+    return no_update, no_update, no_update
+
+@app.callback(
+    Output('table-costs-storage', 'data'),
+    Input('store-costs-storage', 'data')
+)
+def update_storage_table(stored_data):
+    if not stored_data:
+        return []
+    df = pd.read_json(io.StringIO(stored_data), orient='split')
+    return df.to_dict('records')
+
+@app.callback(
+    Output("download-storage-csv", "data"),
+    Input("btn-download-storage", "n_clicks"),
+    State('store-costs-storage', 'data'),
+    prevent_initial_call=True,
+)
+def download_storage(n_clicks, stored_data):
+    if not n_clicks or not stored_data:
+        return no_update
+    df = pd.read_json(io.StringIO(stored_data), orient='split')
+    return dcc.send_data_frame(df.to_csv, "Tarifa_de_Armazenagem.csv", sep=";", index=False, encoding="iso-8859-1")
+
+
+# Freight Cost Data Logic
+@app.callback(
+    Output('store-costs-freight', 'data'),
+    Output('error-modal', 'is_open', allow_duplicate=True),
+    Output('modal-body-content', 'children', allow_duplicate=True),
+    [Input('main-tabs', 'active_tab'),
+     Input('upload-freight-csv', 'contents'),
+     Input('btn-add-freight-row', 'n_clicks'),
+     Input('table-costs-freight', 'data_timestamp')],
+    [State('store-costs-freight', 'data'),
+     State('table-costs-freight', 'data'),
+     State('upload-freight-csv', 'filename')],
+    prevent_initial_call=True
+)
+def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return no_update, no_update, no_update
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Initial Load
+    if trigger_id == 'main-tabs' and active_tab == 'tab-costs':
+        if not stored_data:
+            try:
+                df = pd.read_csv(FREIGHT_COSTS_PATH, sep=';', encoding='iso-8859-1')
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            except Exception as e:
+                print(f"Error loading freight costs: {e}")
+                return no_update, True, "Erro ao carregar a tabela de Valor do Frete."
+        return no_update, no_update, no_update
+
+    # Upload
+    if trigger_id == 'upload-freight-csv' and upload_contents:
+        content_type, content_string = upload_contents.split(',')
+        decoded = base64.b64decode(content_string)
+        try:
+            df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
+
+            # Normalize and clean columns to prevent trailing delimiter issues
+            df = df.dropna(axis=1, how='all')
+            if not df.empty and "Unnamed" in str(df.columns[-1]):
+                 df = df.iloc[:, :-1]
+
+            # Expected columns strictly required
+            expected_cols = ['Estado', 'Frete Tonelada Km']
+
+            if not all(col in df.columns for col in expected_cols):
+                return no_update, True, f"O CSV de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}."
+
+            # Enforce column order and remove extras
+            df = df[expected_cols]
+
+            # Save to disk
+            df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+        except Exception as e:
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;)."
+
+    # Add Row
+    if trigger_id == 'btn-add-freight-row':
+        if stored_data:
+            df = pd.read_json(io.StringIO(stored_data), orient='split')
+        else:
+            df = pd.DataFrame(columns=['Estado', 'Frete Tonelada Km'])
+
+        new_row = pd.DataFrame([{'Estado': '', 'Frete Tonelada Km': 0}])
+        df = pd.concat([df, new_row], ignore_index=True)
+        # Save to disk
+        df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+        return df.to_json(date_format='iso', orient='split'), no_update, no_update
+
+    # Edit Table
+    if trigger_id == 'table-costs-freight':
+        if table_data is not None:
+            df = pd.DataFrame(table_data)
+            # Save to disk
+            df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+
+    return no_update, no_update, no_update
+
+@app.callback(
+    Output('table-costs-freight', 'data'),
+    Input('store-costs-freight', 'data')
+)
+def update_freight_table(stored_data):
+    if not stored_data:
+        return []
+    df = pd.read_json(io.StringIO(stored_data), orient='split')
+    return df.to_dict('records')
+
+@app.callback(
+    Output("download-freight-csv", "data"),
+    Input("btn-download-freight", "n_clicks"),
+    State('store-costs-freight', 'data'),
+    prevent_initial_call=True,
+)
+def download_freight(n_clicks, stored_data):
+    if not n_clicks or not stored_data:
+        return no_update
+    df = pd.read_json(io.StringIO(stored_data), orient='split')
+    return dcc.send_data_frame(df.to_csv, "Valor_Tonelada_km.csv", sep=";", index=False, encoding="iso-8859-1")
 
 
 # 12. Handle Checkbox Toggles
