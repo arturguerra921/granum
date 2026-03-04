@@ -247,6 +247,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule)
 
+        #Mostrar o modelo para debug
+        model.pprint()
         # 3. Solucionar o modelo
         print("\nChamando solver CBC...")
         solver = SolverFactory('cbc')
