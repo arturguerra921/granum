@@ -17,23 +17,42 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     # Demanda (Demand) - Usando Capacidade em toneladas do Armazém (nó destino)
     # Identify the capacity column correctly. Often it is "Capacidade Estática (t)" or similar.
     cap_col = next((c for c in df_demand.columns if 'cap' in str(c).lower() or 'ton' in str(c).lower()), None)
+    estoque_col = next((c for c in df_demand.columns if 'estoque' in str(c).lower()), None)
 
     # Identify Public/Private warehouse.
     armazenador_col = next((c for c in df_demand.columns if 'armazenador' in str(c).lower()), None)
     name_col = next((c for c in df_demand.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
     mun_col_dest = next((c for c in df_demand.columns if 'munic' in str(c).lower()), None)
+    cda_col = next((c for c in df_demand.columns if 'cda' in str(c).lower()), None)
 
     demand_capacity = {}
     is_public = {}
+
+    # Store the mapping from CDA back to full formatted name for the final output
+    cda_to_name = {}
+
     for idx, row in df_demand.iterrows():
-        # Match the exact naming convention used in the distance matrix view
-        dest_name = f"Dest {idx}"
-        if name_col and mun_col_dest:
-            dest_name = f"{row[name_col]} ({row[mun_col_dest]})"
-        elif name_col:
-            dest_name = str(row[name_col])
-        elif mun_col_dest:
-            dest_name = str(row[mun_col_dest])
+        # Retrieve the CDA string
+        if cda_col and pd.notna(row[cda_col]):
+            cda = str(row[cda_col]).strip()
+        else:
+            cda = f"Dest {idx}"
+
+        # Match the exact naming convention used in the distance matrix view (CDA - Armazem - Municipio)
+        parts = []
+        if cda_col and pd.notna(row[cda_col]):
+            parts.append(str(row[cda_col]).strip())
+        if name_col and pd.notna(row[name_col]):
+            parts.append(str(row[name_col]).strip())
+        if mun_col_dest and pd.notna(row[mun_col_dest]):
+            parts.append(str(row[mun_col_dest]).strip())
+
+        if parts:
+            dest_name_full = " - ".join(parts)
+        else:
+            dest_name_full = f"Dest {idx}"
+
+        cda_to_name[cda] = dest_name_full
 
         # Parse capacity correctly (cleaning Brazilian number formats)
         try:
@@ -42,13 +61,23 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         except:
             cap = 0.0
 
-        demand_capacity[dest_name] = cap
+        # Parse initial stock correctly
+        try:
+            est_str = str(row[estoque_col]).replace('.', '').replace(',', '.')
+            estoque = float(est_str)
+        except:
+            estoque = 0.0
+
+        # A capacidade disponível é a capacidade total menos o estoque inicial
+        available_cap = max(0.0, cap - estoque)
+
+        demand_capacity[cda] = available_cap
 
         # Determine if public or private
         if armazenador_col and str(row[armazenador_col]).upper() == "COMPANHIA NACIONAL DE ABASTECIMENTO":
-            is_public[dest_name] = True
+            is_public[cda] = True
         else:
-            is_public[dest_name] = False
+            is_public[cda] = False
 
     # Compatibilidade (Produto x Armazém)
     # A matriz df_compat tem produtos nas linhas ('Produto') e colunas para cada tipo de armazém.
@@ -75,32 +104,33 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     for prod in all_products:
         for idx, row in df_demand.iterrows():
-            dest_name = f"Dest {idx}"
-            if name_col and mun_col_dest:
-                dest_name = f"{row[name_col]} ({row[mun_col_dest]})"
-            elif name_col:
-                dest_name = str(row[name_col])
-            elif mun_col_dest:
-                dest_name = str(row[mun_col_dest])
+            if cda_col and pd.notna(row[cda_col]):
+                cda = str(row[cda_col]).strip()
+            else:
+                cda = f"Dest {idx}"
 
             tipo_armazem = row[tipo_col] if tipo_col else None
 
             # Se não temos informação de tipo, assumimos que aceita (ou podemos rejeitar, mas assumir True é mais seguro se falhar)
             if tipo_armazem and (prod, tipo_armazem) in compat_dict:
-                prod_dest_compat[(prod, dest_name)] = compat_dict[(prod, tipo_armazem)]
+                prod_dest_compat[(prod, cda)] = compat_dict[(prod, tipo_armazem)]
             else:
-                prod_dest_compat[(prod, dest_name)] = True # Default fallback
+                prod_dest_compat[(prod, cda)] = True # Default fallback
 
     # Matriz de Distâncias
-    # df_dist tem 'Origem' e colunas com 'Dest <idx>' ...
+    # df_dist tem 'Origem' e colunas com 'CDA - Armazem - Municipio' ...
     distance = {}
     for _, row in df_dist.iterrows():
         orig = row['Origem']
         for col in df_dist.columns:
             if col != 'Origem':
-                dest = col
+                dest_full_name = col
+                # Retrieve the CDA from the first part of the column name
+                # format: "CDA - Armazem - Municipio" -> split by " - " -> get [0]
+                cda = dest_full_name.split(' - ')[0].strip() if ' - ' in str(dest_full_name) else str(dest_full_name).strip()
+
                 try:
-                    distance[(orig, dest)] = float(row[col])
+                    distance[(orig, cda)] = float(row[col])
                 except:
                     # Se for "N/A" ou falhar
                     pass
@@ -270,7 +300,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             for (o, d, p) in model.ValidRoutes:
                 val = pyo.value(model.Flow[o, d, p])
                 if val > 0.001:  # ignore floating point zeros
-                    print(f"De: {o} | Para: {d} | Produto: {p} | Qtd: {val:.2f} ton")
+                    d_name = cda_to_name.get(d, d)
+                    print(f"De: {o} | Para: {d_name} | Produto: {p} | Qtd: {val:.2f} ton")
                     total_transported += val
 
             print(f"\nTotal de produtos alocados: {total_transported:.2f} toneladas")
