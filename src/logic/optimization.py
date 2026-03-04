@@ -246,11 +246,16 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         max_storage = max(storage_cost.values()) if storage_cost else 0.0
 
         # O big_M deve ser ordens de grandeza maior que os custos reais para forçar as dummies a serem usadas apenas em último caso
-        big_M = (max_freight * max_dist + max_storage) * 1000000
-        if big_M == 0:
-            big_M = 1000000
+        big_M_capacity = (max_freight * max_dist + max_storage) * 1000000
+        if big_M_capacity == 0:
+            big_M_capacity = 1000000
 
-        print(f"Valor dinâmico para big_M utilizado (ordens de grandeza maior que custos reais): {big_M:.2e}")
+        # O custo de não alocar (DummyUnallocated) DEVE ser muito maior que o custo de alocar usando capacidade artificial
+        # Caso contrário, o solver prefere "não alocar" para economizar o custo normal de frete + armazenamento.
+        big_M_unallocated = big_M_capacity * 10
+
+        print(f"Valor dinâmico para big_M (Capacidade Artificial): {big_M_capacity:.2e}")
+        print(f"Valor dinâmico para big_M (Oferta Não Alocada): {big_M_unallocated:.2e}")
 
         # Função Objetivo (Objective)
         # Minimize sum(Flow * Distance * FreightCost) + sum(Flow * StorageTariff) + sum(Dummies * big_M)
@@ -260,8 +265,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 model.Flow[o, d, p] * model.Storage[d]
                 for (o, d, p) in model.ValidRoutes
             )
-            dummy_capacity_costs = sum(model.DummyCapacity[d] * big_M for d in model.Destinations)
-            dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * big_M for o in model.Origins for p in model.Products)
+            dummy_capacity_costs = sum(model.DummyCapacity[d] * big_M_capacity for d in model.Destinations)
+            dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * big_M_unallocated for o in model.Origins for p in model.Products)
 
             return normal_costs + dummy_capacity_costs + dummy_unallocated_costs
 
@@ -356,7 +361,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 print("Toda a oferta conseguiu ser escoada em rotas válidas para algum destino.")
 
             if dummy_cap_used or dummy_unalloc_used:
-                print(f"\nNota: Foram utilizadas variáveis dummies com custo elevado (big_M = {big_M:.2e}) para impedir que o modelo falhasse por inviabilidade.")
+                print(f"\nNota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.")
+                print(f"Custo de Capacidade Artificial (big_M) = {big_M_capacity:.2e}")
+                print(f"Custo de Oferta Não Alocada (big_M * 10) = {big_M_unallocated:.2e}")
 
         else:
             print("Não foi possível encontrar uma solução ótima. O modelo pode estar mal-condicionado.")
