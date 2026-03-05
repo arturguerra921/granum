@@ -3,8 +3,10 @@ from pyomo.opt import SolverFactory
 import pandas as pd
 import sys
 import io
+import tempfile
+import os
 
-def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage):
+def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False):
     """
     Roda o modelo matemático de otimização linear para alocação de produtos.
     """
@@ -218,9 +220,28 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # 2. Construção do Modelo Pyomo
 
-    # Redirecionar output apenas para capturar logs no buffer (esconde do terminal backend)
+    # Redirecionar output diretamente para um arquivo temporário no disco (para evitar Out of Memory)
     old_stdout = sys.stdout
-    new_stdout = io.StringIO()
+
+    log_dir = os.path.join(tempfile.gettempdir(), 'granum_logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Limpar arquivos antigos para não estourar o disco
+    import time
+    now = time.time()
+    for filename in os.listdir(log_dir):
+        filepath = os.path.join(log_dir, filename)
+        if os.path.isfile(filepath):
+            # Deleta arquivos criados há mais de 1 hora
+            if os.stat(filepath).st_mtime < now - 3600:
+                try:
+                    os.remove(filepath)
+                except Exception:
+                    pass
+
+    log_fd, log_path = tempfile.mkstemp(suffix='.txt', prefix='optimization_log_', dir=log_dir)
+    log_filename = os.path.basename(log_path)
+    new_stdout = os.fdopen(log_fd, 'w', encoding='utf-8')
     sys.stdout = new_stdout
 
     # Variables to hold structured results
@@ -356,8 +377,10 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule)
 
-        #Mostrar o modelo para debug
-        model.pprint()
+        #Mostrar o modelo para debug apenas se solicitado pelo usuário
+        if detailed_log:
+            model.pprint()
+
         # 3. Solucionar o modelo
         print("\nChamando solver CBC...")
         solver = SolverFactory('cbc')
@@ -473,8 +496,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print(traceback.format_exc())
 
     finally:
-        # Restaurar stdout
+        # Fechar o arquivo temporário de log e restaurar stdout
+        new_stdout.close()
         sys.stdout = old_stdout
 
-    # Retornar o texto capturado e os dados estruturados
-    return new_stdout.getvalue(), results_dict
+    # Retornar o nome do arquivo de log salvo e os dados estruturados
+    return log_filename, results_dict

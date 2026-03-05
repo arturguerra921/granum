@@ -21,6 +21,24 @@ def get_tab_model_config_layout():
             dbc.CardBody(
                 [
                     html.P("Certifique-se de que preencheu os dados em todas as abas anteriores antes de executar.", className="text-muted small mb-3"),
+                    html.Div([
+                        dbc.Switch(
+                            id="toggle-detailed-log",
+                            value=False,
+                            className="mb-0"
+                        ),
+                        html.Label(
+                            "Detalhar log do modelo",
+                            htmlFor="toggle-detailed-log",
+                            className="mb-0 mx-2 text-muted cursor-pointer"
+                        ),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-detailed-log", style={"cursor": "help", "fontSize": "0.9rem"}),
+                        dbc.Tooltip(
+                            "Ativar esta opção incluirá a construção detalhada do modelo matemático (em Python) no log. No entanto, isso pode aumentar significativamente o tempo de resolução. Use esta opção apenas para depuração ou se você quiser entender como o modelo é construído.",
+                            target="help-detailed-log",
+                            placement="top"
+                        )
+                    ], className="mb-4 d-flex align-items-center justify-content-center"),
                     dbc.Button("Rodar Modelo", id="btn-run-model", color="primary", className="w-100 mb-3"),
                     dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", color="secondary", outline=True, className="w-100 mb-3", disabled=True),
                     dcc.Download(id="download-model-log"),
