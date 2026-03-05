@@ -185,7 +185,12 @@ def get_tab_results_layout():
                             dbc.Spinner(
                                 dcc.Graph(
                                     id='graph-results-map',
-                                    config={'scrollZoom': True, 'displayModeBar': True},
+                                    config={
+                                        "displayModeBar": True,
+                                        "scrollZoom": True,
+                                        "showAxisDragHandles": True,
+                                        "modeBarButtonsToAdd": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
+                                    },
                                     style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
                                 ),
                                 color="primary"
