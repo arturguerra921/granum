@@ -88,10 +88,74 @@ navbar = dbc.Navbar(
                 href="#",
                 style={"textDecoration": "none"},
             ),
+            html.Div(
+                dbc.Button(
+                    [html.I(className="bi bi-question-circle me-2"), "Ajuda"],
+                    id="btn-help-modal",
+                    color="light",
+                    className="text-primary border-primary fw-bold ms-auto",
+                    size="md",
+                    style={"borderRadius": "8px"}
+                ),
+                className="d-flex"
+            )
         ],
-        fluid=True
+        fluid=True,
+        className="d-flex justify-content-between align-items-center"
     ),
     className="navbar-custom mb-32 py-3 shadow-sm"
+)
+
+# Modal de Ajuda
+help_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-primary"), "Guia de Uso do Granum"]), close_button=True),
+        dbc.ModalBody(
+            [
+                html.P("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", className="mb-4 text-muted"),
+
+                dbc.ListGroup([
+                    dbc.ListGroupItem([
+                        html.H6([html.Span("1.", className="badge bg-primary rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold"),
+                        html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 small text-muted")
+                    ], className="border-0 border-bottom py-3"),
+
+                    dbc.ListGroupItem([
+                        html.H6([html.Span("2.", className="badge bg-primary rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold"),
+                        html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 small text-muted")
+                    ], className="border-0 border-bottom py-3"),
+
+                    dbc.ListGroupItem([
+                        html.H6([html.Span("3.", className="badge bg-primary rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold"),
+                        html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 small text-muted")
+                    ], className="border-0 border-bottom py-3"),
+
+                    dbc.ListGroupItem([
+                        html.H6([html.Span("4.", className="badge bg-primary rounded-pill me-2"), "Custos"], className="mb-1 fw-bold"),
+                        html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 small text-muted")
+                    ], className="border-0 border-bottom py-3"),
+
+                    dbc.ListGroupItem([
+                        html.H6([html.Span("5.", className="badge bg-primary rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold"),
+                        html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão.", className="mb-0 small text-muted")
+                    ], className="border-0 border-bottom py-3"),
+
+                    dbc.ListGroupItem([
+                        html.H6([html.Span("6.", className="badge bg-primary rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold"),
+                        html.P("Na aba de Configuração, revise as restrições e rode o modelo de otimização matemática. Em seguida, na aba Resultados, visualize as métricas globais, a malha de rotas sugerida e baixe o relatório final.", className="mb-0 small text-muted")
+                    ], className="border-0 py-3"),
+                ], flush=True),
+            ]
+        ),
+        dbc.ModalFooter(
+            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="primary", n_clicks=0)
+        ),
+    ],
+    id="modal-help",
+    size="lg",
+    is_open=False,
+    centered=True,
+    scrollable=True
 )
 
 # 2. Tabs
@@ -882,8 +946,10 @@ app.layout = html.Div(
                 dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
                 dcc.Store(id='store-model-results'), # New Store for Model Results
                 dcc.Store(id='store-model-log'), # New Store for optimization logs
+                dcc.Store(id='store-help-seen', storage_type='local'), # Store for help modal state
                 dcc.Download(id='download-dataframe-xlsx'),
-                error_modal
+                error_modal,
+                help_modal
             ],
             fluid=True,
             className="px-4 pb-48"
@@ -897,6 +963,47 @@ app.layout = html.Div(
 
 
 # --- Callbacks ---
+
+@app.callback(
+    Output("modal-help", "is_open"),
+    Output("store-help-seen", "data"),
+    [Input("btn-help-modal", "n_clicks"),
+     Input("close-help-modal", "n_clicks"),
+     Input("main-tabs", "active_tab")], # Trigger on load
+    [State("modal-help", "is_open"),
+     State("store-help-seen", "data")]
+)
+def toggle_help_modal(n_open, n_close, active_tab, is_open, help_seen):
+    ctx = dash.callback_context
+
+    # In Dash, on initial load, triggered can be empty or contain all inputs.
+    # The safest way in modern Dash is checking triggered_id (if available) or checking if n_open/n_close are truthy.
+
+    # If no explicit trigger, it's the initial load
+    if not ctx.triggered:
+        if not help_seen:
+            return True, True
+        return is_open, help_seen
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Sometimes initial load triggers 'btn-help-modal' with None or 0 clicks.
+    # We must explicitly verify that a user actually clicked it if it's the trigger.
+    if trigger_id == "btn-help-modal":
+        if n_open: # Only if it was actually clicked (>0)
+            return True, True
+        # If it was 0/None, it's just the initial load firing it.
+        if not help_seen:
+            return True, True
+
+    if trigger_id == "close-help-modal" and n_close:
+        return False, True
+
+    if trigger_id == "main-tabs" and not help_seen:
+        return True, True
+
+    return is_open, help_seen
+
 
 @app.callback(
     [Output("tab-input-container", "style"),
