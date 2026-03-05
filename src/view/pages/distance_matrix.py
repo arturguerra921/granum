@@ -125,7 +125,14 @@ def get_tab_distance_matrix_layout():
                             "displayModeBar": True,
                             "scrollZoom": True,
                             "showAxisDragHandles": True,
-                            "modeBarButtonsToAdd": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
+                            "modeBarButtonsToAdd": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape'],
+                            "toImageButtonOptions": {
+                                "format": "png",
+                                "filename": "mapa_matriz_distancia",
+                                "height": None,
+                                "width": None,
+                                "scale": 1
+                            }
                         }
                     )
                 ],

@@ -8,6 +8,7 @@ from src.view.theme import UNB_THEME
 from src.view.pages.distance_matrix import get_tab_distance_matrix_layout
 from src.view.pages.model_config import get_tab_model_config_layout
 from src.view.pages.costs import get_tab_costs_layout
+from src.view.pages.results import get_tab_results_layout
 from src.logic.osrm import OSRMClient
 from src.logic.optimization import run_optimization_model
 import dash
@@ -74,7 +75,7 @@ navbar = dbc.Navbar(
                         dbc.Col(html.Img(src="/assets/logo.png", height="48px"), className="me-3"),
                         dbc.Col(
                             [
-                                html.H5("Otimização de Localização", className="navbar-brand-text mb-0"),
+                                html.H5("Otimização de Alocação de Produtos", className="navbar-brand-text mb-0"),
                                 html.Small("Universidade de Brasília", className="navbar-subtext")
                             ],
                         ),
@@ -846,7 +847,7 @@ tab_prod_armazens_layout = get_tab_prod_armazens_layout()
 tab_costs_layout = get_tab_costs_layout()
 tab_distance_matrix_layout = get_tab_distance_matrix_layout()
 tab_config_layout = get_tab_model_config_layout()
-tab4_layout = html.H3('Resultados (Placeholder)', className="text-center mt-48 text-muted")
+tab_results_layout = get_tab_results_layout()
 
 content_container = html.Div(
     [
@@ -856,7 +857,7 @@ content_container = html.Div(
         html.Div(id="tab-costs-container", children=tab_costs_layout, style={"display": "none"}),
         html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
         html.Div(id="tab-config-container", children=tab_config_layout, style={"display": "none"}),
-        html.Div(id="tab-results-container", children=tab4_layout, style={"display": "none"}),
+        html.Div(id="tab-results-container", children=tab_results_layout, style={"display": "none"}),
     ],
     id="tabs-content"
 )
@@ -2327,11 +2328,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
-    output=[
-        Output("store-model-log", "data"),
-        Output("model-output-text", "children"), 
-        Output("store-model-results", "data")
-        ],
+    output=(Output("model-output-text", "children"), Output("store-model-results", "data")),
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
@@ -2350,10 +2347,10 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 )
 def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix):
     if not n_clicks:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo."
+        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", dash.no_update
 
     try:
         # Load DataFrames
@@ -2379,7 +2376,7 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_storage = pd.DataFrame()
 
         # Run model
-        output_text = run_optimization_model(
+        output_text, results_dict = run_optimization_model(
             df_supply=df_supply,
             df_demand=df_demand,
             df_compat=df_compat,
@@ -2388,12 +2385,384 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_storage=df_storage
         )
 
-        return output_text
+        # Se results_dict existir e tiver status ok, a gente armazena no dcc.Store
+        # O dcc.Store lida com dicionários/JSON nativamente
+        return output_text, results_dict
 
     except Exception as e:
         import traceback
         err_msg = f"Erro fatal ao executar o modelo:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-        return err_msg
+        return err_msg, dash.no_update
+
+
+# --- Results Callbacks ---
+
+@app.callback(
+    [Output("res-kpi-objective", "children"),
+     Output("res-kpi-tons", "children"),
+     Output("res-kpi-km", "children"),
+     Output("res-kpi-freight", "children"),
+     Output("res-kpi-storage", "children"),
+     Output("table-results-routes", "data"),
+     Output("results-warnings-container", "children")],
+    Input("store-model-results", "data"),
+    prevent_initial_call=True
+)
+def update_results_kpis_and_table(results_data):
+    if not results_data or results_data.get("status") != "optimal":
+        return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update
+
+    kpis = results_data.get("kpis", {})
+    routes = results_data.get("routes", [])
+    warnings = results_data.get("warnings", [])
+    objective = results_data.get("objective", 0.0)
+
+    obj_str = f"R$ {objective:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    tons = f"{kpis.get('total_tons', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    kms = f"{kpis.get('total_km', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    freight = f"R$ {kpis.get('total_freight_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    storage = f"R$ {kpis.get('total_storage_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    table_data = []
+    for r in routes:
+        table_data.append({
+            "Origem": r["Origem"],
+            "Destino": r["Destino"],
+            "Produto": r["Produto"],
+            "Quantidade (ton)": round(r["Quantidade (ton)"], 2)
+        })
+
+    # Render warnings if any dummy variables were used
+    warnings_html = []
+    if warnings:
+        warnings_list = [html.Li(w) for w in warnings]
+        warnings_html = dbc.Alert([
+            html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Atenção: Uso de Capacidade Artificial Detectado!"], className="alert-heading"),
+            html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
+            html.Hr(),
+            html.Ul(warnings_list, className="mb-0")
+        ], color="danger", className="shadow-sm")
+
+    return obj_str, tons, kms, freight, storage, table_data, warnings_html
+
+@app.callback(
+    Output("download-results-xlsx", "data"),
+    Input("btn-download-results", "n_clicks"),
+    State("store-model-results", "data"),
+    prevent_initial_call=True
+)
+def download_results(n_clicks, results_data):
+    if not n_clicks or not results_data or results_data.get("status") != "optimal":
+        return dash.no_update
+
+    routes = results_data.get("routes", [])
+    if not routes:
+        return dash.no_update
+
+    df = pd.DataFrame(routes)
+    return dcc.send_data_frame(df.to_excel, "Resultados_Otimizacao.xlsx", index=False)
+
+@app.callback(
+    Output("modal-confirm-all-routes", "is_open"),
+    [Input("btn-show-all-routes", "n_clicks"),
+     Input("btn-cancel-all-routes", "n_clicks"),
+     Input("btn-confirm-all-routes", "n_clicks")],
+    [State("store-model-results", "data"),
+     State("modal-confirm-all-routes", "is_open")],
+    prevent_initial_call=True
+)
+def manage_all_routes_modal(n_show, n_cancel, n_confirm, results_data, is_open):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+    if trigger_id == "btn-show-all-routes":
+        routes = results_data.get("routes", []) if results_data else []
+        if len(routes) > 150:
+            return True
+        return False
+
+    if trigger_id == "btn-cancel-all-routes":
+        return False
+
+    if trigger_id == "btn-confirm-all-routes":
+        return False
+
+    return is_open
+
+@app.callback(
+    [Output("graph-results-map", "figure"),
+     Output("route-details-container", "children")],
+    [Input("table-results-routes", "active_cell"),
+     Input("btn-show-all-routes", "n_clicks"),
+     Input("btn-confirm-all-routes", "n_clicks")],
+    [State("table-results-routes", "derived_viewport_data"),
+     State("store-model-results", "data"),
+     State("stored-data", "data"),
+     State("store-armazens", "data")],
+    prevent_initial_call=True
+)
+def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_armazens):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+    # Handle the "Show All" logic depending on route length
+    if trigger_id == "btn-show-all-routes":
+        routes = results_data.get("routes", []) if results_data else []
+        if len(routes) > 150:
+            # We must wait for the modal confirmation to actually render
+            return dash.no_update, dash.no_update
+
+    # Default map
+    default_fig = go.Figure(go.Scattermapbox())
+    default_fig.update_layout(
+        mapbox_style="open-street-map",
+        mapbox_zoom=3,
+        mapbox_center={"lat": -14.2350, "lon": -51.9253},
+        margin={"r": 0, "t": 0, "l": 0, "b": 0}
+    )
+
+    if not results_data or results_data.get("status") != "optimal":
+        return default_fig, html.P("Resultados indisponíveis.", className="text-muted small")
+
+    if not stored_data or not stored_armazens:
+        return default_fig, html.P("Faltam dados base para renderizar o mapa.", className="text-muted small")
+
+    # Helper function to get coordinates
+    def get_coords(orig_name, dest_name, df_input, df_armazens):
+        # Origin Coords
+        origins_df_map = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+        city_counts_map = origins_df_map['Cidade'].value_counts()
+        duplicates_map = city_counts_map[city_counts_map > 1].index
+
+        origins_df_map['Cidade_Display'] = origins_df_map.apply(
+            lambda row: f"{row['Cidade']} ({row['Latitude']:.4f}, {row['Longitude']:.4f})"
+            if row['Cidade'] in duplicates_map else row['Cidade'],
+            axis=1
+        )
+
+        origin_row = origins_df_map[origins_df_map['Cidade_Display'] == orig_name]
+        if origin_row.empty:
+            origin_row = df_input[df_input['Cidade'] == orig_name]
+            if origin_row.empty: return None, None
+            origin_row = origin_row.iloc[0]
+        else:
+            origin_row = origin_row.iloc[0]
+
+        origin_coords = (origin_row['Latitude'], origin_row['Longitude'])
+
+        # Destination Coords
+        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+
+        if not lat_col or not lon_col:
+             mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
+             uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+             if mun_col and uf_col:
+                 df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+                 def get_c(key):
+                     if key in CITY_LOOKUP: return CITY_LOOKUP[key]
+                     return {'latitude': None, 'longitude': None}
+                 coords = df_armazens['lookup_key'].apply(get_c)
+                 df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
+                 df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
+                 dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+             else:
+                 return origin_coords, None
+        else:
+            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
+
+        cda_col = next((c for c in dests_df.columns if 'cda' in str(c).lower()), None)
+        name_col = next((c for c in dests_df.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
+        mun_col_dest = next((c for c in dests_df.columns if 'munic' in str(c).lower()), None)
+
+        dest_coords = None
+        for idx, row in dests_df.iterrows():
+            parts = []
+            if cda_col and pd.notna(row[cda_col]): parts.append(str(row[cda_col]).strip())
+            if name_col and pd.notna(row[name_col]): parts.append(str(row[name_col]).strip())
+            if mun_col_dest and pd.notna(row[mun_col_dest]): parts.append(str(row[mun_col_dest]).strip())
+
+            label = " - ".join(parts) if parts else f"Dest {idx}"
+            if label == dest_name:
+                dest_coords = (row['Latitude'], row['Longitude'])
+                break
+
+        return origin_coords, dest_coords
+
+    df_input = pd.read_json(io.StringIO(stored_data), orient='split')
+    df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+    osrm_url = os.environ.get("OSRM_URL", "http://localhost:5000")
+    client = OSRMClient(base_url=osrm_url)
+
+    # Show single route
+    if trigger_id == "table-results-routes" and active_cell and table_data:
+        row_idx = active_cell['row']
+        row_info = table_data[row_idx]
+        orig_name = row_info['Origem']
+        dest_name = row_info['Destino']
+        prod_name = row_info['Produto']
+
+        # Find exact route in results
+        route_detail = None
+        for r in results_data.get("routes", []):
+            if r["Origem"] == orig_name and r["Destino"] == dest_name and r["Produto"] == prod_name:
+                route_detail = r
+                break
+
+        if not route_detail:
+            return default_fig, html.P("Detalhes não encontrados.", className="text-muted small")
+
+        orig_coords, dest_coords = get_coords(orig_name, dest_name, df_input, df_armazens)
+        if not orig_coords or not dest_coords:
+            return default_fig, html.P("Coordenadas não encontradas para desenhar a rota.", className="text-muted small")
+
+        route_data_osrm = client.get_route(orig_coords, dest_coords)
+        if not route_data_osrm:
+             return default_fig, html.P("Falha ao calcular a rota no OSRM.", className="text-muted small")
+
+        geometry = route_data_osrm['geometry']
+        lats = [p[1] for p in geometry['coordinates']]
+        lons = [p[0] for p in geometry['coordinates']]
+
+        fig = go.Figure(go.Scattermapbox(
+            mode="lines", lon=lons, lat=lats,
+            line={'width': 4, 'color': UNB_THEME['UNB_BLUE']},
+            name="Rota"
+        ))
+        fig.add_trace(go.Scattermapbox(
+            mode="markers", lon=[orig_coords[1]], lat=[orig_coords[0]],
+            marker={'size': 12, 'color': UNB_THEME['UNB_GREEN']}, name=f"Origem"
+        ))
+        fig.add_trace(go.Scattermapbox(
+            mode="markers", lon=[dest_coords[1]], lat=[dest_coords[0]],
+            marker={'size': 12, 'color': 'red'}, name=f"Destino"
+        ))
+
+        lat_diff = max(lats) - min(lats)
+        lon_diff = max(lons) - min(lons)
+        max_diff = max(lat_diff, lon_diff)
+        zoom = 5
+        if max_diff < 0.1: zoom = 11
+        elif max_diff < 0.5: zoom = 9
+        elif max_diff < 2: zoom = 7
+        elif max_diff < 5: zoom = 6
+        elif max_diff < 10: zoom = 5
+        else: zoom = 4
+
+        fig.update_layout(
+            mapbox_style="open-street-map",
+            mapbox_zoom=zoom,
+            mapbox_center={"lat": np.mean(lats), "lon": np.mean(lons)},
+            margin={"r": 0, "t": 0, "l": 0, "b": 0},
+            showlegend=False
+        )
+
+        # Formatted currency/numbers
+        fmt_freight = f"R$ {route_detail['Custo Frete (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_storage = f"R$ {route_detail['Custo Armazenagem (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_total = f"R$ {route_detail['Custo Total (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_qtd = f"{route_detail['Quantidade (ton)']:,.2f} ton".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_dist = f"{route_detail['Distancia (km)']:,.2f} km".replace(",", "X").replace(".", ",").replace("X", ".")
+
+        details_html = dbc.Card([
+            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), style={"backgroundColor": UNB_THEME['UNB_BLUE']}),
+            dbc.ListGroup([
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-success me-2"), html.Strong("Origem: ")]),
+                    html.Span(orig_name, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger me-2"), html.Strong("Destino: ")]),
+                    html.Span(dest_name, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-box-seam-fill text-primary me-2"), html.Strong("Produto: ")]),
+                    html.Span(prod_name, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-truck text-secondary me-2"), html.Strong("Distância: ")]),
+                    html.Span(fmt_dist, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-boxes text-info me-2"), html.Strong("Movimentado: ")]),
+                    html.Span(fmt_qtd, className="fw-bold text-info d-block ms-4")
+                ], className="py-2"),
+            ], flush=True),
+            dbc.CardFooter([
+                html.Div([
+                    html.Span("Custo de Frete: ", className="text-muted small"),
+                    html.Span(fmt_freight, className="float-end fw-bold", style={"color": "#dc3545"})
+                ], className="mb-1"),
+                html.Div([
+                    html.Span("Custo de Armaz.: ", className="text-muted small"),
+                    html.Span(fmt_storage, className="float-end fw-bold", style={"color": "#fd7e14"})
+                ], className="mb-2"),
+                html.Div([
+                    html.Span("Custo da Rota:", className="fw-bold"),
+                    html.H5(fmt_total, className="float-end fw-bold mb-0 text-success")
+                ], className="mt-2 border-top pt-2")
+            ], className="bg-light")
+        ], className="shadow-sm border-0 h-100")
+
+        return fig, details_html
+
+    # Show all routes
+    if trigger_id == "btn-confirm-all-routes" or trigger_id == "btn-show-all-routes" or (trigger_id is None and results_data.get("routes")):
+        routes = results_data.get("routes", [])
+        if not routes:
+            return default_fig, html.P("Nenhuma rota encontrada.", className="text-muted small")
+
+        fig = go.Figure()
+        all_lats, all_lons = [], []
+
+        for r in routes:
+            orig_coords, dest_coords = get_coords(r["Origem"], r["Destino"], df_input, df_armazens)
+            if orig_coords and dest_coords:
+                route_data_osrm = client.get_route(orig_coords, dest_coords)
+                if route_data_osrm:
+                    geometry = route_data_osrm['geometry']
+                    lats = [p[1] for p in geometry['coordinates']]
+                    lons = [p[0] for p in geometry['coordinates']]
+                    all_lats.extend(lats)
+                    all_lons.extend(lons)
+
+                    fig.add_trace(go.Scattermapbox(
+                        mode="lines", lon=lons, lat=lats,
+                        line={'width': 2, 'color': UNB_THEME['UNB_BLUE']},
+                        opacity=0.6,
+                        hoverinfo='skip'
+                    ))
+                    # Mark origin
+                    fig.add_trace(go.Scattermapbox(
+                        mode="markers", lon=[orig_coords[1]], lat=[orig_coords[0]],
+                        marker={'size': 8, 'color': UNB_THEME['UNB_GREEN']}, hoverinfo='skip'
+                    ))
+                    # Mark destination
+                    fig.add_trace(go.Scattermapbox(
+                        mode="markers", lon=[dest_coords[1]], lat=[dest_coords[0]],
+                        marker={'size': 8, 'color': 'red'}, hoverinfo='skip'
+                    ))
+
+        if all_lats and all_lons:
+            fig.update_layout(
+                mapbox_style="open-street-map",
+                mapbox_zoom=4,
+                mapbox_center={"lat": np.mean(all_lats), "lon": np.mean(all_lons)},
+                margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                showlegend=False
+            )
+        else:
+            fig = default_fig
+
+        details_html = html.Div([
+            html.P(f"Exibindo malha logística com {len(routes)} rotas realizadas.", className="text-muted mb-2"),
+            html.P("Selecione uma rota na tabela para ver os detalhes individuais.", className="text-muted small")
+        ])
+
+        return fig, details_html
+
+    return default_fig, html.P("Selecione uma rota na tabela para ver os detalhes.", className="text-muted small")
 
 @app.callback(
     Output("btn-download-log", "disabled"),
