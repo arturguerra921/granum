@@ -22,42 +22,13 @@ def get_tab_model_config_layout():
                 [
                     html.P("Certifique-se de que preencheu os dados em todas as abas anteriores antes de executar.", className="text-muted small mb-3"),
                     dbc.Button("Rodar Modelo", id="btn-run-model", color="primary", className="w-100 mb-3"),
+                    dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", color="secondary", outline=True, className="w-100 mb-3", disabled=True),
+                    dcc.Download(id="download-model-log"),
                 ],
                 className="card-body-custom"
             ),
         ],
         className="card-custom mb-3"
-    )
-
-    # Output Card
-    output_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                "Saída do Console",
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    html.Pre(
-                        id="model-output-text",
-                        children="Aguardando execução do modelo...",
-                        style={
-                            "backgroundColor": "#1E1E1E",
-                            "color": "#D4D4D4",
-                            "padding": "15px",
-                            "borderRadius": "8px",
-                            "height": "600px",
-                            "overflowY": "auto",
-                            "fontFamily": "monospace",
-                            "fontSize": "0.85rem",
-                            "whiteSpace": "pre-wrap"
-                        }
-                    )
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom h-100"
     )
 
     # Loading Modal
@@ -89,11 +60,9 @@ def get_tab_model_config_layout():
             [
                 dbc.Col([
                     config_card
-                ], width=12, lg=3, className="mb-24"),
-                dbc.Col([
-                    output_card
-                ], width=12, lg=9, className="mb-24"),
-            ]
+                ], width=12, md=8, lg=6, className="mb-24 mx-auto"),
+            ],
+            className="justify-content-center"
         ),
         loading_modal
     ])

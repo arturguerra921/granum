@@ -877,6 +877,7 @@ app.layout = html.Div(
                 dcc.Store(id='store-costs-storage'), # New Store for Storage Costs
                 dcc.Store(id='store-costs-freight'), # New Store for Freight Costs
                 dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
+                dcc.Store(id='store-model-log'), # New Store for optimization logs
                 dcc.Download(id='download-dataframe-xlsx'),
                 error_modal
             ],
@@ -2326,7 +2327,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
-    output=Output("model-output-text", "children"),
+    output=Output("store-model-log", "data"),
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
@@ -2390,6 +2391,26 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
         err_msg = f"Erro fatal ao executar o modelo:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
         return err_msg
 
+@app.callback(
+    Output("btn-download-log", "disabled"),
+    Input("store-model-log", "data"),
+    prevent_initial_call=False
+)
+def update_download_button_state(log_data):
+    if log_data:
+        return False
+    return True
+
+@app.callback(
+    Output("download-model-log", "data"),
+    Input("btn-download-log", "n_clicks"),
+    State("store-model-log", "data"),
+    prevent_initial_call=True
+)
+def download_model_log(n_clicks, log_data):
+    if not n_clicks or not log_data:
+        return dash.no_update
+    return dcc.send_string(log_data, "log_execucao_modelo.txt")
 
 def view():
     # Use environment variable to determine if we are in Docker or dev
