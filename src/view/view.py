@@ -244,7 +244,7 @@ def get_tab1_layout():
                         ),
                         dbc.Col(
                             [
-                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
+                                dbc.Button(html.I(className="bi bi-lock-fill fs-4", style={"color": UNB_THEME['UNB_BLUE']}), id="btn-manual-edit", color="link", className="d-flex align-items-center justify-content-center w-100 mb-16 px-0 text-decoration-none shadow-none", style={"height": "38px", "backgroundColor": "transparent"}, n_clicks=0, title="Editar Lat/Long manualmente")
                             ],
                             width=2,
                             className="d-flex align-items-end"
@@ -981,8 +981,8 @@ def update_lat_lon(city_value):
 )
 def toggle_manual_edit(n_clicks):
     if n_clicks % 2 == 1:
-        return False, False, "🔓" # Enable
-    return True, True, "🔒" # Disable
+        return False, False, html.I(className="bi bi-unlock-fill fs-4", style={"color": UNB_THEME['UNB_BLUE']}) # Enable
+    return True, True, html.I(className="bi bi-lock-fill fs-4", style={"color": UNB_THEME['UNB_BLUE']}) # Disable
 
 # 3. Upload & Add Row -> Update Store
 @app.callback(
@@ -2329,7 +2329,13 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
-    output=(Output("model-output-text", "children"), Output("store-model-results", "data"), Output("store-model-log", "data")),
+    output=(
+        Output("model-output-text", "children"),
+        Output("model-output-text", "className"),
+        Output("store-model-results", "data"),
+        Output("store-model-log", "data"),
+        Output("main-tabs", "active_tab")
+    ),
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
@@ -2348,10 +2354,10 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 )
 def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix):
     if not n_clicks:
-        return dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", dash.no_update, dash.no_update
+        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", "mt-3 text-center fw-bold text-danger", dash.no_update, dash.no_update, dash.no_update
 
     try:
         # Load DataFrames
@@ -2388,12 +2394,15 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
 
         # Se results_dict existir e tiver status ok, a gente armazena no dcc.Store
         # O dcc.Store lida com dicionários/JSON nativamente
-        return "Execução concluída com sucesso. Verifique a aba de Resultados.", results_dict, output_text
+        if results_dict.get("status") in ["optimal", "ok"]:
+            return "Execução concluída com sucesso.", "mt-3 text-center fw-bold text-success", results_dict, output_text, "tab-results"
+        else:
+            return "O modelo não encontrou solução ótima. Veja o log.", "mt-3 text-center fw-bold text-danger", results_dict, output_text, dash.no_update
 
     except Exception as e:
         import traceback
         err_msg = f"Erro fatal ao executar o modelo:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-        return err_msg, dash.no_update, err_msg
+        return err_msg, "mt-3 text-center fw-bold text-danger", dash.no_update, err_msg, dash.no_update
 
 
 # --- Results Callbacks ---
