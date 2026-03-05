@@ -244,7 +244,7 @@ def get_tab1_layout():
                         ),
                         dbc.Col(
                             [
-                                dbc.Button(html.I(className="bi bi-lock-fill fs-4", style={"color": UNB_THEME['UNB_BLUE']}), id="btn-manual-edit", color="link", className="d-flex align-items-center justify-content-center w-100 mb-16 px-0 text-decoration-none shadow-none", style={"height": "38px", "backgroundColor": "transparent"}, n_clicks=0, title="Editar Lat/Long manualmente")
+                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
                             ],
                             width=2,
                             className="d-flex align-items-end"
@@ -981,8 +981,8 @@ def update_lat_lon(city_value):
 )
 def toggle_manual_edit(n_clicks):
     if n_clicks % 2 == 1:
-        return False, False, html.I(className="bi bi-unlock-fill fs-4", style={"color": UNB_THEME['UNB_BLUE']}) # Enable
-    return True, True, html.I(className="bi bi-lock-fill fs-4", style={"color": UNB_THEME['UNB_BLUE']}) # Disable
+        return False, False, "🔓" # Enable
+    return True, True, "🔒" # Disable
 
 # 3. Upload & Add Row -> Update Store
 @app.callback(
