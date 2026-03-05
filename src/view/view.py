@@ -2327,7 +2327,11 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
-    output=Output("store-model-log", "data"),
+    output=[
+        Output("store-model-log", "data"),
+        Output("model-output-text", "children"), 
+        Output("store-model-results", "data")
+        ],
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
