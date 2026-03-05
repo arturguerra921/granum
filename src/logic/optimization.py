@@ -218,7 +218,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # 2. Construção do Modelo Pyomo
 
-    # Redirecionar output para capturar logs
+    # Redirecionar output apenas para capturar logs no buffer (esconde do terminal backend)
     old_stdout = sys.stdout
     new_stdout = io.StringIO()
     sys.stdout = new_stdout
@@ -464,7 +464,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         results_dict["status"] = "error"
         results_dict["warnings"].append(f"Erro: {str(e)}")
         import traceback
-        traceback.print_exc()
+        # print_exc defaults to sys.stderr. Let's print formatting to sys.stdout
+        # so it gets caught in our buffer!
+        print(traceback.format_exc())
 
     finally:
         # Restaurar stdout
