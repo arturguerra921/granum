@@ -109,7 +109,7 @@ def get_tab_distance_matrix_layout():
                     html.Span("Visualização da Rota", className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-route-map", style={"cursor": "help", "fontSize": "0.9rem"}),
                     dbc.Tooltip(
-                        "Clique na tabela acima para visualizar a rota desejada. Apenas é possível visualizar uma rota de cada vez.",
+                        "Clique na tabela acima para visualizar a rota desejada. Apenas é possível visualizar uma rota de cada vez. Nos casos em que a rota for exibida como uma linha reta vermelha, isso indica que a rota real não pôde ser calculada, possivelmente devido ao ponto estar fora do Brasil ou em área isolada sem estradas em um raio de 50 km. Nesses casos, a distância exibida na tabela é a distância geodésica (linha reta) entre os pontos, e não a distância rodoviária real.",
                         target="help-route-map",
                         placement="right"
                     ),
