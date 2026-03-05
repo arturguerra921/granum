@@ -19,13 +19,24 @@ def get_tab_results_layout():
                         dbc.Col(
                             dbc.Card(
                                 dbc.CardBody([
+                                    html.H6("Custo Total Ótimo (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
+                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                ]),
+                                className="shadow-sm border-0 h-100 text-center",
+                                style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                            ),
+                            width=12, lg=2
+                        ),
+                        dbc.Col(
+                            dbc.Card(
+                                dbc.CardBody([
                                     html.H6("Total Movimentado (ton)", className="text-muted small text-uppercase fw-bold mb-1"),
                                     html.H4(id="res-kpi-tons", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
                             ),
-                            width=3
+                            width=12, lg=2
                         ),
                         dbc.Col(
                             dbc.Card(
@@ -36,7 +47,7 @@ def get_tab_results_layout():
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
                             ),
-                            width=3
+                            width=12, lg=3
                         ),
                         dbc.Col(
                             dbc.Card(
@@ -47,7 +58,7 @@ def get_tab_results_layout():
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
                             ),
-                            width=3
+                            width=12, lg=2
                         ),
                         dbc.Col(
                             dbc.Card(
@@ -58,15 +69,18 @@ def get_tab_results_layout():
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
                             ),
-                            width=3
+                            width=12, lg=3
                         ),
                     ], className="g-3")
                 ],
                 className="card-body-custom"
             )
         ],
-        className="card-custom mb-4"
+        className="card-custom mb-3"
     )
+
+    # 1.5 Avisos e Alertas (Dummies)
+    warnings_container = html.Div(id="results-warnings-container", className="mb-4")
 
     # 2. Tabela de Rotas Realizadas
     table_card = dbc.Card(
@@ -171,8 +185,7 @@ def get_tab_results_layout():
                             dbc.Spinner(
                                 dcc.Graph(
                                     id='graph-results-map',
-                                    config={'displayModeBar': False},
-                                    style={"height": "400px", "borderRadius": "8px", "overflow": "hidden"}
+                                    style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
                                 ),
                                 color="primary"
                             ),
@@ -181,9 +194,8 @@ def get_tab_results_layout():
                         # Coluna de Detalhes Específicos
                         dbc.Col(
                             [
-                                html.H6("Detalhes da Rota Selecionada", className="fw-bold mb-3 text-muted"),
                                 html.Div(id="route-details-container", children=[
-                                    html.P("Selecione uma rota na tabela para ver os detalhes.", className="text-muted small")
+                                    html.P("Selecione uma rota na tabela ao lado para ver os detalhes e indicadores aqui.", className="text-muted small mt-2")
                                 ])
                             ],
                             width=12, lg=4
@@ -199,6 +211,7 @@ def get_tab_results_layout():
     # Layout Principal
     return html.Div([
         dbc.Row(dbc.Col(kpi_card, width=12)),
+        warnings_container,
         dbc.Row([
             dbc.Col(table_card, width=12, className="mb-24")
         ]),

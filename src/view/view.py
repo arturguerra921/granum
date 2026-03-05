@@ -2398,21 +2398,26 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
 # --- Results Callbacks ---
 
 @app.callback(
-    [Output("res-kpi-tons", "children"),
+    [Output("res-kpi-objective", "children"),
+     Output("res-kpi-tons", "children"),
      Output("res-kpi-km", "children"),
      Output("res-kpi-freight", "children"),
      Output("res-kpi-storage", "children"),
-     Output("table-results-routes", "data")],
+     Output("table-results-routes", "data"),
+     Output("results-warnings-container", "children")],
     Input("store-model-results", "data"),
     prevent_initial_call=True
 )
 def update_results_kpis_and_table(results_data):
     if not results_data or results_data.get("status") != "optimal":
-        return "0.00", "0.00", "R$ 0,00", "R$ 0,00", []
+        return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update
 
     kpis = results_data.get("kpis", {})
     routes = results_data.get("routes", [])
+    warnings = results_data.get("warnings", [])
+    objective = results_data.get("objective", 0.0)
 
+    obj_str = f"R$ {objective:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     tons = f"{kpis.get('total_tons', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     kms = f"{kpis.get('total_km', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     freight = f"R$ {kpis.get('total_freight_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -2427,7 +2432,18 @@ def update_results_kpis_and_table(results_data):
             "Quantidade (ton)": round(r["Quantidade (ton)"], 2)
         })
 
-    return tons, kms, freight, storage, table_data
+    # Render warnings if any dummy variables were used
+    warnings_html = []
+    if warnings:
+        warnings_list = [html.Li(w) for w in warnings]
+        warnings_html = dbc.Alert([
+            html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Atenção: Uso de Capacidade Artificial Detectado!"], className="alert-heading"),
+            html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo elevadíssimo no modelo):"),
+            html.Hr(),
+            html.Ul(warnings_list, className="mb-0")
+        ], color="danger", className="shadow-sm")
+
+    return obj_str, tons, kms, freight, storage, table_data, warnings_html
 
 @app.callback(
     Output("download-results-xlsx", "data"),
@@ -2606,17 +2622,52 @@ def update_results_map(active_cell, btn_all_routes, table_data, results_data, st
             showlegend=False
         )
 
-        details_html = html.Div([
-            html.P([html.Strong("Origem: "), orig_name], className="mb-1"),
-            html.P([html.Strong("Destino: "), dest_name], className="mb-1"),
-            html.P([html.Strong("Produto: "), prod_name], className="mb-1"),
-            html.Hr(),
-            html.P([html.Strong("Quantidade Movimentada: "), f"{route_detail['Quantidade (ton)']:.2f} ton"], className="mb-1 text-primary"),
-            html.P([html.Strong("Distância: "), f"{route_detail['Distancia (km)']:.2f} km"], className="mb-1"),
-            html.P([html.Strong("Custo de Frete: "), f"R$ {route_detail['Custo Frete (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")], className="mb-1"),
-            html.P([html.Strong("Custo de Armazenagem: "), f"R$ {route_detail['Custo Armazenagem (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")], className="mb-1"),
-            html.P([html.Strong("Custo Total da Rota: "), f"R$ {route_detail['Custo Total (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")], className="fw-bold mt-2 text-danger")
-        ])
+        # Formatted currency/numbers
+        fmt_freight = f"R$ {route_detail['Custo Frete (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_storage = f"R$ {route_detail['Custo Armazenagem (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_total = f"R$ {route_detail['Custo Total (R$)']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_qtd = f"{route_detail['Quantidade (ton)']:,.2f} ton".replace(",", "X").replace(".", ",").replace("X", ".")
+        fmt_dist = f"{route_detail['Distancia (km)']:,.2f} km".replace(",", "X").replace(".", ",").replace("X", ".")
+
+        details_html = dbc.Card([
+            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), style={"backgroundColor": UNB_THEME['UNB_BLUE']}),
+            dbc.ListGroup([
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-success me-2"), html.Strong("Origem: ")]),
+                    html.Span(orig_name, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger me-2"), html.Strong("Destino: ")]),
+                    html.Span(dest_name, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-box-seam-fill text-primary me-2"), html.Strong("Produto: ")]),
+                    html.Span(prod_name, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-truck text-secondary me-2"), html.Strong("Distância: ")]),
+                    html.Span(fmt_dist, className="text-muted d-block ms-4")
+                ], className="py-2"),
+                dbc.ListGroupItem([
+                    html.Div([html.I(className="bi bi-boxes text-info me-2"), html.Strong("Movimentado: ")]),
+                    html.Span(fmt_qtd, className="fw-bold text-info d-block ms-4")
+                ], className="py-2"),
+            ], flush=True),
+            dbc.CardFooter([
+                html.Div([
+                    html.Span("Custo de Frete: ", className="text-muted small"),
+                    html.Span(fmt_freight, className="float-end fw-bold", style={"color": "#dc3545"})
+                ], className="mb-1"),
+                html.Div([
+                    html.Span("Custo de Armaz.: ", className="text-muted small"),
+                    html.Span(fmt_storage, className="float-end fw-bold", style={"color": "#fd7e14"})
+                ], className="mb-2"),
+                html.Div([
+                    html.Span("Custo da Rota:", className="fw-bold"),
+                    html.H5(fmt_total, className="float-end fw-bold mb-0 text-success")
+                ], className="mt-2 border-top pt-2")
+            ], className="bg-light")
+        ], className="shadow-sm border-0 h-100")
 
         return fig, details_html
 
