@@ -234,7 +234,11 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             "total_freight_cost": 0.0,
             "total_storage_cost": 0.0
         },
-        "warnings": []
+        "warnings": {
+            "capacity": [],
+            "unallocated": [],
+            "general": []
+        }
     }
 
     try:
@@ -430,7 +434,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                     d_name = cda_to_name.get(d, d)
                     msg = f"O Armazém '{d_name}' precisou de capacidade de armazenamento artificial de {d_val:.2f} toneladas."
                     print(f"ALERTA: {msg}")
-                    results_dict["warnings"].append(msg)
+                    results_dict["warnings"]["capacity"].append(msg)
 
             if not dummy_cap_used:
                 print("Nenhuma capacidade artificial foi necessária. O modelo encontrou solução com as capacidades reais.")
@@ -444,7 +448,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                         dummy_unalloc_used = True
                         msg = f"A origem '{o}' possui oferta de '{p}' não alocada: {u_val:.2f} toneladas."
                         print(f"ALERTA: {msg}")
-                        results_dict["warnings"].append(msg)
+                        results_dict["warnings"]["unallocated"].append(msg)
 
             if not dummy_unalloc_used:
                 print("Toda a oferta conseguiu ser escoada em rotas válidas para algum destino.")
@@ -457,12 +461,12 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         else:
             print("Não foi possível encontrar uma solução ótima. O modelo pode estar mal-condicionado.")
             results_dict["status"] = "infeasible"
-            results_dict["warnings"].append("O modelo não encontrou solução ótima.")
+            results_dict["warnings"]["general"].append("O modelo não encontrou solução ótima.")
 
     except Exception as e:
         print(f"\nERRO DURANTE A OTIMIZAÇÃO: {str(e)}")
         results_dict["status"] = "error"
-        results_dict["warnings"].append(f"Erro: {str(e)}")
+        results_dict["warnings"]["general"].append(f"Erro: {str(e)}")
         import traceback
         traceback.print_exc()
 
