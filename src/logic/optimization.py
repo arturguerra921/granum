@@ -428,7 +428,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 if d_val > 0.001:
                     dummy_cap_used = True
                     d_name = cda_to_name.get(d, d)
-                    msg = f"O Armazém '{d_name}' precisou de capacidade artificial simulada de {d_val:.2f} toneladas."
+                    msg = f"O Armazém '{d_name}' precisou de capacidade de armazenamento artificial de {d_val:.2f} toneladas."
                     print(f"ALERTA: {msg}")
                     results_dict["warnings"].append(msg)
 

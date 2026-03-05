@@ -129,7 +129,9 @@ def get_tab_distance_matrix_layout():
                             "toImageButtonOptions": {
                                 "format": "png",
                                 "filename": "mapa_matriz_distancia",
-                                "scale": 6
+                                "height": None,
+                                "width": None,
+                                "scale": 1
                             }
                         }
                     )

@@ -75,7 +75,7 @@ navbar = dbc.Navbar(
                         dbc.Col(html.Img(src="/assets/logo.png", height="48px"), className="me-3"),
                         dbc.Col(
                             [
-                                html.H5("Otimização de Localização", className="navbar-brand-text mb-0"),
+                                html.H5("Otimização de Alocação de Produtos", className="navbar-brand-text mb-0"),
                                 html.Small("Universidade de Brasília", className="navbar-subtext")
                             ],
                         ),
@@ -2438,7 +2438,7 @@ def update_results_kpis_and_table(results_data):
         warnings_list = [html.Li(w) for w in warnings]
         warnings_html = dbc.Alert([
             html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Atenção: Uso de Capacidade Artificial Detectado!"], className="alert-heading"),
-            html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo elevadíssimo no modelo):"),
+            html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
             html.Hr(),
             html.Ul(warnings_list, className="mb-0")
         ], color="danger", className="shadow-sm")
