@@ -2334,7 +2334,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         Output("model-output-text", "className"),
         Output("store-model-results", "data"),
         Output("store-model-log", "data"),
-        Output("main-tabs", "active_tab")
+        Output("main-tabs", "active_tab", allow_duplicate=True)
     ),
     inputs=[
         Input("btn-run-model", "n_clicks"),
