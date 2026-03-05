@@ -117,32 +117,32 @@ help_modal = dbc.Modal(
                 dbc.ListGroup([
                     dbc.ListGroupItem([
                         html.H6([html.Span("1.", className="badge bg-primary rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold"),
-                        html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 small text-muted")
+                        html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
                         html.H6([html.Span("2.", className="badge bg-primary rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold"),
-                        html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 small text-muted")
+                        html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
                         html.H6([html.Span("3.", className="badge bg-primary rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold"),
-                        html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 small text-muted")
+                        html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
                         html.H6([html.Span("4.", className="badge bg-primary rounded-pill me-2"), "Custos"], className="mb-1 fw-bold"),
-                        html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 small text-muted")
+                        html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
                         html.H6([html.Span("5.", className="badge bg-primary rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold"),
-                        html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão.", className="mb-0 small text-muted")
+                        html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
                         html.H6([html.Span("6.", className="badge bg-primary rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold"),
-                        html.P("Na aba de Configuração, revise as restrições e rode o modelo de otimização matemática. Em seguida, na aba Resultados, visualize as métricas globais, a malha de rotas sugerida e baixe o relatório final.", className="mb-0 small text-muted")
+                        html.P("Na aba de Configuração, apenas rode o modelo de otimização matemática. Em seguida, na aba Resultados, você poderá visualizar as métricas globais, explorar as rotas sugeridas pelo mapa interativo e baixar o relatório final completo.", className="mb-0 text-muted")
                     ], className="border-0 py-3"),
                 ], flush=True),
             ]
