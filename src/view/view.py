@@ -2469,11 +2469,11 @@ def update_results_kpis_and_table(results_data):
             warnings_list = [html.Li(w) for w in capacity_warnings]
             warnings_html.append(dbc.Alert([
                 html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Armazenamento Insuficiente Detectado"], className="alert-heading"),
-                html.P("A oferta excedeu a capacidade de armazenamento dos armazéns. Não há um erro no cálculo, mas sim uma limitação na infraestrutura de armazenamento disponível para os armazéns utilizados."),
+                html.P("A oferta excedeu a capacidade de armazenamento dos armazéns. Não há um erro no cálculo, mas sim uma limitação na infraestrutura de armazenamento disponível para os armazéns utilizados.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os valores de custo total e outras métricas exatas exibidas nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução' e para mostrar exatamente onde estão os gargalos logísticos, o sistema utilizou uma capacidade de armazenamento artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="small"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-3"),
-                html.P(html.B("Atenção aos Resultados:"), className="text-danger fw-bold mb-1"),
-                html.P("Os valores de custo total e outras métricas exatas exibidas nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução' e para mostrar exatamente onde estão os gargalos logísticos, o sistema utilizou uma capacidade de armazenamento artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="small"),
                 html.P(html.B("Possíveis Soluções:")),
                 html.Ul([
                     html.Li("Aumente a capacidade estática dos armazéns utilizados na aba 'Armazéns'."),
@@ -2488,11 +2488,11 @@ def update_results_kpis_and_table(results_data):
             warnings_list = [html.Li(w) for w in unallocated_warnings]
             warnings_html.append(dbc.Alert([
                 html.H5([html.I(className="bi bi-exclamation-octagon-fill me-2"), "Oferta Não Alocada (Sem Rotas)"], className="alert-heading"),
-                html.P("Alguns pontos de oferta não possuem rotas válidas para nenhum armazém. Isso geralmente acontece quando uma nova cidade é adicionada na aba de Oferta, mas a matriz de distâncias não foi recalculada."),
+                html.P("Alguns pontos de oferta não possuem rotas válidas para nenhum armazém. Isso geralmente acontece quando uma nova cidade é adicionada na aba de Oferta, mas a matriz de distâncias não foi recalculada.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo de multa altíssimo para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.", className="small"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-3"),
-                html.P(html.B("Atenção aos Resultados:"), className="text-danger fw-bold mb-1"),
-                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo de multa altíssimo para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.", className="small"),
                 html.P(html.B("Possíveis Soluções:")),
                 html.Ul([
                     html.Li("Recalcule a matriz de distâncias para garantir que todas as origens tenham rotas mapeadas.")
