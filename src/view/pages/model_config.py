@@ -24,9 +24,13 @@ def get_tab_model_config_layout():
                     html.Div([
                         dbc.Switch(
                             id="toggle-detailed-log",
-                            label="Detalhar log do modelo",
                             value=False,
-                            className="me-2 mb-0 d-flex align-items-center"
+                            className="mb-0"
+                        ),
+                        html.Label(
+                            "Detalhar log do modelo",
+                            htmlFor="toggle-detailed-log",
+                            className="mb-0 mx-2 text-muted cursor-pointer"
                         ),
                         html.I(className="bi bi-question-circle-fill text-muted", id="help-detailed-log", style={"cursor": "help", "fontSize": "0.9rem"}),
                         dbc.Tooltip(
@@ -34,7 +38,7 @@ def get_tab_model_config_layout():
                             target="help-detailed-log",
                             placement="top"
                         )
-                    ], className="mb-3 d-flex align-items-center justify-content-center"),
+                    ], className="mb-4 d-flex align-items-center justify-content-center"),
                     dbc.Button("Rodar Modelo", id="btn-run-model", color="primary", className="w-100 mb-3"),
                     dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", color="secondary", outline=True, className="w-100 mb-3", disabled=True),
                     dcc.Download(id="download-model-log"),
