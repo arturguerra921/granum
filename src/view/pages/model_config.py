@@ -24,6 +24,7 @@ def get_tab_model_config_layout():
                     dbc.Button("Rodar Modelo", id="btn-run-model", color="primary", className="w-100 mb-3"),
                     dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", color="secondary", outline=True, className="w-100 mb-3", disabled=True),
                     dcc.Download(id="download-model-log"),
+                    html.Div(id="model-output-text", className="mt-3 text-center fw-bold text-danger"),
                 ],
                 className="card-body-custom"
             ),
