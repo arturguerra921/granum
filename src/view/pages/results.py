@@ -189,7 +189,14 @@ def get_tab_results_layout():
                                         "displayModeBar": True,
                                         "scrollZoom": True,
                                         "showAxisDragHandles": True,
-                                        "modeBarButtonsToAdd": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
+                                        "modeBarButtonsToAdd": ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape'],
+                                        "toImageButtonOptions": {
+                                            "format": "png",
+                                            "filename": "mapa_de_rotas",
+                                            "height": 1080,
+                                            "width": 1920,
+                                            "scale": 3
+                                        }
                                     },
                                     style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
                                 ),
@@ -220,7 +227,7 @@ def get_tab_results_layout():
             dbc.ModalHeader(dbc.ModalTitle("Atenção: Processamento Pesado"), close_button=True),
             dbc.ModalBody(
                 [
-                    html.P("O modelo gerou um número elevado de rotas realizadas (> 300)."),
+                    html.P("O modelo gerou um número elevado de rotas realizadas (> 150)."),
                     html.P("Desenhar todas essas rotas no mapa simultaneamente pode demorar consideravelmente ou até causar travamentos no seu navegador.", className="text-danger fw-bold"),
                     html.P("Recomendamos que você exporte o Relatório Completo (Excel) para análises avançadas ou visualize rotas individuais através da tabela."),
                     html.P("Tem certeza que deseja tentar visualizar todas as rotas de uma só vez?")

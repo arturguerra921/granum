@@ -2477,7 +2477,7 @@ def manage_all_routes_modal(n_show, n_cancel, n_confirm, results_data, is_open):
 
     if trigger_id == "btn-show-all-routes":
         routes = results_data.get("routes", []) if results_data else []
-        if len(routes) > 300:
+        if len(routes) > 150:
             return True
         return False
 
@@ -2508,7 +2508,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     # Handle the "Show All" logic depending on route length
     if trigger_id == "btn-show-all-routes":
         routes = results_data.get("routes", []) if results_data else []
-        if len(routes) > 300:
+        if len(routes) > 150:
             # We must wait for the modal confirmation to actually render
             return dash.no_update, dash.no_update
 
