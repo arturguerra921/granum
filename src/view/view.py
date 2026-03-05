@@ -2450,7 +2450,8 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         State('stored-data', 'data'),
         State('store-armazens', 'data'),
         State('store-prod-armazens', 'data'),
-        State('store-distance-matrix', 'data')
+        State('store-distance-matrix', 'data'),
+        State('toggle-detailed-log', 'value')
     ],
     background=True,
     running=[
@@ -2461,7 +2462,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
 )
-def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix):
+def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -2498,7 +2499,8 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_compat=df_compat,
             df_dist=df_dist,
             df_freight=df_freight,
-            df_storage=df_storage
+            df_storage=df_storage,
+            detailed_log=detailed_log
         )
 
         status_msg = "Modelo executado com sucesso!" if results_dict.get("status") == "optimal" else "Falha ao encontrar solução ótima."

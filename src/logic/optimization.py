@@ -6,7 +6,7 @@ import io
 import tempfile
 import os
 
-def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage):
+def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False):
     """
     Roda o modelo matemático de otimização linear para alocação de produtos.
     """
@@ -377,8 +377,10 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule)
 
-        #Mostrar o modelo para debug
-        model.pprint()
+        #Mostrar o modelo para debug apenas se solicitado pelo usuário
+        if detailed_log:
+            model.pprint()
+
         # 3. Solucionar o modelo
         print("\nChamando solver CBC...")
         solver = SolverFactory('cbc')
