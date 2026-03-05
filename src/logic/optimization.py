@@ -223,6 +223,20 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     new_stdout = io.StringIO()
     sys.stdout = new_stdout
 
+    # Variables to hold structured results
+    results_dict = {
+        "status": "error",
+        "objective": 0.0,
+        "routes": [],
+        "kpis": {
+            "total_tons": 0.0,
+            "total_km": 0.0,
+            "total_freight_cost": 0.0,
+            "total_storage_cost": 0.0
+        },
+        "warnings": []
+    }
+
     try:
         print("Iniciando a construção do modelo matemático...")
         model = pyo.ConcreteModel(name="Alocacao_Armazens")
@@ -354,18 +368,57 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         if results.solver.status == pyo.SolverStatus.ok and results.solver.termination_condition == pyo.TerminationCondition.optimal:
             print(f"Solução Ótima Encontrada!")
-            print(f"Custo Total (Função Objetivo): R$ {pyo.value(model.Objective):,.2f}")
+
+            objective_value = pyo.value(model.Objective)
+            print(f"Custo Total (Função Objetivo): R$ {objective_value:,.2f}")
+
+            results_dict["status"] = "optimal"
+            results_dict["objective"] = objective_value
 
             print("\n--- DETALHES DO FLUXO (Alocação) ---")
             total_transported = 0
+            total_km = 0.0
+            total_freight_cost = 0.0
+            total_storage_cost = 0.0
+
             for (o, d, p) in model.ValidRoutes:
                 val = pyo.value(model.Flow[o, d, p])
                 if val > 0.001:  # ignore floating point zeros
                     d_name = cda_to_name.get(d, d)
+                    dist = pyo.value(model.Distance[o, d])
+                    f_cost = pyo.value(model.Freight[o])
+                    s_cost = pyo.value(model.Storage[d, p])
+
+                    route_freight = val * dist * f_cost
+                    route_storage = val * s_cost
+                    route_total = route_freight + route_storage
+
                     print(f"De: {o} | Para: {d_name} | Produto: {p} | Qtd: {val:.2f} ton")
+
+                    results_dict["routes"].append({
+                        "Origem": o,
+                        "Destino": d_name,
+                        "Produto": p,
+                        "Quantidade (ton)": val,
+                        "Distancia (km)": dist,
+                        "Custo Frete (R$)": route_freight,
+                        "Custo Armazenagem (R$)": route_storage,
+                        "Custo Total (R$)": route_total,
+                        "Custo Frete Unitario (R$/ton-km)": f_cost,
+                        "Custo Armaz. Unitario (R$/ton)": s_cost
+                    })
+
                     total_transported += val
+                    total_km += dist
+                    total_freight_cost += route_freight
+                    total_storage_cost += route_storage
 
             print(f"\nTotal de produtos alocados: {total_transported:.2f} toneladas")
+
+            results_dict["kpis"]["total_tons"] = total_transported
+            results_dict["kpis"]["total_km"] = total_km
+            results_dict["kpis"]["total_freight_cost"] = total_freight_cost
+            results_dict["kpis"]["total_storage_cost"] = total_storage_cost
 
             # Verificar uso das variáveis Dummies
             dummy_cap_used = False
@@ -375,8 +428,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 if d_val > 0.001:
                     dummy_cap_used = True
                     d_name = cda_to_name.get(d, d)
-                    print(f"ALERTA: O Armazém '{d_name}' precisou de capacidade artificial para viabilizar o modelo.")
-                    print(f"        -> Aumento de capacidade simulado: {d_val:.2f} toneladas.")
+                    msg = f"O Armazém '{d_name}' precisou de capacidade de armazenamento artificial de {d_val:.2f} toneladas."
+                    print(f"ALERTA: {msg}")
+                    results_dict["warnings"].append(msg)
 
             if not dummy_cap_used:
                 print("Nenhuma capacidade artificial foi necessária. O modelo encontrou solução com as capacidades reais.")
@@ -388,8 +442,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                     u_val = pyo.value(model.DummyUnallocated[o, p])
                     if u_val > 0.001:
                         dummy_unalloc_used = True
-                        print(f"ALERTA: A origem '{o}' possui oferta de '{p}' sem rotas válidas (ou sem capacidade viável)!")
-                        print(f"        -> Quantidade não alocada: {u_val:.2f} toneladas.")
+                        msg = f"A origem '{o}' possui oferta de '{p}' não alocada: {u_val:.2f} toneladas."
+                        print(f"ALERTA: {msg}")
+                        results_dict["warnings"].append(msg)
 
             if not dummy_unalloc_used:
                 print("Toda a oferta conseguiu ser escoada em rotas válidas para algum destino.")
@@ -401,9 +456,13 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         else:
             print("Não foi possível encontrar uma solução ótima. O modelo pode estar mal-condicionado.")
+            results_dict["status"] = "infeasible"
+            results_dict["warnings"].append("O modelo não encontrou solução ótima.")
 
     except Exception as e:
         print(f"\nERRO DURANTE A OTIMIZAÇÃO: {str(e)}")
+        results_dict["status"] = "error"
+        results_dict["warnings"].append(f"Erro: {str(e)}")
         import traceback
         traceback.print_exc()
 
@@ -411,5 +470,5 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # Restaurar stdout
         sys.stdout = old_stdout
 
-    # Retornar o texto capturado
-    return new_stdout.getvalue()
+    # Retornar o texto capturado e os dados estruturados
+    return new_stdout.getvalue(), results_dict
