@@ -4,19 +4,6 @@ import pandas as pd
 import sys
 import io
 
-class DualWriter:
-    def __init__(self, original_stdout, string_io):
-        self.original_stdout = original_stdout
-        self.string_io = string_io
-
-    def write(self, text):
-        self.original_stdout.write(text)
-        return self.string_io.write(text)
-
-    def flush(self):
-        self.original_stdout.flush()
-        self.string_io.flush()
-
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage):
     """
     Roda o modelo matemático de otimização linear para alocação de produtos.
@@ -231,10 +218,10 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # 2. Construção do Modelo Pyomo
 
-    # Redirecionar output para capturar logs (DualWriter: tempo real no terminal + buffer string)
+    # Redirecionar output apenas para capturar logs no buffer (esconde do terminal backend)
     old_stdout = sys.stdout
     new_stdout = io.StringIO()
-    sys.stdout = DualWriter(old_stdout, new_stdout)
+    sys.stdout = new_stdout
 
     try:
         print("Iniciando a construção do modelo matemático...")
@@ -418,7 +405,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     except Exception as e:
         print(f"\nERRO DURANTE A OTIMIZAÇÃO: {str(e)}")
         import traceback
-        traceback.print_exc()
+        # print_exc defaults to sys.stderr. Let's print formatting to sys.stdout
+        # so it gets caught in our buffer!
+        print(traceback.format_exc())
 
     finally:
         # Restaurar stdout
