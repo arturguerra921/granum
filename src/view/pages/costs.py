@@ -61,6 +61,7 @@ def get_tab_costs_layout():
                                                 ],
                                                 editable=True,
                                                 row_deletable=True,
+                                                filter_action='native',
                                                 page_size=10,
                                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
                                                 style_cell={
@@ -155,6 +156,7 @@ def get_tab_costs_layout():
                                                 ],
                                                 editable=True,
                                                 row_deletable=True,
+                                                filter_action='native',
                                                 page_size=10,
                                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
                                                 style_cell={
