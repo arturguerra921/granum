@@ -878,6 +878,7 @@ app.layout = html.Div(
                 dcc.Store(id='store-costs-storage'), # New Store for Storage Costs
                 dcc.Store(id='store-costs-freight'), # New Store for Freight Costs
                 dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
+                dcc.Store(id='store-model-results'), # New Store for Model Results
                 dcc.Store(id='store-model-log'), # New Store for optimization logs
                 dcc.Download(id='download-dataframe-xlsx'),
                 error_modal
@@ -2328,7 +2329,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
-    output=(Output("model-output-text", "children"), Output("store-model-results", "data")),
+    output=(Output("model-output-text", "children"), Output("store-model-results", "data"), Output("store-model-log", "data")),
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
@@ -2347,10 +2348,10 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 )
 def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix):
     if not n_clicks:
-        return dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update
 
     if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", dash.no_update
+        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", dash.no_update, dash.no_update
 
     try:
         # Load DataFrames
@@ -2387,12 +2388,12 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
 
         # Se results_dict existir e tiver status ok, a gente armazena no dcc.Store
         # O dcc.Store lida com dicionários/JSON nativamente
-        return output_text, results_dict
+        return "Execução concluída com sucesso. Verifique a aba de Resultados.", results_dict, output_text
 
     except Exception as e:
         import traceback
         err_msg = f"Erro fatal ao executar o modelo:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-        return err_msg, dash.no_update
+        return err_msg, dash.no_update, err_msg
 
 
 # --- Results Callbacks ---
