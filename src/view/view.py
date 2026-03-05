@@ -2463,18 +2463,54 @@ def download_results(n_clicks, results_data):
     return dcc.send_data_frame(df.to_excel, "Resultados_Otimizacao.xlsx", index=False)
 
 @app.callback(
+    Output("modal-confirm-all-routes", "is_open"),
+    [Input("btn-show-all-routes", "n_clicks"),
+     Input("btn-cancel-all-routes", "n_clicks"),
+     Input("btn-confirm-all-routes", "n_clicks")],
+    [State("store-model-results", "data"),
+     State("modal-confirm-all-routes", "is_open")],
+    prevent_initial_call=True
+)
+def manage_all_routes_modal(n_show, n_cancel, n_confirm, results_data, is_open):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+    if trigger_id == "btn-show-all-routes":
+        routes = results_data.get("routes", []) if results_data else []
+        if len(routes) > 300:
+            return True
+        return False
+
+    if trigger_id == "btn-cancel-all-routes":
+        return False
+
+    if trigger_id == "btn-confirm-all-routes":
+        return False
+
+    return is_open
+
+@app.callback(
     [Output("graph-results-map", "figure"),
      Output("route-details-container", "children")],
     [Input("table-results-routes", "active_cell"),
-     Input("btn-show-all-routes", "n_clicks")],
-    [State("table-results-routes", "data"),
+     Input("btn-show-all-routes", "n_clicks"),
+     Input("btn-confirm-all-routes", "n_clicks")],
+    [State("table-results-routes", "derived_viewport_data"),
      State("store-model-results", "data"),
      State("stored-data", "data"),
-     State("store-armazens", "data")]
+     State("store-armazens", "data")],
+    prevent_initial_call=True
 )
-def update_results_map(active_cell, btn_all_routes, table_data, results_data, stored_data, stored_armazens):
+def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_armazens):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+    # Handle the "Show All" logic depending on route length
+    if trigger_id == "btn-show-all-routes":
+        routes = results_data.get("routes", []) if results_data else []
+        if len(routes) > 300:
+            # We must wait for the modal confirmation to actually render
+            return dash.no_update, dash.no_update
 
     # Default map
     default_fig = go.Figure(go.Scattermapbox())
@@ -2672,7 +2708,7 @@ def update_results_map(active_cell, btn_all_routes, table_data, results_data, st
         return fig, details_html
 
     # Show all routes
-    if trigger_id == "btn-show-all-routes" or (trigger_id is None and results_data.get("routes")):
+    if trigger_id == "btn-confirm-all-routes" or trigger_id == "btn-show-all-routes" or (trigger_id is None and results_data.get("routes")):
         routes = results_data.get("routes", [])
         if not routes:
             return default_fig, html.P("Nenhuma rota encontrada.", className="text-muted small")

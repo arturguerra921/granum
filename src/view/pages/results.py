@@ -110,7 +110,7 @@ def get_tab_results_layout():
                                     {'name': 'Produto', 'id': 'Produto'},
                                     {'name': 'Qtd (ton)', 'id': 'Quantidade (ton)'}
                                 ],
-                                row_selectable="single",
+                                filter_action='native',
                                 page_size=10,
                                 style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
                                 style_cell={
@@ -185,6 +185,7 @@ def get_tab_results_layout():
                             dbc.Spinner(
                                 dcc.Graph(
                                     id='graph-results-map',
+                                    config={'scrollZoom': True, 'displayModeBar': True},
                                     style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
                                 ),
                                 color="primary"
@@ -208,6 +209,29 @@ def get_tab_results_layout():
         className="card-custom h-100 mt-4"
     )
 
+    # Modal Confirmação Malha (Muitas rotas)
+    confirm_all_routes_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Atenção: Processamento Pesado"), close_button=True),
+            dbc.ModalBody(
+                [
+                    html.P("O modelo gerou um número elevado de rotas realizadas (> 300)."),
+                    html.P("Desenhar todas essas rotas no mapa simultaneamente pode demorar consideravelmente ou até causar travamentos no seu navegador.", className="text-danger fw-bold"),
+                    html.P("Recomendamos que você exporte o Relatório Completo (Excel) para análises avançadas ou visualize rotas individuais através da tabela."),
+                    html.P("Tem certeza que deseja tentar visualizar todas as rotas de uma só vez?")
+                ]
+            ),
+            dbc.ModalFooter(
+                [
+                    dbc.Button("Cancelar", id="btn-cancel-all-routes", className="me-2", n_clicks=0),
+                    dbc.Button("Sim, carregar todas as rotas", id="btn-confirm-all-routes", color="danger", n_clicks=0),
+                ]
+            ),
+        ],
+        id="modal-confirm-all-routes",
+        is_open=False,
+    )
+
     # Layout Principal
     return html.Div([
         dbc.Row(dbc.Col(kpi_card, width=12)),
@@ -215,5 +239,6 @@ def get_tab_results_layout():
         dbc.Row([
             dbc.Col(table_card, width=12, className="mb-24")
         ]),
-        dbc.Row(dbc.Col(map_card, width=12, className="mb-24"))
+        dbc.Row(dbc.Col(map_card, width=12, className="mb-24")),
+        confirm_all_routes_modal
     ])
