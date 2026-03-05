@@ -34,7 +34,7 @@ def get_tab_model_config_layout():
                         ),
                         html.I(className="bi bi-question-circle-fill text-muted", id="help-detailed-log", style={"cursor": "help", "fontSize": "0.9rem"}),
                         dbc.Tooltip(
-                            "Isso vai incluir toda a construção do modelo matemático em python no log, mas habilitar pode aumentar consideravelmente o tempo de resolução.",
+                            "Ativar esta opção incluirá a construção detalhada do modelo matemático (em Python) no log. No entanto, isso pode aumentar significativamente o tempo de resolução. Use esta opção apenas para depuração ou se você quiser entender como o modelo é construído.",
                             target="help-detailed-log",
                             placement="top"
                         )
