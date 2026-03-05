@@ -75,8 +75,10 @@ navbar = dbc.Navbar(
                         dbc.Col(html.Img(src="/assets/logo.png", height="48px"), className="me-3"),
                         dbc.Col(
                             [
-                                html.H5("Otimização de Alocação de Produtos", className="navbar-brand-text mb-0"),
-                                html.Small("Universidade de Brasília", className="navbar-subtext")
+                                html.H5("Granum", className="navbar-brand-text mb-0"),
+                                html.Small("Otimização de Alocação de Produtos", className="navbar-subtext", style={"whiteSpace": "nowrap"}),
+                                html.Br(),
+                                html.Small("Universidade de Brasília", className="navbar-subtext", style={"whiteSpace": "nowrap"})
                             ],
                         ),
                     ],
@@ -2431,7 +2433,7 @@ def update_results_kpis_and_table(results_data):
 
     kpis = results_data.get("kpis", {})
     routes = results_data.get("routes", [])
-    warnings = results_data.get("warnings", [])
+    warnings = results_data.get("warnings", {})
     objective = results_data.get("objective", 0.0)
 
     obj_str = f"R$ {objective:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -2449,18 +2451,78 @@ def update_results_kpis_and_table(results_data):
             "Quantidade (ton)": round(r["Quantidade (ton)"], 2)
         })
 
-    # Render warnings if any dummy variables were used
+    # Render warnings
     warnings_html = []
-    if warnings:
-        warnings_list = [html.Li(w) for w in warnings]
-        warnings_html = dbc.Alert([
-            html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Atenção: Uso de Capacidade Artificial Detectado!"], className="alert-heading"),
-            html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
-            html.Hr(),
-            html.Ul(warnings_list, className="mb-0")
-        ], color="danger", className="shadow-sm")
+
+    # Legacy fallback for old data
+    if isinstance(warnings, list):
+        if warnings:
+            warnings_list = [html.Li(w) for w in warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Atenção: Uso de Capacidade Artificial Detectado!"], className="alert-heading"),
+                html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-0")
+            ], color="danger", className="shadow-sm mb-3"))
+    else:
+        # 1. Capacity warnings
+        capacity_warnings = warnings.get("capacity", [])
+        if capacity_warnings:
+            warnings_list = [html.Li(w) for w in capacity_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Armazenamento Insuficiente"], className="alert-heading"),
+                html.P("A oferta excedeu a capacidade de armazenamento dos armazéns. Não há um erro no cálculo, mas sim uma limitação na infraestrutura de armazenamento disponível para os armazéns utilizados.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os valores de custo total e outras métricas exatas exibidas nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução' e para mostrar exatamente onde estão os gargalos logísticos, o sistema utilizou uma capacidade de armazenamento artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="mb-2"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-3"),
+                html.P(html.B("Possíveis Soluções:")),
+                html.Ul([
+                    html.Li("Aumente a capacidade estática dos armazéns utilizados na aba 'Armazéns'."),
+                    html.Li("Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga."),
+                    html.Li("Reduza a quantidade ofertada na aba 'Oferta'.")
+                ], className="mb-0")
+            ], color="warning", className="shadow-sm mb-3"))
+
+        # 2. Unallocated warnings
+        unallocated_warnings = warnings.get("unallocated", [])
+        if unallocated_warnings:
+            warnings_list = [html.Li(w) for w in unallocated_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-exclamation-octagon-fill me-2"), "Oferta Não Alocada (Sem Rotas)"], className="alert-heading"),
+                html.P("Alguns pontos de oferta não possuem rotas válidas para nenhum armazém. Isso geralmente acontece quando uma nova cidade é adicionada na aba de Oferta, mas a matriz de distâncias não foi recalculada.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo unitário (multa) exorbitantemente alto para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.", className="mb-2"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-3"),
+                html.P(html.B("Possíveis Soluções:")),
+                html.Ul([
+                    html.Li("Recalcule a matriz de distâncias para garantir que todas as origens tenham rotas mapeadas.")
+                ], className="mb-3"),
+                dbc.Button("Ir para a aba Matriz de Distâncias", id="btn-go-to-distance-matrix", color="primary", size="sm")
+            ], color="danger", className="shadow-sm mb-3"))
+
+        # 3. General warnings
+        general_warnings = warnings.get("general", [])
+        if general_warnings:
+            warnings_list = [html.Li(w) for w in general_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-exclamation-circle-fill me-2"), "Aviso Geral"], className="alert-heading"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-0")
+            ], color="info", className="shadow-sm mb-3"))
 
     return obj_str, tons, kms, freight, storage, table_data, warnings_html
+
+@app.callback(
+    Output("main-tabs", "active_tab", allow_duplicate=True),
+    Input("btn-go-to-distance-matrix", "n_clicks"),
+    prevent_initial_call=True
+)
+def navigate_to_distance_matrix(n_clicks):
+    if n_clicks:
+        return "tab-distance-matrix"
+    return dash.no_update
 
 @app.callback(
     Output("download-results-xlsx", "data"),
