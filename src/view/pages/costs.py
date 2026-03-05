@@ -13,7 +13,7 @@ def get_tab_costs_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Tarifa de Armazenagem", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-storage-costs", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-storage-costs", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Valores para armazenamento de cada produto. O sistema buscará o nome exato do produto (ignorando acentos e maiúsculas/minúsculas). Caso não encontre, utilizará a tarifa da linha 'Outros'. A linha 'Outros' é obrigatória e será criada automaticamente com valor 50 caso não exista em um novo arquivo. Atualizações na tabela serão salvas automaticamente.",
                         target="help-storage-costs",
@@ -68,7 +68,7 @@ def get_tab_costs_layout():
                                                     'textAlign': 'left',
                                                     'fontFamily': "'Roboto', sans-serif",
                                                     'padding': '12px',
-                                                    'fontSize': '0.9rem',
+                                                    'fontSize': 'var(--font-size-small)',
                                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                                 },
                                                 style_header={
@@ -110,7 +110,7 @@ def get_tab_costs_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Valor do Frete", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-freight-costs", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-freight-costs", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Valores de frete por tonelada e km para cada estado. Atualizações na tabela serão salvas automaticamente.",
                         target="help-freight-costs",
@@ -163,7 +163,7 @@ def get_tab_costs_layout():
                                                     'textAlign': 'left',
                                                     'fontFamily': "'Roboto', sans-serif",
                                                     'padding': '12px',
-                                                    'fontSize': '0.9rem',
+                                                    'fontSize': 'var(--font-size-small)',
                                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                                 },
                                                 style_header={

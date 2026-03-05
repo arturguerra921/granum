@@ -88,7 +88,7 @@ def get_tab_results_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Rotas Realizadas", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-results-table", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-results-table", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Selecione uma rota para visualizá-la no mapa abaixo e ver suas métricas específicas.",
                         target="help-results-table",
@@ -117,7 +117,7 @@ def get_tab_results_layout():
                                     'textAlign': 'left',
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
-                                    'fontSize': '0.9rem',
+                                    'fontSize': 'var(--font-size-small)',
                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                 },
                                 style_header={
@@ -164,7 +164,7 @@ def get_tab_results_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Visualização da Rota", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-results-map", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-results-map", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Mapa exibindo a rota selecionada ou todas as rotas (malha).",
                         target="help-results-map",
