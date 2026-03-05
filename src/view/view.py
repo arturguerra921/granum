@@ -948,7 +948,6 @@ app.layout = html.Div(
                 dcc.Store(id='store-model-log'), # New Store for optimization logs
                 dcc.Store(id='store-help-seen', storage_type='local'), # Store for help modal state
                 dcc.Download(id='download-dataframe-xlsx'),
-                dcc.Download(id='download-model-log'),
                 error_modal,
                 help_modal
             ],
