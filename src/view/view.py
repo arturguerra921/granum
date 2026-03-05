@@ -948,6 +948,7 @@ app.layout = html.Div(
                 dcc.Store(id='store-model-log'), # New Store for optimization logs
                 dcc.Store(id='store-help-seen', storage_type='local'), # Store for help modal state
                 dcc.Download(id='download-dataframe-xlsx'),
+                dcc.Download(id='download-model-log'),
                 error_modal,
                 help_modal
             ],
@@ -2492,7 +2493,7 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_storage = pd.DataFrame()
 
         # Run model
-        output_text, results_dict = run_optimization_model(
+        log_filename, results_dict = run_optimization_model(
             df_supply=df_supply,
             df_demand=df_demand,
             df_compat=df_compat,
@@ -2501,19 +2502,14 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_storage=df_storage
         )
 
-        # Extrair os logs de otimização que foram redirecionados e retornados em results_dict se possível
-        # ou pegá-los de volta? Optimization já retorna log em results_dict ou não?
-        # Vou pegar do output_text (se contiver o log) ou assumir que o status é text.
-
         status_msg = "Modelo executado com sucesso!" if results_dict.get("status") == "optimal" else "Falha ao encontrar solução ótima."
         status_class = "text-success mt-3 fw-bold" if results_dict.get("status") == "optimal" else "text-warning mt-3 fw-bold"
 
         # Redirecionar para aba de resultados se sucesso
         next_tab = "tab-results" if results_dict.get("status") == "optimal" else dash.no_update
 
-        # Se results_dict existir e tiver status ok, a gente armazena no dcc.Store
-        # O dcc.Store lida com dicionários/JSON nativamente
-        return status_msg, status_class, results_dict, output_text, next_tab
+        # O log_filename é apenas uma string (nome do arquivo) e será armazenada em store-model-log
+        return status_msg, status_class, results_dict, log_filename, next_tab
 
     except Exception as e:
         import traceback
@@ -2960,16 +2956,32 @@ def update_download_button_state(log_data):
         return False
     return True
 
-@app.callback(
+import flask
+import os
+import tempfile
+
+@app.server.route('/download_log/<path:filename>')
+def download_log_route(filename):
+    # Security: Ensure filename is just a basename, no directory traversal
+    filename = os.path.basename(filename)
+    log_dir = os.path.join(tempfile.gettempdir(), 'granum_logs')
+    # Use standard flask send_from_directory for secure file serving
+    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name='log_execucao_modelo.txt')
+
+app.clientside_callback(
+    """
+    function(n_clicks, log_filename) {
+        if (n_clicks && log_filename) {
+            window.location.href = '/download_log/' + log_filename;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
     Output("download-model-log", "data"),
     Input("btn-download-log", "n_clicks"),
     State("store-model-log", "data"),
     prevent_initial_call=True
 )
-def download_model_log(n_clicks, log_data):
-    if not n_clicks or not log_data:
-        return dash.no_update
-    return dcc.send_string(log_data, "log_execucao_modelo.txt")
 
 def view():
     # Use environment variable to determine if we are in Docker or dev
