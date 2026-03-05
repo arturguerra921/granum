@@ -25,12 +25,12 @@ def get_tab_model_config_layout():
                         dbc.Switch(
                             id="toggle-detailed-log",
                             value=False,
-                            className="mb-0"
+                            className="mb-0 small"
                         ),
                         html.Label(
                             "Detalhar log do modelo",
                             htmlFor="toggle-detailed-log",
-                            className="mb-0 mx-2 text-muted cursor-pointer"
+                            className="mb-0 mx-2 text-muted cursor-pointer small"
                         ),
                         html.I(className="bi bi-question-circle-fill text-muted", id="help-detailed-log", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                         dbc.Tooltip(
