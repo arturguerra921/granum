@@ -193,9 +193,7 @@ def get_tab_results_layout():
                                         "toImageButtonOptions": {
                                             "format": "png",
                                             "filename": "mapa_de_rotas",
-                                            "height": 1080,
-                                            "width": 1920,
-                                            "scale": 3
+                                            "scale": 6
                                         }
                                     },
                                     style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
