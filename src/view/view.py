@@ -495,31 +495,6 @@ def get_tab1_layout():
 
 # 4. Tab Armazéns Content
 def get_tab_armazens_layout():
-    # Card 1: Load
-    card_load_restore = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Visualizar Base", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-load-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Tabela automaticamente mostrada ao lado. Essa forma foi utilizada para evitar que sempre precise fazer upload dos armazéns, guardando no próprio aplicativo.",
-                        target="help-load-base",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    dbc.Button("Puxar da Base", id="btn-load-base", className="btn-primary-custom mb-2 w-100"),
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom mb-3"
-    )
-
     # Card 2: Update and Save
     card_update_save = dbc.Card(
         [
@@ -777,7 +752,6 @@ def get_tab_armazens_layout():
         dbc.Row(
             [
                 dbc.Col([
-                    html.Div(card_load_restore, className="mb-3"),
                     html.Div(card_update_save, className="flex-grow-1 h-100")
                 ], width=12, lg=3, className="mb-24 d-flex flex-column h-100"),
                 dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
@@ -1360,7 +1334,6 @@ def download_data(n_clicks, stored_data):
     Output('modal-body-content', 'children', allow_duplicate=True),
     Output('btn-save-base', 'style'), # New output for Save button visibility
     [Input('main-tabs', 'active_tab'),
-     Input('btn-load-base', 'n_clicks'),
      Input('upload-update-base', 'contents'),
      Input('table-armazens', 'data_timestamp')],
     [State('store-armazens', 'data'),
@@ -1368,7 +1341,7 @@ def download_data(n_clicks, stored_data):
      State('upload-update-base', 'filename')],
     prevent_initial_call=True
 )
-def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
+def manage_armazens_data(active_tab, upload_contents, timestamp,
                          stored_data, table_data, upload_filename):
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -1407,19 +1380,6 @@ def manage_armazens_data(active_tab, n_load, upload_contents, timestamp,
             except Exception:
                 return no_update, no_update, no_update, no_update
         return no_update, no_update, no_update, no_update # Keep current state
-
-    if trigger_id == 'btn-load-base':
-        try:
-            # Load CSV
-            df = pd.read_csv(BASE_ARMAZENS_PATH, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
-
-            # Drop trailing empty column if exists
-            if not df.empty and "Unnamed" in str(df.columns[-1]):
-                df = df.iloc[:, :-1]
-
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
-        except Exception:
-            return no_update, True, "Erro ao carregar a base de dados.", no_update
 
     # Update from Upload (CSV)
     if trigger_id == 'upload-update-base' and upload_contents:
