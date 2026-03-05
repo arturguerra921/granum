@@ -142,3 +142,15 @@ label {
     color: #7E7E65 !important; /* UNB_GRAY_DARK */
     opacity: 0.8;
 }
+
+
+:root {
+    /* Define the base size for all small text across the application here.
+       Change this value (e.g., to 1.1rem or 16px) to globally scale small text. */
+    --font-size-small: 1rem;
+}
+
+/* Override Bootstrap's small and .small to use our custom variable */
+small, .small {
+    font-size: var(--font-size-small) !important;
+}

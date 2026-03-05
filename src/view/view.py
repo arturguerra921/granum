@@ -182,7 +182,7 @@ def get_tab1_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Carregar Arquivo", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-upload", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-upload", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Caso já possua uma planilha pronta (Excel .xlsx ou CSV), carregue-a aqui. Se não tiver, você pode adicionar dados manualmente abaixo.",
                         target="help-upload",
@@ -218,7 +218,7 @@ def get_tab1_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Adicionar Dados", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-add", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-add", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Inserção manual de dados. Cada inserção será adicionada como uma nova linha na tabela ao lado.",
                         target="help-add",
@@ -235,7 +235,7 @@ def get_tab1_layout():
                             [
                                 html.Div([
                                     dbc.Label("Produto", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-produto", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-produto", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                     dbc.Tooltip(
                                         "Nome do produto (ex: Soja, Milho). O sistema ajustará maiúsculas/minúsculas automaticamente e sugerirá produtos já cadastrados.",
                                         target="help-produto",
@@ -250,7 +250,7 @@ def get_tab1_layout():
                             [
                                 html.Div([
                                     dbc.Label("Peso (ton)", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                     dbc.Tooltip(
                                         "Peso total da carga em quilogramas.",
                                         target="help-peso",
@@ -264,7 +264,7 @@ def get_tab1_layout():
                             [
                                 html.Div([
                                     dbc.Label("Cidade", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-cidade", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-cidade", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                     dbc.Tooltip(
                                         "Selecione a cidade de origem/destino. Digite para filtrar as opções.",
                                         target="help-cidade",
@@ -284,7 +284,7 @@ def get_tab1_layout():
                             [
                                 html.Div([
                                     dbc.Label("Latitude", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lat", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lat", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                     dbc.Tooltip(
                                         "Coordenada de latitude. Preenchida automaticamente ao selecionar a cidade.",
                                         target="help-lat",
@@ -298,7 +298,7 @@ def get_tab1_layout():
                             [
                                 html.Div([
                                     dbc.Label("Longitude", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lon", style={"cursor": "help", "fontSize": "0.9rem"}),
+                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lon", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                     dbc.Tooltip(
                                         "Coordenada de longitude. Preenchida automaticamente ao selecionar a cidade.",
                                         target="help-lon",
@@ -336,7 +336,7 @@ def get_tab1_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Exportar", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-export", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-export", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Salvar a planilha para usos futuros. Não é necessário exportar para continuar usando as funcionalidades nesta sessão.",
                         target="help-export",
@@ -444,7 +444,7 @@ def get_tab1_layout():
                                     'textAlign': 'left',
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
-                                    'fontSize': '0.9rem',
+                                    'fontSize': 'var(--font-size-small)',
                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                 },
                                 style_header={
@@ -501,7 +501,7 @@ def get_tab_armazens_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Visualizar Base", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-load-base", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-load-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Tabela automaticamente mostrada ao lado. Essa forma foi utilizada para evitar que sempre precise fazer upload dos armazéns, guardando no próprio aplicativo.",
                         target="help-load-base",
@@ -526,7 +526,7 @@ def get_tab_armazens_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Gerenciar Base", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-manage-base", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-manage-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Essa função guardará a nova versão que será enviada para os futuros usos do aplicativo, substituindo a base que hoje é carregada automaticamente.",
                         target="help-manage-base",
@@ -694,7 +694,7 @@ def get_tab_armazens_layout():
                                     'textAlign': 'left',
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
-                                    'fontSize': '0.9rem',
+                                    'fontSize': 'var(--font-size-small)',
                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                 },
                                 style_header={
@@ -795,7 +795,7 @@ def get_tab_prod_armazens_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Relação Produto x Tipo de Armazém", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-armazens", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-armazens", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).",
                         target="help-prod-armazens",
@@ -820,7 +820,7 @@ def get_tab_prod_armazens_layout():
                                     'textAlign': 'center',
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
-                                    'fontSize': '0.9rem',
+                                    'fontSize': 'var(--font-size-small)',
                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                 },
                                 style_cell_conditional=[
@@ -851,7 +851,7 @@ def get_tab_prod_armazens_layout():
                                     },
                                     {
                                         'if': {'column_id': 'Produto'},
-                                        'fontSize': '0.9rem' # Product name size
+                                        'fontSize': 'var(--font-size-small)' # Product name size
                                     }
                                 ]
                             )

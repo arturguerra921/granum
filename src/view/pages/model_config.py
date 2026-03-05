@@ -9,7 +9,7 @@ def get_tab_model_config_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Execução do Modelo Matemático", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-model-config", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-model-config", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Otimiza a alocação de produtos para os armazéns disponíveis baseando-se na distância e capacidade.",
                         target="help-model-config",
@@ -32,7 +32,7 @@ def get_tab_model_config_layout():
                             htmlFor="toggle-detailed-log",
                             className="mb-0 mx-2 text-muted cursor-pointer"
                         ),
-                        html.I(className="bi bi-question-circle-fill text-muted", id="help-detailed-log", style={"cursor": "help", "fontSize": "0.9rem"}),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-detailed-log", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                         dbc.Tooltip(
                             "Ativar esta opção incluirá a construção detalhada do modelo matemático (em Python) no log. No entanto, isso pode aumentar significativamente o tempo de resolução. Use esta opção apenas para depuração ou se você quiser entender como o modelo é construído.",
                             target="help-detailed-log",

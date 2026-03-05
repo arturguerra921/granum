@@ -9,7 +9,7 @@ def get_tab_distance_matrix_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Cálculo da Matriz de Distâncias", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-calc-matrix", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-calc-matrix", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Calcula a distância rodoviária real entre cada cidade de origem (Oferta) e cada armazém (Armazéns).",
                         target="help-calc-matrix",
@@ -71,7 +71,7 @@ def get_tab_distance_matrix_layout():
                                     'textAlign': 'center',
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
-                                    'fontSize': '0.9rem',
+                                    'fontSize': 'var(--font-size-small)',
                                     'color': UNB_THEME['UNB_GRAY_DARK']
                                 },
                                 style_header={
@@ -107,7 +107,7 @@ def get_tab_distance_matrix_layout():
             dbc.CardHeader(
                 html.Div([
                     html.Span("Visualização da Rota", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-route-map", style={"cursor": "help", "fontSize": "0.9rem"}),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-route-map", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                     dbc.Tooltip(
                         "Clique na tabela acima para visualizar a rota desejada. Apenas é possível visualizar uma rota de cada vez. Nos casos em que a rota for exibida como uma linha reta vermelha, isso indica que a rota real não pôde ser calculada, possivelmente devido ao ponto estar fora do Brasil ou em área isolada sem estradas em um raio de 50 km. Nesses casos, a distância exibida na tabela é a distância geodésica (linha reta) entre os pontos, e não a distância rodoviária real.",
                         target="help-route-map",
