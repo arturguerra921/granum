@@ -139,7 +139,7 @@ def get_tab_distance_matrix_layout():
                 className="card-body-custom"
             )
         ],
-        className="card-custom h-100"
+        className="card-custom mb-3"
     )
 
     return html.Div([

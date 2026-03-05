@@ -218,7 +218,7 @@ def get_tab_results_layout():
                 className="card-body-custom"
             )
         ],
-        className="card-custom h-100 mt-4"
+        className="card-custom mb-3 mt-4"
     )
 
     # Modal Confirmação Malha (Muitas rotas)
