@@ -2670,71 +2670,92 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     if not stored_data or not stored_armazens:
         return default_fig, html.P("Faltam dados base para renderizar o mapa.", className="text-muted small")
 
-    # Helper function to get coordinates
-    def get_coords(orig_name, dest_name, df_input, df_armazens):
-        # Origin Coords
-        origins_df_map = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
-        city_counts_map = origins_df_map['Cidade'].value_counts()
-        duplicates_map = city_counts_map[city_counts_map > 1].index
+    df_input = pd.read_json(io.StringIO(stored_data), orient='split')
+    df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
 
-        origins_df_map['Cidade_Display'] = origins_df_map.apply(
-            lambda row: f"{row['Cidade']} ({row['Latitude']:.4f}, {row['Longitude']:.4f})"
-            if row['Cidade'] in duplicates_map else row['Cidade'],
-            axis=1
-        )
+    # Pre-calculate coordinate mappings for performance
+    # 1. Origin Mappings
+    origins_df_map = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
+    city_counts_map = origins_df_map['Cidade'].value_counts()
+    duplicates_map = city_counts_map[city_counts_map > 1].index
 
-        origin_row = origins_df_map[origins_df_map['Cidade_Display'] == orig_name]
-        if origin_row.empty:
-            origin_row = df_input[df_input['Cidade'] == orig_name]
-            if origin_row.empty: return None, None
-            origin_row = origin_row.iloc[0]
+    origins_df_map['Cidade_Display'] = origins_df_map.apply(
+        lambda row: f"{row['Cidade']} ({row['Latitude']:.4f}, {row['Longitude']:.4f})"
+        if row['Cidade'] in duplicates_map else row['Cidade'],
+        axis=1
+    )
+    origin_mapping = origins_df_map.set_index('Cidade_Display')[['Latitude', 'Longitude']].to_dict('index')
+
+    # 2. Destination Mappings
+    lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
+    lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+
+    if not lat_col or not lon_col:
+        mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
+        uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+        if mun_col and uf_col:
+            df_armazens_map = df_armazens.copy()
+            df_armazens_map['lookup_key'] = df_armazens_map[mun_col].astype(str) + ' - ' + df_armazens_map[uf_col].astype(str)
+            def get_c(key):
+                if key in CITY_LOOKUP: return CITY_LOOKUP[key]
+                return {'latitude': None, 'longitude': None}
+            coords = df_armazens_map['lookup_key'].apply(get_c)
+            df_armazens_map['Latitude'] = coords.apply(lambda x: x['latitude'])
+            df_armazens_map['Longitude'] = coords.apply(lambda x: x['longitude'])
+            dests_df = df_armazens_map.dropna(subset=['Latitude', 'Longitude'])
         else:
-            origin_row = origin_row.iloc[0]
+            dests_df = pd.DataFrame()
+    else:
+        dests_df = df_armazens.dropna(subset=[lat_col, lon_col]).copy()
+        dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
-        origin_coords = (origin_row['Latitude'], origin_row['Longitude'])
-
-        # Destination Coords
-        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
-
-        if not lat_col or not lon_col:
-             mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-             uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
-             if mun_col and uf_col:
-                 df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
-                 def get_c(key):
-                     if key in CITY_LOOKUP: return CITY_LOOKUP[key]
-                     return {'latitude': None, 'longitude': None}
-                 coords = df_armazens['lookup_key'].apply(get_c)
-                 df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
-                 df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
-                 dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
-             else:
-                 return origin_coords, None
-        else:
-            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
-            dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
-
+    dest_mapping = {}
+    if not dests_df.empty:
         cda_col = next((c for c in dests_df.columns if 'cda' in str(c).lower()), None)
         name_col = next((c for c in dests_df.columns if 'armaz' in str(c).lower() or 'nome' in str(c).lower()), None)
         mun_col_dest = next((c for c in dests_df.columns if 'munic' in str(c).lower()), None)
 
-        dest_coords = None
-        for idx, row in dests_df.iterrows():
-            parts = []
-            if cda_col and pd.notna(row[cda_col]): parts.append(str(row[cda_col]).strip())
-            if name_col and pd.notna(row[name_col]): parts.append(str(row[name_col]).strip())
-            if mun_col_dest and pd.notna(row[mun_col_dest]): parts.append(str(row[mun_col_dest]).strip())
+        labels = pd.Series("", index=dests_df.index)
+        first = True
+        for col in [cda_col, name_col, mun_col_dest]:
+            if col:
+                val = dests_df[col].astype(str).str.strip()
+                mask = dests_df[col].notna()
+                if first:
+                    labels = labels.mask(mask, val)
+                    first = False
+                else:
+                    # For non-empty current labels, append " - " and the new value.
+                    # For empty current labels, just set the new value.
+                    labels = labels.mask(mask, labels.where(~mask | (labels == ""), labels + " - " + val).where(labels != "", val))
 
-            label = " - ".join(parts) if parts else f"Dest {idx}"
-            if label == dest_name:
-                dest_coords = (row['Latitude'], row['Longitude'])
-                break
+        empty_mask = labels == ""
+        if empty_mask.any():
+            labels.loc[empty_mask] = [f"Dest {i}" for i in dests_df.index[empty_mask]]
+
+        dests_df['__label'] = labels
+        # Handle duplicate labels by keeping the first occurrence
+        dests_df = dests_df.drop_duplicates(subset=['__label'])
+        dest_mapping = dests_df.set_index('__label')[['Latitude', 'Longitude']].to_dict('index')
+
+    def get_coords_optimized(orig_name, dest_name):
+        origin_coords = None
+        if orig_name in origin_mapping:
+            o = origin_mapping[orig_name]
+            origin_coords = (o['Latitude'], o['Longitude'])
+        else:
+            # Fallback for origin
+            fallback_row = df_input[df_input['Cidade'] == orig_name]
+            if not fallback_row.empty:
+                origin_coords = (fallback_row.iloc[0]['Latitude'], fallback_row.iloc[0]['Longitude'])
+
+        dest_coords = None
+        if dest_name in dest_mapping:
+            d = dest_mapping[dest_name]
+            dest_coords = (d['Latitude'], d['Longitude'])
 
         return origin_coords, dest_coords
 
-    df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-    df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
     osrm_url = os.environ.get("OSRM_URL", "http://localhost:5000")
     client = OSRMClient(base_url=osrm_url)
 
@@ -2756,7 +2777,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
         if not route_detail:
             return default_fig, html.P("Detalhes não encontrados.", className="text-muted small")
 
-        orig_coords, dest_coords = get_coords(orig_name, dest_name, df_input, df_armazens)
+        orig_coords, dest_coords = get_coords_optimized(orig_name, dest_name)
         if not orig_coords or not dest_coords:
             return default_fig, html.P("Coordenadas não encontradas para desenhar a rota.", className="text-muted small")
 
@@ -2860,7 +2881,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
         all_lats, all_lons = [], []
 
         for r in routes:
-            orig_coords, dest_coords = get_coords(r["Origem"], r["Destino"], df_input, df_armazens)
+            orig_coords, dest_coords = get_coords_optimized(r["Origem"], r["Destino"])
             if orig_coords and dest_coords:
                 route_data_osrm = client.get_route(orig_coords, dest_coords)
                 if route_data_osrm:
