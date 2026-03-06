@@ -1969,11 +1969,12 @@ def download_freight(n_clicks, stored_data):
     Output('table-prod-armazens', 'data', allow_duplicate=True),
     Output('table-prod-armazens', 'active_cell'),
     Input('table-prod-armazens', 'active_cell'),
+    State('table-prod-armazens', 'derived_viewport_data'),
     State('table-prod-armazens', 'data'),
     prevent_initial_call=True
 )
-def toggle_checkbox(active_cell, table_data):
-    if not active_cell or not table_data:
+def toggle_checkbox(active_cell, viewport_data, table_data):
+    if not active_cell or not table_data or not viewport_data:
         return no_update, no_update, no_update
 
     row_idx = active_cell['row']
@@ -1984,16 +1985,22 @@ def toggle_checkbox(active_cell, table_data):
         return no_update, no_update, None
 
     try:
+        # Get the product name from the visible viewport using active_cell['row']
+        product_name = viewport_data[row_idx]['Produto']
+
         df = pd.DataFrame(table_data)
 
+        # Find the correct row index in the full dataframe
+        actual_row_idx = df.index[df['Produto'] == product_name].tolist()[0]
+
         # Toggle Logic
-        current_val = df.at[row_idx, col_id]
+        current_val = df.at[actual_row_idx, col_id]
         if current_val == '☐':
             new_val = '☑'
         else:
             new_val = '☐'
 
-        df.at[row_idx, col_id] = new_val
+        df.at[actual_row_idx, col_id] = new_val
 
         return df.to_json(date_format='iso', orient='split'), df.to_dict('records'), None
 
@@ -2196,7 +2203,7 @@ def download_matrix(n_clicks, stored_matrix):
     Input("table-distance-matrix", "active_cell"),
     [State('stored-data', 'data'),
      State('store-armazens', 'data'),
-     State('table-distance-matrix', 'data')],
+     State('table-distance-matrix', 'derived_viewport_data')],
     prevent_initial_call=True
 )
 def update_route_map(active_cell, stored_data, stored_armazens, table_data):
