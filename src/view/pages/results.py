@@ -229,7 +229,7 @@ def get_tab_results_layout():
                 [
                     html.P("O modelo gerou um número elevado de rotas realizadas (> 150)."),
                     html.P("Desenhar todas essas rotas no mapa simultaneamente pode demorar consideravelmente ou até causar travamentos no seu navegador.", className="text-danger fw-bold"),
-                    html.P("Recomendamos que você exporte o Relatório Completo (Excel) para análises avançadas ou visualize rotas individuais através da tabela."),
+                    html.P("É recomendável que você exporte o Relatório Completo (Excel) para salvar os resultados. Você também pode visualizar as rotas individuais no mapa ao selecionar as células correspondentes na tabela."),
                     html.P("Tem certeza que deseja tentar visualizar todas as rotas de uma só vez?")
                 ]
             ),
