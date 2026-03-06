@@ -2921,7 +2921,7 @@ import flask
 import os
 import tempfile
 
-@app.server.route('/download_log/<path:filename>')
+@app.server.route('/download_log/<string:filename>')
 def download_log_route(filename):
     # Security: Ensure filename is just a basename, no directory traversal
     filename = os.path.basename(filename)
