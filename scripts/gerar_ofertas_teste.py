@@ -84,8 +84,12 @@ def gerar_planilhas_teste():
     colunas_finais = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
     df_base = df_base[colunas_finais]
 
-    # 4. Criar o diretório de saída se não existir
+    # 4. Limpar e criar o diretório de saída
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    for filename in os.listdir(OUTPUT_DIR):
+        file_path = os.path.join(OUTPUT_DIR, filename)
+        if os.path.isfile(file_path) and filename != '.gitkeep':
+            os.unlink(file_path)
 
     # 5. Gerar progressivamente as planilhas (10, 20, 30... MAXIMO_NOS)
     nos_gerados = 0
