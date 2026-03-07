@@ -212,3 +212,12 @@ __marimo__/
 # OSRM and map data
 data/osrm/
 cache/
+
+# Exemplos gerados localmente
+examples/*
+!examples/.gitkeep
+!examples/ofertas/
+examples/ofertas/*
+!examples/ofertas/.gitkeep
+
+!examples/README.md
