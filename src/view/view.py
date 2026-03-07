@@ -17,6 +17,7 @@ import diskcache
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import requests
 
 # --- Data Loading ---
 try:
@@ -48,6 +49,31 @@ except Exception as e:
     print(f"Error loading geographical data: {e}")
     CITY_OPTIONS = []
     CITY_LOOKUP = {}
+
+
+def get_conab_txt_data():
+    """Fetches the Conab TXT file, saves it locally, and returns a DataFrame.
+    If the fetch fails, it falls back to the locally saved version."""
+    conab_url = "https://portaldeinformacoes.conab.gov.br/downloads/arquivos/ArmazensCadastrados.txt"
+    local_txt_path = os.path.join(DATA_DIR, 'Armazens_Cadastrados_SICARM.txt')
+
+    try:
+        response = requests.get(conab_url, timeout=15)
+        response.raise_for_status()
+
+        # Save to local file
+        with open(local_txt_path, 'w', encoding='iso-8859-1') as f:
+            f.write(response.content.decode('iso-8859-1'))
+
+        df = pd.read_csv(io.StringIO(response.content.decode('iso-8859-1')), sep=';', encoding='iso-8859-1', dtype=str)
+    except Exception as e:
+        print(f"Error fetching Conab TXT file from URL: {e}. Falling back to local file.")
+        if os.path.exists(local_txt_path):
+            df = pd.read_csv(local_txt_path, sep=';', encoding='iso-8859-1', dtype=str)
+        else:
+            print("Local Conab TXT file not found. Returning empty DataFrame.")
+            return pd.DataFrame()
+    return df
 
 
 # Initialize diskcache manager for background callbacks
@@ -748,6 +774,18 @@ def get_tab_armazens_layout():
         is_open=False,
     )
 
+    missing_cdas_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Atenção: Armazéns Não Encontrados"), close_button=True),
+            dbc.ModalBody(id="modal-missing-cdas-body", children=""),
+            dbc.ModalFooter(
+                dbc.Button("Fechar", id="close-missing-cdas", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="modal-missing-cdas",
+        is_open=False,
+    )
+
     return html.Div([
         dbc.Row(
             [
@@ -758,7 +796,8 @@ def get_tab_armazens_layout():
             ]
         ),
         tutorial_modal,
-        confirm_save_modal
+        confirm_save_modal,
+        missing_cdas_modal
     ])
 
 # 5. Tab Produto e Armazéns Content
@@ -1333,6 +1372,8 @@ def download_data(n_clicks, stored_data):
     Output('error-modal', 'is_open', allow_duplicate=True),
     Output('modal-body-content', 'children', allow_duplicate=True),
     Output('btn-save-base', 'style'), # New output for Save button visibility
+    Output('modal-missing-cdas', 'is_open'),
+    Output('modal-missing-cdas-body', 'children'),
     [Input('main-tabs', 'active_tab'),
      Input('upload-update-base', 'contents'),
      Input('table-armazens', 'data_timestamp')],
@@ -1355,10 +1396,10 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
              except Exception:
-                return no_update, no_update, no_update, no_update
-        return no_update, no_update, no_update, no_update
+                return no_update, no_update, no_update, no_update, False, no_update
+        return no_update, no_update, no_update, no_update, False, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -1376,10 +1417,10 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
             except Exception:
-                return no_update, no_update, no_update, no_update
-        return no_update, no_update, no_update, no_update # Keep current state
+                return no_update, no_update, no_update, no_update, False, no_update
+        return no_update, no_update, no_update, no_update, False, no_update # Keep current state
 
     # Update from Upload (CSV)
     if trigger_id == 'upload-update-base' and upload_contents:
@@ -1417,13 +1458,54 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
             if df is not None:
                 if "Estoque Inicial" not in df.columns:
                     df["Estoque Inicial"] = 0
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}
+
+                # Fetch external data and match CDA
+                df_conab = get_conab_txt_data()
+                missing_cdas = []
+
+                if not df_conab.empty and 'CDA' in df.columns:
+                    # Clean columns for matching
+                    df_conab['identificacao_armazem'] = df_conab['identificacao_armazem'].astype(str).str.strip().str.upper()
+                    df['CDA_temp'] = df['CDA'].astype(str).str.strip().str.upper()
+
+                    # Merge data
+                    df = pd.merge(df, df_conab[['identificacao_armazem', 'qtd_capacidade_recepcao(t)']],
+                                  left_on='CDA_temp', right_on='identificacao_armazem', how='left')
+
+                    # Fill 'Capacidade de Recepção' and identify missing
+                    missing_mask = df['qtd_capacidade_recepcao(t)'].isna()
+                    missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
+
+                    # If column already exists (maybe in future CSVs), update it, otherwise create it
+                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0)
+
+                    # Cleanup
+                    df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
+                else:
+                    # Fallback if the data fetch failed or 'CDA' column missing
+                    df['Capacidade de Recepção'] = 0
+                    if 'CDA' in df.columns:
+                        missing_cdas = df['CDA'].tolist()
+
+                # Setup modal properties for missing CDAs
+                modal_is_open = False
+                modal_children = no_update
+
+                if missing_cdas:
+                    modal_is_open = True
+                    list_items = [html.Li(cda) for cda in missing_cdas]
+                    modal_children = html.Div([
+                        html.P("Os seguintes CDAs do seu arquivo não foram encontrados na base atualizada da Conab e tiveram sua 'Capacidade de Recepção' definida como 0:"),
+                        html.Ul(list_items, style={"maxHeight": "200px", "overflowY": "auto"})
+                    ])
+
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children
             else:
-                return no_update, True, "Arquivo vazio ou inválido.", no_update
+                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}", no_update
+            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update
 
     # Table Edits (Auto-save)
     if trigger_id == 'table-armazens':
@@ -1440,10 +1522,10 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
              except Exception as e:
                  print(f"Error auto-saving armazens table edit: {e}")
 
-             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
-        return no_update, no_update, no_update, no_update
+             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
+        return no_update, no_update, no_update, no_update, False, no_update
 
-    return no_update, no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update, False, no_update
 
 # 5. Render Armazéns Table and Metrics
 @app.callback(
@@ -1550,6 +1632,18 @@ def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data):
                 print(f"Error saving: {e}")
         return False
 
+    return is_open
+
+# 7. Close Missing CDAs Modal
+@app.callback(
+    Output("modal-missing-cdas", "is_open", allow_duplicate=True),
+    Input("close-missing-cdas", "n_clicks"),
+    State("modal-missing-cdas", "is_open"),
+    prevent_initial_call=True
+)
+def close_missing_cdas_modal(n_clicks, is_open):
+    if n_clicks:
+        return False
     return is_open
 
 
