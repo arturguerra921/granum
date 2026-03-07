@@ -13,6 +13,7 @@ FORMATO_SAIDA = '.xlsx'       # Formato de arquivo para as planilhas geradas ('.
 # Caminhos do projeto
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MUNICIPIOS_CSV = os.path.join(PROJECT_ROOT, 'src', 'view', 'assets', 'data', 'municipios.csv')
+ESTADOS_CSV = os.path.join(PROJECT_ROOT, 'src', 'view', 'assets', 'data', 'estados.csv')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'examples', 'ofertas')
 
 # Lista de produtos típicos armazenados em silos, graneleiros e armazéns convencionais
@@ -22,12 +23,27 @@ def gerar_planilhas_teste():
     print(f"Iniciando a geração de testes...")
     print(f"Configurações: Máx Nós = {MAXIMO_NOS}, Máx Toneladas = {MAXIMO_TONELADAS}, Incremento = {INCREMENTO_NOS}")
 
-    # 1. Carregar a lista de municípios
+    # 1. Carregar a lista de municípios e estados
     if not os.path.exists(MUNICIPIOS_CSV):
         print(f"Erro: O arquivo de municípios não foi encontrado em {MUNICIPIOS_CSV}")
         return
+    if not os.path.exists(ESTADOS_CSV):
+        print(f"Erro: O arquivo de estados não foi encontrado em {ESTADOS_CSV}")
+        return
 
     df_municipios = pd.read_csv(MUNICIPIOS_CSV)
+    df_estados = pd.read_csv(ESTADOS_CSV)
+
+    # O arquivo estados.csv pode ter BOM (Byte Order Mark), por segurança removemos e renomeamos
+    # ou podemos simplesmente garantir que a coluna chave está correta
+    if '\ufeffcodigo_uf' in df_estados.columns:
+        df_estados.rename(columns={'\ufeffcodigo_uf': 'codigo_uf'}, inplace=True)
+
+    # Fazer merge para obter a sigla da UF
+    df_municipios = pd.merge(df_municipios, df_estados[['codigo_uf', 'uf']], on='codigo_uf', how='left')
+
+    # Criar a coluna formatada "Cidade - UF"
+    df_municipios['nome_formatado'] = df_municipios['nome'] + ' - ' + df_municipios['uf']
 
     # Garantir que há municípios suficientes
     total_municipios = len(df_municipios)
@@ -62,7 +78,7 @@ def gerar_planilhas_teste():
     df_base['Peso (ton)'] = np.round(df_base['Peso (ton)'], 2)
 
     # Renomear as colunas para o formato da aplicação
-    df_base.rename(columns={'nome': 'Cidade', 'latitude': 'Latitude', 'longitude': 'Longitude'}, inplace=True)
+    df_base.rename(columns={'nome_formatado': 'Cidade', 'latitude': 'Latitude', 'longitude': 'Longitude'}, inplace=True)
 
     # Filtrar apenas as colunas de interesse
     colunas_finais = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
