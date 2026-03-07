@@ -745,6 +745,7 @@ def get_tab_armazens_layout():
                         html.Li("Preencha o código de segurança e clique em 'Consultar'."),
                         html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
                         html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela."),
+                        html.Li("O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'."),
                         html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
                     ]),
                     html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
@@ -776,7 +777,7 @@ def get_tab_armazens_layout():
 
     missing_cdas_modal = dbc.Modal(
         [
-            dbc.ModalHeader(dbc.ModalTitle("Atenção: Armazéns Não Encontrados"), close_button=True),
+            dbc.ModalHeader(dbc.ModalTitle("Atenção: Capacidade de Recepção Não Encontrada"), close_button=True),
             dbc.ModalBody(id="modal-missing-cdas-body", children=""),
             dbc.ModalFooter(
                 dbc.Button("Fechar", id="close-missing-cdas", className="ms-auto", n_clicks=0)
@@ -1495,7 +1496,7 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
                     modal_is_open = True
                     list_items = [html.Li(cda) for cda in missing_cdas]
                     modal_children = html.Div([
-                        html.P("Os seguintes CDAs do seu arquivo não foram encontrados na base atualizada da Conab e tiveram sua 'Capacidade de Recepção' definida como 0:"),
+                        html.P("Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:"),
                         html.Ul(list_items, style={"maxHeight": "200px", "overflowY": "auto"})
                     ])
 
