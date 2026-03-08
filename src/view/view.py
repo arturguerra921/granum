@@ -590,7 +590,7 @@ def get_tab_armazens_layout():
                                             html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
                                             html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
                                             html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                            html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                            html.Div("Formatos: .csv", id="upload-format-hint", className="text-muted small mt-2")
                                         ]),
                                         className="upload-box",
                                         multiple=False,
@@ -598,6 +598,15 @@ def get_tab_armazens_layout():
                                     )
                                 ],
                                 style={"display": "block"}
+                            ),
+                            # Download Example Button (for Personalizada)
+                            html.Div(
+                                id="download-example-container",
+                                children=[
+                                    dbc.Button("Baixar Exemplo", id="btn-download-example", color="secondary", outline=True, className="w-100 mt-2"),
+                                    dcc.Download(id="download-example-personalizada")
+                                ],
+                                style={"display": "none"}
                             ),
                             # Fetch Button (for Cadastrados)
                             html.Div(
@@ -727,7 +736,7 @@ def get_tab_armazens_layout():
     armazens_table_card = dbc.Card(
         [
             dbc.CardHeader(
-                "Tabela de Armazéns Credenciados",
+                "Tabela de Armazéns",
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -1410,6 +1419,7 @@ def download_data(n_clicks, stored_data):
     Output('btn-save-base', 'style'), # New output for Save button visibility
     Output('modal-missing-cdas', 'is_open'),
     Output('modal-missing-cdas-body', 'children'),
+    Output('upload-update-base', 'contents'),
     [Input('main-tabs', 'active_tab'),
      Input('dropdown-base-armazens', 'value'),
      Input('upload-update-base', 'contents'),
@@ -1445,10 +1455,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update, None
              except Exception:
-                return no_update, no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update
+                return no_update, no_update, no_update, no_update, False, no_update, None
+        return no_update, no_update, no_update, no_update, False, no_update, None
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -1466,10 +1476,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update, None
             except Exception:
-                return no_update, no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update # Keep current state
+                return no_update, no_update, no_update, no_update, False, no_update, None
+        return no_update, no_update, no_update, no_update, False, no_update, None # Keep current state
 
     # Dropdown Base Changed
     if trigger_id == 'dropdown-base-armazens':
@@ -1481,16 +1491,16 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             if not df.empty and "Unnamed" in str(df.columns[-1]):
                 df = df.iloc[:, :-1]
 
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "none"}, False, no_update
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "none"}, False, no_update, None
         except Exception:
-            return no_update, no_update, no_update, no_update, False, no_update
+            return no_update, no_update, no_update, no_update, False, no_update, None
 
     # Update from Upload (CSV) or fetch
     if trigger_id == 'btn-fetch-cadastrados' and dropdown_value == 'cadastrados':
         try:
             df_conab = get_conab_txt_data()
             if df_conab.empty:
-                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update
+                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update, None
 
             # Map the columns
             # identificacao_armazem to CDA
@@ -1543,56 +1553,80 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             df_new['Estoque Inicial'] = 0
             df_new['Capacidade de Recepção'] = df_conab.get('qtd_capacidade_recepcao(t)', 0)
 
-            return df_new.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, False, no_update
+            return df_new.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, False, no_update, None
 
         except Exception as e:
             print(f"Error fetching and processing cadastrados: {e}")
-            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update
+            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update, None
 
     elif trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
 
         try:
-            # Conab CSV Parsing Rules:
-            # 1. Encoding: iso-8859-1
-            # 2. Separator: ;
-            # 3. Skip Rows: 1 (Header is on line 2, index 1)
-            # 4. Trailing Delimiter: Drop last column
+            if dropdown_value == 'personalizada' and ('spreadsheetml' in content_type or upload_filename.endswith('.xlsx')):
+                df = pd.read_excel(io.BytesIO(decoded))
+            else:
+                # Conab CSV Parsing Rules:
+                # 1. Encoding: iso-8859-1
+                # 2. Separator: ;
+                # 3. Skip Rows: 1 (Header is on line 2, index 1)
+                # 4. Trailing Delimiter: Drop last column
 
-            # Decode using iso-8859-1
-            decoded_str = decoded.decode('iso-8859-1')
+                # Decode using iso-8859-1
+                decoded_str = decoded.decode('iso-8859-1')
 
-            df = pd.read_csv(
-                io.StringIO(decoded_str),
-                sep=';',
-                encoding='iso-8859-1',
-                skiprows=1 if dropdown_value == 'credenciados' else 0,
-                index_col=False
-            )
+                df = pd.read_csv(
+                    io.StringIO(decoded_str),
+                    sep=';',
+                    encoding='iso-8859-1',
+                    skiprows=1 if dropdown_value == 'credenciados' else 0,
+                    index_col=False
+                )
 
-            # Drop the last column if it's completely empty (result of trailing delimiter)
-            # The last column is usually 'Unnamed: X' due to the trailing delimiter
-            if not df.empty:
-                # Drop columns that are entirely null (fixes trailing delimiter issue)
-                df = df.dropna(axis=1, how='all')
+                # Drop the last column if it's completely empty (result of trailing delimiter)
+                # The last column is usually 'Unnamed: X' due to the trailing delimiter
+                if not df.empty:
+                    # Drop columns that are entirely null (fixes trailing delimiter issue)
+                    df = df.dropna(axis=1, how='all')
 
-                # Also drop if the last column is explicitly unnamed (fallback)
-                if not df.empty and "Unnamed" in str(df.columns[-1]):
-                     df = df.iloc[:, :-1]
+                    # Also drop if the last column is explicitly unnamed (fallback)
+                    if not df.empty and "Unnamed" in str(df.columns[-1]):
+                         df = df.iloc[:, :-1]
 
             if df is not None:
                 # Se for Base Personalizada, verificar as colunas esperadas
                 if dropdown_value == 'personalizada':
+                    import unicodedata
+
+                    def normalize_string(s):
+                        return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').strip().lower()
+
                     expected_cols = ['CDA', 'Armazenador', 'Endereço', 'Município', 'UF', 'Tipo', 'Email', 'Capacidade (t)', 'Latitude', 'Longitude', 'Estoque Inicial', 'Capacidade de Recepção']
-                    # Handle differences in case/accents if needed, or strictly check
+                    normalized_expected = {normalize_string(c): c for c in expected_cols}
+
+                    # Rename columns if they match flexibly
+                    rename_mapping = {}
+                    for c in df.columns:
+                        norm_c = normalize_string(c)
+                        if norm_c in normalized_expected:
+                            rename_mapping[c] = normalized_expected[norm_c]
+
+                    df = df.rename(columns=rename_mapping)
+
+                    # Only keep the expected columns to drop any unwanted extra columns
+                    cols_to_keep = [c for c in df.columns if c in expected_cols]
+                    df = df[cols_to_keep]
+
                     missing_cols = [c for c in expected_cols if c not in df.columns]
                     if missing_cols:
-                        return no_update, True, f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}. Faltam: {', '.join(missing_cols)}", no_update, False, no_update
-
-                    # Remove "Telefone" if it's there
-                    if 'Telefone' in df.columns:
-                        df = df.drop(columns=['Telefone'])
+                        error_msg = html.Div([
+                            html.Span(f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}."),
+                            html.Br(),
+                            html.Br(),
+                            html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold")
+                        ])
+                        return no_update, True, error_msg, no_update, False, no_update, None
 
                 if "Estoque Inicial" not in df.columns:
                     df["Estoque Inicial"] = 0
@@ -1600,6 +1634,52 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 # Remove "Telefone" if it's there in other bases
                 if 'Telefone' in df.columns:
                     df = df.drop(columns=['Telefone'])
+
+                # Format Latitude and Longitude
+                for col in ['Latitude', 'Longitude']:
+                    if col in df.columns:
+                        # Convert to string, replace commas with dots, and strip whitespace
+                        df[col] = df[col].astype(str).str.replace(',', '.').str.strip()
+
+                        # Replace empty strings with NaN
+                        df[col] = df[col].replace('', np.nan)
+
+                        # Convert to numeric
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+                        # Correct missing decimal points (e.g. -1149415 -> -11.49415)
+                        # Brazilian latitudes are roughly between +5 and -35, longitudes between -30 and -75
+                        def fix_coord(val, is_lat):
+                            if pd.isna(val) or val == 0:
+                                return val
+
+                            # Convert to absolute value for magnitude check to handle both hemispheres
+                            abs_val = abs(val)
+
+                            # Valid limits for Brazil
+                            min_val, max_val = (-35, 6) if is_lat else (-75, -28)
+
+                            # Iteratively divide by 10 until within range
+                            if val < min_val or val > max_val:
+                                # We need to adjust magnitude.
+                                # e.g. -1149415 -> -11.49415
+                                # we want to shift the decimal point
+
+                                # Using string manipulation for safer point placement when dividing
+                                # Or iteratively divide:
+                                val_iter = val
+                                max_iters = 10
+                                iters = 0
+                                while (val_iter < min_val or val_iter > max_val) and iters < max_iters:
+                                    val_iter /= 10.0
+                                    iters += 1
+
+                                if val_iter >= min_val and val_iter <= max_val:
+                                    return val_iter
+
+                            return val
+
+                        df[col] = df[col].apply(lambda x: fix_coord(x, col == 'Latitude'))
 
                 # Fetch external data and match CDA
                 df_conab = get_conab_txt_data()
@@ -1619,7 +1699,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
 
                     # If column already exists (maybe in future CSVs), update it, otherwise create it
-                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0)
+                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0).infer_objects(copy=False)
 
                     # Cleanup
                     df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
@@ -1641,13 +1721,13 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                         html.Ul(list_items, style={"maxHeight": "200px", "overflowY": "auto"})
                     ])
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children, None
             else:
-                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update
+                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update, None
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update
+            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update, None
 
     # Table Edits (Auto-save)
     if trigger_id == 'table-armazens':
@@ -1664,10 +1744,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
              except Exception as e:
                  print(f"Error auto-saving armazens table edit: {e}")
 
-             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update
+             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update, None
+        return no_update, no_update, no_update, no_update, False, no_update, None
 
-    return no_update, no_update, no_update, no_update, False, no_update
+    return no_update, no_update, no_update, no_update, False, no_update, None
 
 # 5. Render Armazéns Table and Metrics
 @app.callback(
@@ -1806,8 +1886,11 @@ def close_missing_cdas_modal(n_clicks, is_open):
     Output("manage-base-container", "style"),
     Output("upload-update-container", "style"),
     Output("fetch-cadastrados-container", "style"),
+    Output("download-example-container", "style"),
     Output("modal-tutorial-title", "children"),
     Output("modal-tutorial-body", "children"),
+    Output("upload-update-base", "accept"),
+    Output("upload-format-hint", "children"),
     [Input("btn-update-base", "n_clicks"),
      Input("close-modal-tutorial", "n_clicks"),
      Input("dropdown-base-armazens", "value")],
@@ -1816,17 +1899,21 @@ def close_missing_cdas_modal(n_clicks, is_open):
 def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, "", ""
+        return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, "", "", no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Hide everything if we just changed the dropdown
     if trigger_id == "dropdown-base-armazens":
-        return False, {"display": "none"}, {"display": "none"}, {"display": "none"}, no_update, no_update
+        return False, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, no_update, no_update, no_update, no_update
 
     manage_style = {"display": "block"}
     upload_style = {"display": "block"} if dropdown_value in ['credenciados', 'personalizada'] else {"display": "none"}
     fetch_style = {"display": "block"} if dropdown_value == 'cadastrados' else {"display": "none"}
+    download_example_style = {"display": "block"} if dropdown_value == 'personalizada' else {"display": "none"}
+
+    upload_accept = ".csv, .xlsx" if dropdown_value == 'personalizada' else ".csv"
+    upload_hint = "Formatos: .csv, .xlsx" if dropdown_value == 'personalizada' else "Formatos: .csv"
 
     # Set modal content based on selected base
     if dropdown_value == 'cadastrados':
@@ -1841,8 +1928,9 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
     elif dropdown_value == 'personalizada':
         title = "Como Enviar uma Base Personalizada"
         body = [
-            html.P("Você pode enviar a sua própria base de armazéns enviando um arquivo .csv."),
-            html.P("O arquivo deve conter EXATAMENTE as seguintes colunas (a ordem não importa):"),
+            html.P("Você pode enviar a sua própria base de armazéns enviando um arquivo .csv ou .xlsx."),
+            html.P("Você também pode baixar um arquivo de exemplo com o formato esperado e editá-lo antes do envio."),
+            html.P("O arquivo deve conter as seguintes colunas (a ordem não importa e letras maiúsculas/minúsculas ou acentos são tolerados):"),
             html.Ul([
                 html.Li("CDA"),
                 html.Li("Armazenador"),
@@ -1857,7 +1945,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
                 html.Li("Estoque Inicial"),
                 html.Li("Capacidade de Recepção")
             ]),
-            html.P("Carregue o arquivo CSV na área que aparecerá após fechar esta janela.")
+            html.P("Carregue o arquivo na área que aparecerá após fechar esta janela.")
         ]
     else: # credenciados
         title = "Como Atualizar a Base (Armazéns Credenciados)"
@@ -1880,12 +1968,41 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
         ]
 
     if trigger_id == "btn-update-base":
-        return True, manage_style, upload_style, fetch_style, title, body # Open modal, SHOW manage container
+        return True, manage_style, upload_style, fetch_style, download_example_style, title, body, upload_accept, upload_hint
 
     if trigger_id == "close-modal-tutorial":
-        return False, manage_style, upload_style, fetch_style, title, body # Close modal, keep manage container shown
+        return False, manage_style, upload_style, fetch_style, download_example_style, title, body, upload_accept, upload_hint
 
-    return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, title, body
+    return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, title, body, upload_accept, upload_hint
+
+
+@app.callback(
+    Output("download-example-personalizada", "data"),
+    Input("btn-download-example", "n_clicks"),
+    prevent_initial_call=True
+)
+def download_example_file(n_clicks):
+    if not n_clicks:
+        return no_update
+
+    # Create example dataframe
+    data = {
+        'CDA': ['EXEMPLO-123'],
+        'Armazenador': ['Nome do Armazém Exemplo'],
+        'Endereço': ['Rua Exemplo, 123'],
+        'Município': ['Brasília'],
+        'UF': ['DF'],
+        'Tipo': ['Convencional'],
+        'Email': ['contato@exemplo.com'],
+        'Capacidade (t)': [10000],
+        'Latitude': [-15.793889],
+        'Longitude': [-47.882778],
+        'Estoque Inicial': [500],
+        'Capacidade de Recepção': [1000]
+    }
+    df = pd.DataFrame(data)
+
+    return dcc.send_data_frame(df.to_excel, "Base_Personalizada_Exemplo.xlsx", index=False)
 
 # 9. Validation for Tab Prod x Armazens
 @app.callback(
