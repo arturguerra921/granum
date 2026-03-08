@@ -1693,7 +1693,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
 
                     # If column already exists (maybe in future CSVs), update it, otherwise create it
-                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0)
+                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0).infer_objects(copy=False)
 
                     # Cleanup
                     df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
@@ -1715,13 +1715,13 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                         html.Ul(list_items, style={"maxHeight": "200px", "overflowY": "auto"})
                     ])
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children, None
             else:
-                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update
+                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update, None
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update
+            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update, None
 
     # Table Edits (Auto-save)
     if trigger_id == 'table-armazens':
@@ -1738,10 +1738,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
              except Exception as e:
                  print(f"Error auto-saving armazens table edit: {e}")
 
-             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update
+             return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update, None
+        return no_update, no_update, no_update, no_update, False, no_update, None
 
-    return no_update, no_update, no_update, no_update, False, no_update
+    return no_update, no_update, no_update, no_update, False, no_update, None
 
 # 5. Render Armazéns Table and Metrics
 @app.callback(
