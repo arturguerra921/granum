@@ -1620,7 +1620,13 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
                     missing_cols = [c for c in expected_cols if c not in df.columns]
                     if missing_cols:
-                        return no_update, True, f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}. Faltam: {', '.join(missing_cols)}", no_update, False, no_update, None
+                        error_msg = html.Div([
+                            html.Span(f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}."),
+                            html.Br(),
+                            html.Br(),
+                            html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold")
+                        ])
+                        return no_update, True, error_msg, no_update, False, no_update, None
 
                 if "Estoque Inicial" not in df.columns:
                     df["Estoque Inicial"] = 0
