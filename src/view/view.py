@@ -2292,8 +2292,11 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            file_bytes = io.BytesIO(decoded)
-            df = flex_read_csv(file_bytes)
+            if 'spreadsheetml' in content_type or (upload_filename and upload_filename.endswith('.xlsx')):
+                df = pd.read_excel(io.BytesIO(decoded))
+            else:
+                file_bytes = io.BytesIO(decoded)
+                df = flex_read_csv(file_bytes)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
@@ -2304,7 +2307,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O CSV de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, f"O arquivo de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2332,7 +2335,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;).", None
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
 
     # Add Row
     if trigger_id == 'btn-add-storage-row':
@@ -2400,7 +2403,7 @@ def download_storage(n_clicks, stored_data):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_csv, "Tarifa_de_Armazenagem.csv", sep=";", index=False, encoding="iso-8859-1")
+    return dcc.send_data_frame(df.to_excel, "Tarifa_de_Armazenagem.xlsx", index=False)
 
 
 # Freight Cost Data Logic
@@ -2441,8 +2444,11 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            file_bytes = io.BytesIO(decoded)
-            df = flex_read_csv(file_bytes)
+            if 'spreadsheetml' in content_type or (upload_filename and upload_filename.endswith('.xlsx')):
+                df = pd.read_excel(io.BytesIO(decoded))
+            else:
+                file_bytes = io.BytesIO(decoded)
+                df = flex_read_csv(file_bytes)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
@@ -2453,7 +2459,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Estado', 'Frete Tonelada Km']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O CSV de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, f"O arquivo de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2462,7 +2468,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;).", None
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
 
     # Add Row
     if trigger_id == 'btn-add-freight-row':
@@ -2507,7 +2513,7 @@ def download_freight(n_clicks, stored_data):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_csv, "Valor_Tonelada_km.csv", sep=";", index=False, encoding="iso-8859-1")
+    return dcc.send_data_frame(df.to_excel, "Valor_Tonelada_km.xlsx", index=False)
 
 
 # 12. Handle Checkbox Toggles
