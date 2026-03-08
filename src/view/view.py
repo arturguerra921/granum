@@ -156,8 +156,7 @@ navbar = dbc.Navbar(
                 dbc.Button(
                     [html.I(className="bi bi-question-circle me-2"), "Ajuda"],
                     id="btn-help-modal",
-                    color="light",
-                    className="text-primary border-primary fw-bold ms-auto",
+                    className="btn-light-custom fw-bold ms-auto",
                     size="md",
                     style={"borderRadius": "8px"}
                 ),
@@ -212,7 +211,7 @@ help_modal = dbc.Modal(
             ]
         ),
         dbc.ModalFooter(
-            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="primary", n_clicks=0)
+            dbc.Button("Entendi, vamos começar!", id="close-help-modal", className="btn-primary-custom", n_clicks=0)
         ),
     ],
     id="modal-help",
@@ -374,7 +373,7 @@ def get_tab1_layout():
                         ),
                         dbc.Col(
                             [
-                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
+                                dbc.Button("🔒", id="btn-manual-edit", className="btn-secondary-custom d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
                             ],
                             width=2,
                             className="d-flex align-items-end"
@@ -530,7 +529,7 @@ def get_tab1_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                     metrics_section
                 ],
@@ -611,7 +610,7 @@ def get_tab_armazens_layout():
             ),
             dbc.CardBody(
                 [
-                    dbc.Button("Atualizar a Base", id="btn-update-base", color="info", className="w-100 mb-2 text-white", style={"backgroundColor": "#17a2b8", "borderColor": "#17a2b8"}),
+                    dbc.Button("Atualizar a Base", id="btn-update-base", className="btn-info-custom w-100 mb-2"),
                     # Manage Container (Initially Hidden, dynamic content)
                     html.Div(
                         id="manage-base-container",
@@ -639,7 +638,7 @@ def get_tab_armazens_layout():
                             html.Div(
                                 id="download-example-container",
                                 children=[
-                                    dbc.Button("Baixar Planilha Exemplo (.xlsx)", id="btn-download-example", color="secondary", outline=True, className="w-100 mt-2"),
+                                    dbc.Button("Baixar Planilha Exemplo (.xlsx)", id="btn-download-example", className="btn-outline-secondary-custom w-100 mt-2"),
                                     dcc.Download(id="download-example-personalizada")
                                 ],
                                 style={"display": "none"}
@@ -648,7 +647,7 @@ def get_tab_armazens_layout():
                             html.Div(
                                 id="fetch-cadastrados-container",
                                 children=[
-                                    dbc.Button("Baixar Dados da Conab", id="btn-fetch-cadastrados", color="primary", className="w-100 mt-2")
+                                    dbc.Button("Baixar Dados da Conab", id="btn-fetch-cadastrados", className="btn-primary-custom w-100 mt-2")
                                 ],
                                 style={"display": "none"}
                             )
@@ -814,7 +813,7 @@ def get_tab_armazens_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                     armazens_metrics_section
                 ],
@@ -845,8 +844,8 @@ def get_tab_armazens_layout():
             dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. A nova base enviada será utilizada para todos os futuros usos do aplicativo. Tem certeza que deseja continuar?"),
             dbc.ModalFooter(
                 [
-                    dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
-                    dbc.Button("Confirmar e Salvar", id="confirm-save", color="danger", n_clicks=0),
+                    dbc.Button("Cancelar", id="cancel-save", className="btn-secondary-custom me-2", n_clicks=0),
+                    dbc.Button("Confirmar e Salvar", id="confirm-save", className="btn-danger-custom", n_clicks=0),
                 ]
             ),
         ],
@@ -963,7 +962,7 @@ def get_tab_prod_armazens_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                 ],
                 className="card-body-custom"
@@ -3087,7 +3086,7 @@ def update_results_kpis_and_table(results_data):
                 html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-0")
-            ], color="danger", className="shadow-sm mb-3"))
+            ], className="alert-danger-custom shadow-sm mb-3"))
     else:
         # 1. Capacity warnings
         capacity_warnings = warnings.get("capacity", [])
@@ -3106,7 +3105,7 @@ def update_results_kpis_and_table(results_data):
                     html.Li("Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga."),
                     html.Li("Reduza a quantidade ofertada na aba 'Oferta'.")
                 ], className="mb-0")
-            ], color="warning", className="shadow-sm mb-3"))
+            ], className="alert-warning-custom shadow-sm mb-3"))
 
         # 2. Unallocated warnings
         unallocated_warnings = warnings.get("unallocated", [])
@@ -3123,8 +3122,8 @@ def update_results_kpis_and_table(results_data):
                 html.Ul([
                     html.Li("Recalcule a matriz de distâncias para garantir que todas as origens tenham rotas mapeadas.")
                 ], className="mb-3"),
-                dbc.Button("Ir para a aba Matriz de Distâncias", id="btn-go-to-distance-matrix", color="primary", size="sm")
-            ], color="danger", className="shadow-sm mb-3"))
+                dbc.Button("Ir para a aba Matriz de Distâncias", id="btn-go-to-distance-matrix", className="btn-primary-custom", size="sm")
+            ], className="alert-danger-custom shadow-sm mb-3"))
 
         # 3. General warnings
         general_warnings = warnings.get("general", [])
@@ -3134,7 +3133,7 @@ def update_results_kpis_and_table(results_data):
                 html.H5([html.I(className="bi bi-exclamation-circle-fill me-2"), "Aviso Geral"], className="alert-heading"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-0")
-            ], color="info", className="shadow-sm mb-3"))
+            ], className="alert-info-custom shadow-sm mb-3"))
 
     return obj_str, tons, kms, freight, storage, table_data, warnings_html
 

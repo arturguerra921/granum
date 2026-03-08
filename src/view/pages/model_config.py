@@ -39,8 +39,8 @@ def get_tab_model_config_layout():
                             placement="top"
                         )
                     ], className="mb-4 d-flex align-items-center justify-content-center"),
-                    dbc.Button("Rodar Modelo", id="btn-run-model", color="primary", className="w-100 mb-3"),
-                    dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", color="secondary", outline=True, className="w-100 mb-3", disabled=True),
+                    dbc.Button("Rodar Modelo", id="btn-run-model", className="btn-primary-custom w-100 mb-3"),
+                    dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", className="btn-outline-secondary-custom w-100 mb-3", disabled=True),
                     dcc.Download(id="download-model-log"),
                     html.Div(id="model-output-text", className="mt-3 text-center")
                 ],
@@ -57,10 +57,10 @@ def get_tab_model_config_layout():
                 [
                     html.Div(
                         [
-                            dbc.Spinner(color="primary", spinner_style={"width": "3rem", "height": "3rem"}),
+                            dbc.Spinner(spinner_class_name="text-primary-custom", spinner_style={"width": "3rem", "height": "3rem"}),
                             html.H5("Otimizando alocação...", className="mt-4"),
                             html.P("Isso pode levar alguns minutos. Por favor, aguarde.", className="text-muted text-center mt-2"),
-                            dbc.Button("Interromper Modelo", id="btn-cancel-model", color="danger", className="mt-4 w-50", disabled=True)
+                            dbc.Button("Interromper Modelo", id="btn-cancel-model", className="btn-danger-custom mt-4 w-50", disabled=True)
                         ],
                         className="d-flex flex-column align-items-center justify-content-center p-5"
                     )

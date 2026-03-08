@@ -140,13 +140,12 @@ def get_tab_results_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                     html.Div(className="d-flex justify-content-end mt-3", children=[
                         dbc.Button(
                             [html.I(className="bi bi-download me-2"), "Baixar Relatório Completo (.xlsx)"],
                             id='btn-download-results',
-                            color="success",
                             className="btn-success-custom"
                         ),
                         dcc.Download(id="download-results-xlsx")
@@ -171,7 +170,7 @@ def get_tab_results_layout():
                         placement="right"
                     ),
                     html.Div(
-                        dbc.Button("Ver Todas as Rotas", id="btn-show-all-routes", size="sm", color="secondary", outline=True, className="ms-3"),
+                        dbc.Button("Ver Todas as Rotas", id="btn-show-all-routes", size="sm", className="btn-outline-secondary-custom ms-3"),
                         className="ms-auto"
                     )
                 ], className="d-flex align-items-center w-100"),
@@ -200,7 +199,7 @@ def get_tab_results_layout():
                                     },
                                     style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
                                 ),
-                                color="primary"
+                                spinner_class_name="text-primary-custom"
                             ),
                             width=12, lg=8, className="mb-3"
                         ),
@@ -235,8 +234,8 @@ def get_tab_results_layout():
             ),
             dbc.ModalFooter(
                 [
-                    dbc.Button("Cancelar", id="btn-cancel-all-routes", className="me-2", n_clicks=0),
-                    dbc.Button("Sim, carregar todas as rotas", id="btn-confirm-all-routes", color="danger", n_clicks=0),
+                    dbc.Button("Cancelar", id="btn-cancel-all-routes", className="btn-secondary-custom me-2", n_clicks=0),
+                    dbc.Button("Sim, carregar todas as rotas", id="btn-confirm-all-routes", className="btn-danger-custom", n_clicks=0),
                 ]
             ),
         ],
