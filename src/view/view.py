@@ -53,29 +53,42 @@ except Exception as e:
     CITY_LOOKUP = {}
 
 
-def flex_read_csv(file_obj, **kwargs):
+def flex_read_csv(file_bytes, **kwargs):
     """
-    Tries to read a CSV file using utf-8 then iso-8859-1.
-    Tries to infer separator automatically using engine='python'.
+    Tries to read a CSV file explicitly testing delimiters and encodings.
+    Uses bytes to avoid preliminary decode errors.
     """
-    try:
-        # First attempt: UTF-8 with separator inference
-        file_obj.seek(0)
-        return pd.read_csv(file_obj, sep=None, engine='python', encoding='utf-8', **kwargs)
-    except Exception:
-        try:
-            # Second attempt: ISO-8859-1 with separator inference
-            file_obj.seek(0)
-            return pd.read_csv(file_obj, sep=None, engine='python', encoding='iso-8859-1', **kwargs)
-        except Exception:
+    delimiters = [';', ',', '\t']
+    encodings = ['utf-8-sig', 'utf-8', 'iso-8859-1', 'cp1252']
+
+    last_error = None
+    for sep in delimiters:
+        for enc in encodings:
             try:
-                # Third attempt: force standard pandas default (comma)
-                file_obj.seek(0)
-                return pd.read_csv(file_obj, encoding='utf-8', **kwargs)
-            except Exception:
-                # Last resort: iso-8859-1 with comma
-                file_obj.seek(0)
-                return pd.read_csv(file_obj, encoding='iso-8859-1', **kwargs)
+                # Reset file pointer for each attempt
+                file_bytes.seek(0)
+
+                # We skip pandas engine='python' separator inference because it fails on 1-column CSVs
+                df = pd.read_csv(file_bytes, sep=sep, encoding=enc, **kwargs)
+
+                # If we read it successfully but it parsed as a single column and there are other
+                # commas/semicolons in the column name, it might be the wrong separator.
+                # However, for 1-column expected files, we need to be careful.
+                # Just return the first successful read that parses at least some data.
+                if len(df.columns) == 1 and sep != delimiters[-1]:
+                    # Check if the single column header contains another delimiter
+                    col_name = str(df.columns[0])
+                    other_delims = [d for d in delimiters if d != sep]
+                    if any(d in col_name for d in other_delims):
+                        # Likely wrong separator, continue trying
+                        continue
+
+                return df
+            except Exception as e:
+                last_error = e
+                continue
+
+    raise ValueError(f"Failed to read CSV with all combinations. Last error: {last_error}")
 
 
 def get_conab_txt_data():
@@ -1219,13 +1232,8 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             if filename.endswith('.xlsx'):
                 df = pd.read_excel(io.BytesIO(decoded))
             elif filename.endswith('.csv'):
-                # Try UTF-8 first
-                try:
-                    decoded_str = decoded.decode('utf-8')
-                except UnicodeDecodeError:
-                    decoded_str = decoded.decode('iso-8859-1')
-                file_obj = io.StringIO(decoded_str)
-                df = flex_read_csv(file_obj)
+                file_bytes = io.BytesIO(decoded)
+                df = flex_read_csv(file_bytes)
             else:
                 return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv)."
 
@@ -1599,12 +1607,8 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 df = pd.read_excel(io.BytesIO(decoded))
             elif dropdown_value in ['personalizada', 'cadastrados']:
                 # Personalizada e Cadastrados CSV: flexível
-                try:
-                    decoded_str = decoded.decode('utf-8')
-                except UnicodeDecodeError:
-                    decoded_str = decoded.decode('iso-8859-1')
-                file_obj = io.StringIO(decoded_str)
-                df = flex_read_csv(file_obj)
+                file_bytes = io.BytesIO(decoded)
+                df = flex_read_csv(file_bytes)
 
                 # Drop the last column if it's completely empty (result of trailing delimiter)
                 if not df.empty:
@@ -2244,13 +2248,8 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            try:
-                decoded_str = decoded.decode('utf-8')
-            except UnicodeDecodeError:
-                decoded_str = decoded.decode('iso-8859-1')
-
-            file_obj = io.StringIO(decoded_str)
-            df = flex_read_csv(file_obj)
+            file_bytes = io.BytesIO(decoded)
+            df = flex_read_csv(file_bytes)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
@@ -2374,13 +2373,8 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            try:
-                decoded_str = decoded.decode('utf-8')
-            except UnicodeDecodeError:
-                decoded_str = decoded.decode('iso-8859-1')
-
-            file_obj = io.StringIO(decoded_str)
-            df = flex_read_csv(file_obj)
+            file_bytes = io.BytesIO(decoded)
+            df = flex_read_csv(file_bytes)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
