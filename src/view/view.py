@@ -414,7 +414,7 @@ def get_tab1_layout():
                     html.P("Baixe a planilha com os novos dados adicionados.", className="text-muted small mb-16"),
                      html.Div(className="d-grid", children=[
                         dbc.Button(
-                            "Baixar Planilha Editada",
+                            "Baixar Planilha (.xlsx)",
                             id='btn-download',
                             className="btn-success-custom"
                         ),
@@ -639,7 +639,7 @@ def get_tab_armazens_layout():
                             html.Div(
                                 id="download-example-container",
                                 children=[
-                                    dbc.Button("Baixar Exemplo", id="btn-download-example", color="secondary", outline=True, className="w-100 mt-2"),
+                                    dbc.Button("Baixar Planilha Exemplo (.xlsx)", id="btn-download-example", color="secondary", outline=True, className="w-100 mt-2"),
                                     dcc.Download(id="download-example-personalizada")
                                 ],
                                 style={"display": "none"}

@@ -42,7 +42,7 @@ def get_tab_costs_layout():
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar Planilha", id="btn-download-storage", color="success", className="w-100 mb-2"),
+                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-storage", color="success", className="w-100 mb-2"),
                                     dcc.Download(id="download-storage-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
@@ -138,7 +138,7 @@ def get_tab_costs_layout():
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar Planilha", id="btn-download-freight", color="success", className="w-100 mb-2"),
+                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-freight", color="success", className="w-100 mb-2"),
                                     dcc.Download(id="download-freight-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
