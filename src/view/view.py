@@ -53,6 +53,31 @@ except Exception as e:
     CITY_LOOKUP = {}
 
 
+def flex_read_csv(file_obj, **kwargs):
+    """
+    Tries to read a CSV file using utf-8 then iso-8859-1.
+    Tries to infer separator automatically using engine='python'.
+    """
+    try:
+        # First attempt: UTF-8 with separator inference
+        file_obj.seek(0)
+        return pd.read_csv(file_obj, sep=None, engine='python', encoding='utf-8', **kwargs)
+    except Exception:
+        try:
+            # Second attempt: ISO-8859-1 with separator inference
+            file_obj.seek(0)
+            return pd.read_csv(file_obj, sep=None, engine='python', encoding='iso-8859-1', **kwargs)
+        except Exception:
+            try:
+                # Third attempt: force standard pandas default (comma)
+                file_obj.seek(0)
+                return pd.read_csv(file_obj, encoding='utf-8', **kwargs)
+            except Exception:
+                # Last resort: iso-8859-1 with comma
+                file_obj.seek(0)
+                return pd.read_csv(file_obj, encoding='iso-8859-1', **kwargs)
+
+
 def get_conab_txt_data():
     """Fetches the Conab TXT file, saves it locally, and returns a DataFrame.
     If the fetch fails, it falls back to the locally saved version."""
@@ -1194,7 +1219,13 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             if filename.endswith('.xlsx'):
                 df = pd.read_excel(io.BytesIO(decoded))
             elif filename.endswith('.csv'):
-                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+                # Try UTF-8 first
+                try:
+                    decoded_str = decoded.decode('utf-8')
+                except UnicodeDecodeError:
+                    decoded_str = decoded.decode('iso-8859-1')
+                file_obj = io.StringIO(decoded_str)
+                df = flex_read_csv(file_obj)
             else:
                 return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv)."
 
@@ -1566,8 +1597,22 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
         try:
             if dropdown_value == 'personalizada' and ('spreadsheetml' in content_type or upload_filename.endswith('.xlsx')):
                 df = pd.read_excel(io.BytesIO(decoded))
+            elif dropdown_value in ['personalizada', 'cadastrados']:
+                # Personalizada e Cadastrados CSV: flexível
+                try:
+                    decoded_str = decoded.decode('utf-8')
+                except UnicodeDecodeError:
+                    decoded_str = decoded.decode('iso-8859-1')
+                file_obj = io.StringIO(decoded_str)
+                df = flex_read_csv(file_obj)
+
+                # Drop the last column if it's completely empty (result of trailing delimiter)
+                if not df.empty:
+                    df = df.dropna(axis=1, how='all')
+                    if not df.empty and "Unnamed" in str(df.columns[-1]):
+                         df = df.iloc[:, :-1]
             else:
-                # Conab CSV Parsing Rules:
+                # Conab CSV Parsing Rules (Credenciados):
                 # 1. Encoding: iso-8859-1
                 # 2. Separator: ;
                 # 3. Skip Rows: 1 (Header is on line 2, index 1)
@@ -1585,12 +1630,8 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 )
 
                 # Drop the last column if it's completely empty (result of trailing delimiter)
-                # The last column is usually 'Unnamed: X' due to the trailing delimiter
                 if not df.empty:
-                    # Drop columns that are entirely null (fixes trailing delimiter issue)
                     df = df.dropna(axis=1, how='all')
-
-                    # Also drop if the last column is explicitly unnamed (fallback)
                     if not df.empty and "Unnamed" in str(df.columns[-1]):
                          df = df.iloc[:, :-1]
 
@@ -1681,33 +1722,37 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
                         df[col] = df[col].apply(lambda x: fix_coord(x, col == 'Latitude'))
 
-                # Fetch external data and match CDA
-                df_conab = get_conab_txt_data()
                 missing_cdas = []
+                # Fetch external data and match CDA ONLY if dropdown_value is 'credenciados'
+                if dropdown_value == 'credenciados':
+                    df_conab = get_conab_txt_data()
+                    if not df_conab.empty and 'CDA' in df.columns:
+                        # Clean columns for matching
+                        df_conab['identificacao_armazem'] = df_conab['identificacao_armazem'].astype(str).str.strip().str.upper()
+                        df['CDA_temp'] = df['CDA'].astype(str).str.strip().str.upper()
 
-                if not df_conab.empty and 'CDA' in df.columns:
-                    # Clean columns for matching
-                    df_conab['identificacao_armazem'] = df_conab['identificacao_armazem'].astype(str).str.strip().str.upper()
-                    df['CDA_temp'] = df['CDA'].astype(str).str.strip().str.upper()
+                        # Merge data
+                        df = pd.merge(df, df_conab[['identificacao_armazem', 'qtd_capacidade_recepcao(t)']],
+                                      left_on='CDA_temp', right_on='identificacao_armazem', how='left')
 
-                    # Merge data
-                    df = pd.merge(df, df_conab[['identificacao_armazem', 'qtd_capacidade_recepcao(t)']],
-                                  left_on='CDA_temp', right_on='identificacao_armazem', how='left')
+                        # Fill 'Capacidade de Recepção' and identify missing
+                        missing_mask = df['qtd_capacidade_recepcao(t)'].isna()
+                        missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
 
-                    # Fill 'Capacidade de Recepção' and identify missing
-                    missing_mask = df['qtd_capacidade_recepcao(t)'].isna()
-                    missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
+                        # If column already exists (maybe in future CSVs), update it, otherwise create it
+                        df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0).infer_objects(copy=False)
 
-                    # If column already exists (maybe in future CSVs), update it, otherwise create it
-                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0).infer_objects(copy=False)
-
-                    # Cleanup
-                    df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
+                        # Cleanup
+                        df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
+                    else:
+                        # Fallback if the data fetch failed or 'CDA' column missing
+                        df['Capacidade de Recepção'] = 0
+                        if 'CDA' in df.columns:
+                            missing_cdas = df['CDA'].tolist()
                 else:
-                    # Fallback if the data fetch failed or 'CDA' column missing
-                    df['Capacidade de Recepção'] = 0
-                    if 'CDA' in df.columns:
-                        missing_cdas = df['CDA'].tolist()
+                    # For personalizada and cadastrados, just ensure the column exists
+                    if 'Capacidade de Recepção' not in df.columns:
+                        df['Capacidade de Recepção'] = 0
 
                 # Setup modal properties for missing CDAs
                 modal_is_open = False
@@ -2199,7 +2244,13 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
+            try:
+                decoded_str = decoded.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded_str = decoded.decode('iso-8859-1')
+
+            file_obj = io.StringIO(decoded_str)
+            df = flex_read_csv(file_obj)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
@@ -2323,7 +2374,13 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
+            try:
+                decoded_str = decoded.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded_str = decoded.decode('iso-8859-1')
+
+            file_obj = io.StringIO(decoded_str)
+            df = flex_read_csv(file_obj)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
