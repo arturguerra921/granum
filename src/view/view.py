@@ -53,6 +53,42 @@ except Exception as e:
     CITY_LOOKUP = {}
 
 
+def flex_read_csv(file_bytes, **kwargs):
+    """
+    Tries to read a CSV file explicitly testing delimiters and encodings.
+    Uses bytes to avoid preliminary decode errors.
+    """
+    delimiters = [';', ',', '\t']
+    encodings = ['utf-8-sig', 'utf-8', 'iso-8859-1', 'cp1252']
+
+    last_error = None
+    for sep in delimiters:
+        for enc in encodings:
+            try:
+                # Reset file pointer for each attempt
+                file_bytes.seek(0)
+
+                # We skip pandas engine='python' separator inference because it fails on 1-column CSVs
+                # using on_bad_lines='skip' to avoid throwing exception on a single malformed line
+                df = pd.read_csv(file_bytes, sep=sep, encoding=enc, on_bad_lines='skip', **kwargs)
+
+                # Se o arquivo for parseado como 1 única coluna, verifique se a coluna inteira
+                # parece ser o texto de um CSV não lido (ex: col_name = "A;B;C").
+                if len(df.columns) == 1 and sep != delimiters[-1]:
+                    col_name = str(df.columns[0])
+                    other_delims = [d for d in delimiters if d != sep]
+                    if any(d in col_name for d in other_delims):
+                        # Likely wrong separator, continue trying
+                        continue
+
+                return df
+            except Exception as e:
+                last_error = e
+                continue
+
+    raise ValueError(f"Failed to read CSV with all combinations. Last error: {last_error}")
+
+
 def get_conab_txt_data():
     """Fetches the Conab TXT file, saves it locally, and returns a DataFrame.
     If the fetch fails, it falls back to the locally saved version."""
@@ -1156,6 +1192,7 @@ def toggle_manual_edit(n_clicks):
     Output('stored-data', 'data'),
     Output('error-modal', 'is_open'),
     Output('modal-body-content', 'children'),
+    Output('upload-data', 'contents'),
     [Input('upload-data', 'contents'),
      Input('btn-add-row', 'n_clicks'),
      Input('editable-table', 'data_timestamp'), # Track edits via timestamp
@@ -1175,18 +1212,18 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                  is_open, table_data):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Close Modal
     if trigger_id == 'close-modal':
-        return no_update, False, no_update
+        return no_update, False, no_update, no_update
 
     # Upload Data
     if trigger_id == 'upload-data':
         if contents is None:
-            return no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update
 
         content_type, content_string = contents.split(',')
         decoded = base64.b64decode(content_string)
@@ -1194,15 +1231,16 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             if filename.endswith('.xlsx'):
                 df = pd.read_excel(io.BytesIO(decoded))
             elif filename.endswith('.csv'):
-                df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+                file_bytes = io.BytesIO(decoded)
+                df = flex_read_csv(file_bytes)
             else:
-                return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv)."
+                return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv).", None
 
             # Validar colunas esperadas
             expected_cols = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
             # Checar se todas as colunas esperadas existem
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"Aviso: O arquivo carregado deve conter exatamente as colunas: {', '.join(expected_cols)}."
+                return no_update, True, f"Aviso: O arquivo carregado deve conter exatamente as colunas: {', '.join(expected_cols)}.", None
 
             # Garantir que apenas as colunas esperadas (na ordem correta) sejam mantidas, caso o usuário tenha colunas extras
             df = df[expected_cols]
@@ -1211,10 +1249,10 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             if "Produto" in df.columns:
                  df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
-            return df.to_json(date_format='iso', orient='split'), False, no_update
+            return df.to_json(date_format='iso', orient='split'), False, no_update, None
         except Exception as e:
             print(f"Error processing file: {e}")
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo válido."
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo válido.", None
 
     # Add Row
     if trigger_id == 'btn-add-row':
@@ -1224,7 +1262,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
              df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
         if not prod_val or not peso_val or not cidade_val:
-             return no_update, True, "Preencha Produto, Peso e Cidade para adicionar."
+             return no_update, True, "Preencha Produto, Peso e Cidade para adicionar.", no_update
 
         try:
             # Normalize Product Name (Title Case)
@@ -1240,17 +1278,17 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             }
             new_row_df = pd.DataFrame([new_row_data])
             df = pd.concat([df, new_row_df], ignore_index=True)
-            return df.to_json(date_format='iso', orient='split'), False, no_update
+            return df.to_json(date_format='iso', orient='split'), False, no_update, no_update
         except Exception as e:
             print(f"Error adding row: {e}")
-            return no_update, True, f"Erro ao adicionar linha: {str(e)}"
+            return no_update, True, f"Erro ao adicionar linha: {str(e)}", no_update
 
     # Table Edited (Manual Data Entry)
     if trigger_id == 'editable-table':
         try:
             # Reconstruct DF from table data
             if table_data is None:
-                return no_update, no_update, no_update
+                return no_update, no_update, no_update, no_update
 
             df = pd.DataFrame(table_data)
 
@@ -1259,12 +1297,12 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                  df["Produto"] = df["Produto"].fillna('').astype(str).str.title()
 
             # Ensure proper JSON structure for store
-            return df.to_json(date_format='iso', orient='split'), False, no_update
+            return df.to_json(date_format='iso', orient='split'), False, no_update, no_update
         except Exception as e:
             print(f"Error updating store from table edit: {e}")
-            return no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update
 
-    return no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update
 
 
 # 2. Store -> Render Table (Update Table Data)
@@ -1464,9 +1502,6 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
     # Load from Base
     if trigger_id == 'main-tabs' and active_tab == 'tab-armazens':
-        # Only load if store is empty to preserve session edits, or if we want to force reload?
-        # Requirement: "load automatico". If user edited and switched tabs, we should probably keep edits.
-        # But if it's the first load, we need data.
         if not stored_data:
             try:
                 # Load CSV
@@ -1566,8 +1601,18 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
         try:
             if dropdown_value == 'personalizada' and ('spreadsheetml' in content_type or upload_filename.endswith('.xlsx')):
                 df = pd.read_excel(io.BytesIO(decoded))
+            elif dropdown_value in ['personalizada', 'cadastrados']:
+                # Personalizada e Cadastrados CSV: flexível
+                file_bytes = io.BytesIO(decoded)
+                df = flex_read_csv(file_bytes)
+
+                # Drop the last column if it's completely empty (result of trailing delimiter)
+                if not df.empty:
+                    df = df.dropna(axis=1, how='all')
+                    if not df.empty and "Unnamed" in str(df.columns[-1]):
+                         df = df.iloc[:, :-1]
             else:
-                # Conab CSV Parsing Rules:
+                # Conab CSV Parsing Rules (Credenciados):
                 # 1. Encoding: iso-8859-1
                 # 2. Separator: ;
                 # 3. Skip Rows: 1 (Header is on line 2, index 1)
@@ -1585,12 +1630,8 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 )
 
                 # Drop the last column if it's completely empty (result of trailing delimiter)
-                # The last column is usually 'Unnamed: X' due to the trailing delimiter
                 if not df.empty:
-                    # Drop columns that are entirely null (fixes trailing delimiter issue)
                     df = df.dropna(axis=1, how='all')
-
-                    # Also drop if the last column is explicitly unnamed (fallback)
                     if not df.empty and "Unnamed" in str(df.columns[-1]):
                          df = df.iloc[:, :-1]
 
@@ -1600,6 +1641,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     import unicodedata
 
                     def normalize_string(s):
+                            # Ensure we don't crash on NaN or float column names somehow
                         return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').strip().lower()
 
                     expected_cols = ['CDA', 'Armazenador', 'Endereço', 'Município', 'UF', 'Tipo', 'Email', 'Capacidade (t)', 'Latitude', 'Longitude', 'Estoque Inicial', 'Capacidade de Recepção']
@@ -1624,7 +1666,9 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                             html.Span(f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}."),
                             html.Br(),
                             html.Br(),
-                            html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold")
+                                html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold"),
+                                html.Br(),
+                                html.Span(f"As colunas lidas no seu arquivo foram: {', '.join([str(c) for c in rename_mapping.keys()])}", className="text-muted small")
                         ])
                         return no_update, True, error_msg, no_update, False, no_update, None
 
@@ -1681,33 +1725,37 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
                         df[col] = df[col].apply(lambda x: fix_coord(x, col == 'Latitude'))
 
-                # Fetch external data and match CDA
-                df_conab = get_conab_txt_data()
                 missing_cdas = []
+                # Fetch external data and match CDA ONLY if dropdown_value is 'credenciados'
+                if dropdown_value == 'credenciados':
+                    df_conab = get_conab_txt_data()
+                    if not df_conab.empty and 'CDA' in df.columns:
+                        # Clean columns for matching
+                        df_conab['identificacao_armazem'] = df_conab['identificacao_armazem'].astype(str).str.strip().str.upper()
+                        df['CDA_temp'] = df['CDA'].astype(str).str.strip().str.upper()
 
-                if not df_conab.empty and 'CDA' in df.columns:
-                    # Clean columns for matching
-                    df_conab['identificacao_armazem'] = df_conab['identificacao_armazem'].astype(str).str.strip().str.upper()
-                    df['CDA_temp'] = df['CDA'].astype(str).str.strip().str.upper()
+                        # Merge data
+                        df = pd.merge(df, df_conab[['identificacao_armazem', 'qtd_capacidade_recepcao(t)']],
+                                      left_on='CDA_temp', right_on='identificacao_armazem', how='left')
 
-                    # Merge data
-                    df = pd.merge(df, df_conab[['identificacao_armazem', 'qtd_capacidade_recepcao(t)']],
-                                  left_on='CDA_temp', right_on='identificacao_armazem', how='left')
+                        # Fill 'Capacidade de Recepção' and identify missing
+                        missing_mask = df['qtd_capacidade_recepcao(t)'].isna()
+                        missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
 
-                    # Fill 'Capacidade de Recepção' and identify missing
-                    missing_mask = df['qtd_capacidade_recepcao(t)'].isna()
-                    missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
+                        # If column already exists (maybe in future CSVs), update it, otherwise create it
+                        df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0).infer_objects(copy=False)
 
-                    # If column already exists (maybe in future CSVs), update it, otherwise create it
-                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0).infer_objects(copy=False)
-
-                    # Cleanup
-                    df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
+                        # Cleanup
+                        df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
+                    else:
+                        # Fallback if the data fetch failed or 'CDA' column missing
+                        df['Capacidade de Recepção'] = 0
+                        if 'CDA' in df.columns:
+                            missing_cdas = df['CDA'].tolist()
                 else:
-                    # Fallback if the data fetch failed or 'CDA' column missing
-                    df['Capacidade de Recepção'] = 0
-                    if 'CDA' in df.columns:
-                        missing_cdas = df['CDA'].tolist()
+                    # For personalizada and cadastrados, just ensure the column exists
+                    if 'Capacidade de Recepção' not in df.columns:
+                        df['Capacidade de Recepção'] = 0
 
                 # Setup modal properties for missing CDAs
                 modal_is_open = False
@@ -2162,11 +2210,11 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
 
 # --- Costs Callbacks ---
 
-# Storage Cost Data Logic
 @app.callback(
     Output('store-costs-storage', 'data'),
     Output('error-modal', 'is_open', allow_duplicate=True),
     Output('modal-body-content', 'children', allow_duplicate=True),
+    Output('upload-storage-csv', 'contents'),
     [Input('main-tabs', 'active_tab'),
      Input('upload-storage-csv', 'contents'),
      Input('btn-add-storage-row', 'n_clicks'),
@@ -2179,7 +2227,7 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
 def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -2188,18 +2236,19 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         if not stored_data:
             try:
                 df = pd.read_csv(STORAGE_COSTS_PATH, sep=';', encoding='iso-8859-1')
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading storage costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Tarifas de Armazenagem."
-        return no_update, no_update, no_update
+                return no_update, True, "Erro ao carregar a tabela de Tarifas de Armazenagem.", no_update
+        return no_update, no_update, no_update, no_update
 
     # Upload
     if trigger_id == 'upload-storage-csv' and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
+            file_bytes = io.BytesIO(decoded)
+            df = flex_read_csv(file_bytes)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
@@ -2210,7 +2259,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O CSV de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}."
+                return no_update, True, f"O CSV de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2236,9 +2285,32 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 
             # Save to disk
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;)."
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;).", None
+
+    # Add Row
+    if trigger_id == 'btn-add-storage-row':
+        if stored_data:
+            df = pd.read_json(io.StringIO(stored_data), orient='split')
+        else:
+            df = pd.DataFrame(columns=['Produto', 'Armazenar_Publico', 'Armazenar_Privado'])
+
+        new_row = pd.DataFrame([{'Produto': '', 'Armazenar_Publico': 0, 'Armazenar_Privado': 0}])
+        df = pd.concat([df, new_row], ignore_index=True)
+        # Save to disk
+        df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+        return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+
+    # Edit Table
+    if trigger_id == 'table-costs-storage':
+        if table_data is not None:
+            df = pd.DataFrame(table_data)
+            # Save to disk
+            df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
+
+    return no_update, no_update, no_update, no_update
 
     # Add Row
     if trigger_id == 'btn-add-storage-row':
@@ -2291,6 +2363,7 @@ def download_storage(n_clicks, stored_data):
     Output('store-costs-freight', 'data'),
     Output('error-modal', 'is_open', allow_duplicate=True),
     Output('modal-body-content', 'children', allow_duplicate=True),
+    Output('upload-freight-csv', 'contents'),
     [Input('main-tabs', 'active_tab'),
      Input('upload-freight-csv', 'contents'),
      Input('btn-add-freight-row', 'n_clicks'),
@@ -2303,7 +2376,7 @@ def download_storage(n_clicks, stored_data):
 def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return no_update, no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -2312,18 +2385,19 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         if not stored_data:
             try:
                 df = pd.read_csv(FREIGHT_COSTS_PATH, sep=';', encoding='iso-8859-1')
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading freight costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Valor do Frete."
-        return no_update, no_update, no_update
+                return no_update, True, "Erro ao carregar a tabela de Valor do Frete.", no_update
+        return no_update, no_update, no_update, no_update
 
     # Upload
     if trigger_id == 'upload-freight-csv' and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
         try:
-            df = pd.read_csv(io.StringIO(decoded.decode('iso-8859-1')), sep=';')
+            file_bytes = io.BytesIO(decoded)
+            df = flex_read_csv(file_bytes)
 
             # Normalize and clean columns to prevent trailing delimiter issues
             df = df.dropna(axis=1, how='all')
@@ -2334,16 +2408,16 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Estado', 'Frete Tonelada Km']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O CSV de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}."
+                return no_update, True, f"O CSV de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
 
             # Save to disk
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;)."
+            return no_update, True, "Erro ao processar o arquivo. Verifique se é um CSV válido separado por ponto e vírgula (;).", None
 
     # Add Row
     if trigger_id == 'btn-add-freight-row':
@@ -2356,7 +2430,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
         df = pd.concat([df, new_row], ignore_index=True)
         # Save to disk
         df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
-        return df.to_json(date_format='iso', orient='split'), no_update, no_update
+        return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
 
     # Edit Table
     if trigger_id == 'table-costs-freight':
@@ -2364,9 +2438,9 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df = pd.DataFrame(table_data)
             # Save to disk
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
 
-    return no_update, no_update, no_update
+    return no_update, no_update, no_update, no_update
 
 @app.callback(
     Output('table-costs-freight', 'data'),
