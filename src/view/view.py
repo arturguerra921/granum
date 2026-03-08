@@ -612,7 +612,7 @@ def get_tab_armazens_layout():
                             html.Div(
                                 id="fetch-cadastrados-container",
                                 children=[
-                                    dbc.Button("Baixar Dados do Conab", id="btn-fetch-cadastrados", color="primary", className="w-100 mt-2")
+                                    dbc.Button("Baixar Dados da Conab", id="btn-fetch-cadastrados", color="primary", className="w-100 mt-2")
                                 ],
                                 style={"display": "none"}
                             )
@@ -1919,8 +1919,8 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
     if dropdown_value == 'cadastrados':
         title = "Como Atualizar a Base (Armazéns Cadastrados)"
         body = [
-            html.P("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este modal e clicar no botão 'Baixar Dados do Conab'."),
-            html.P("O sistema buscará automaticamente as informações mais recentes do site oficial do Conab e substituirá a base atual."),
+            html.P("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este pop-up e clicar no botão 'Baixar Dados da Conab'."),
+            html.P("O sistema buscará automaticamente as informações mais recentes do site oficial da Conab e substituirá a base atual."),
             html.Ul([
                 html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
             ])

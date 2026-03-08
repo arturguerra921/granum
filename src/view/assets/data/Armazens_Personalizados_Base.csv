@@ -1,2 +1,3 @@
 Base Personalizada
-CDA;Armazenador;Endere\xe7o;Munic\xedpio;UF;Tipo;Email;Capacidade (t);Latitude;Longitude;Estoque Inicial;Capacidade de Recep\xe7\xe3o
+CDA;Armazenador;Endereço;Município;UF;Tipo;Email;Capacidade (t);Latitude;Longitude;Estoque Inicial;Capacidade de Recepção
+EXEMPLO-123;Nome do Armazém Exemplo;Rua Exemplo, 123;Brasília;DF;Convencional;contato@exemplo.com;10000;-15.793889;-47.882778;500;5000
