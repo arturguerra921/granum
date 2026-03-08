@@ -736,7 +736,7 @@ def get_tab_armazens_layout():
     armazens_table_card = dbc.Card(
         [
             dbc.CardHeader(
-                "Tabela de Armazéns Credenciados",
+                "Tabela de Armazéns",
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -1419,6 +1419,7 @@ def download_data(n_clicks, stored_data):
     Output('btn-save-base', 'style'), # New output for Save button visibility
     Output('modal-missing-cdas', 'is_open'),
     Output('modal-missing-cdas-body', 'children'),
+    Output('upload-update-base', 'contents'),
     [Input('main-tabs', 'active_tab'),
      Input('dropdown-base-armazens', 'value'),
      Input('upload-update-base', 'contents'),
@@ -1454,10 +1455,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update, None
              except Exception:
-                return no_update, no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update
+                return no_update, no_update, no_update, no_update, False, no_update, None
+        return no_update, no_update, no_update, no_update, False, no_update, None
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
@@ -1475,10 +1476,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update, None
             except Exception:
-                return no_update, no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update # Keep current state
+                return no_update, no_update, no_update, no_update, False, no_update, None
+        return no_update, no_update, no_update, no_update, False, no_update, None # Keep current state
 
     # Dropdown Base Changed
     if trigger_id == 'dropdown-base-armazens':
@@ -1490,16 +1491,16 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             if not df.empty and "Unnamed" in str(df.columns[-1]):
                 df = df.iloc[:, :-1]
 
-            return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "none"}, False, no_update
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "none"}, False, no_update, None
         except Exception:
-            return no_update, no_update, no_update, no_update, False, no_update
+            return no_update, no_update, no_update, no_update, False, no_update, None
 
     # Update from Upload (CSV) or fetch
     if trigger_id == 'btn-fetch-cadastrados' and dropdown_value == 'cadastrados':
         try:
             df_conab = get_conab_txt_data()
             if df_conab.empty:
-                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update
+                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update, None
 
             # Map the columns
             # identificacao_armazem to CDA
@@ -1552,11 +1553,11 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             df_new['Estoque Inicial'] = 0
             df_new['Capacidade de Recepção'] = df_conab.get('qtd_capacidade_recepcao(t)', 0)
 
-            return df_new.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, False, no_update
+            return df_new.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, False, no_update, None
 
         except Exception as e:
             print(f"Error fetching and processing cadastrados: {e}")
-            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update
+            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update, None
 
     elif trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
@@ -1619,7 +1620,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
                     missing_cols = [c for c in expected_cols if c not in df.columns]
                     if missing_cols:
-                        return no_update, True, f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}. Faltam: {', '.join(missing_cols)}", no_update, False, no_update
+                        return no_update, True, f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}. Faltam: {', '.join(missing_cols)}", no_update, False, no_update, None
 
                 if "Estoque Inicial" not in df.columns:
                     df["Estoque Inicial"] = 0
@@ -1922,6 +1923,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
         title = "Como Enviar uma Base Personalizada"
         body = [
             html.P("Você pode enviar a sua própria base de armazéns enviando um arquivo .csv ou .xlsx."),
+            html.P("Você também pode baixar um arquivo de exemplo com o formato esperado e editá-lo antes do envio."),
             html.P("O arquivo deve conter as seguintes colunas (a ordem não importa e letras maiúsculas/minúsculas ou acentos são tolerados):"),
             html.Ul([
                 html.Li("CDA"),
@@ -1937,7 +1939,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
                 html.Li("Estoque Inicial"),
                 html.Li("Capacidade de Recepção")
             ]),
-            html.P("Carregue o arquivo CSV na área que aparecerá após fechar esta janela.")
+            html.P("Carregue o arquivo na área que aparecerá após fechar esta janela.")
         ]
     else: # credenciados
         title = "Como Atualizar a Base (Armazéns Credenciados)"
@@ -1984,7 +1986,7 @@ def download_example_file(n_clicks):
         'Endereço': ['Rua Exemplo, 123'],
         'Município': ['Brasília'],
         'UF': ['DF'],
-        'Tipo': ['Armazém Convencional'],
+        'Tipo': ['Convencional'],
         'Email': ['contato@exemplo.com'],
         'Capacidade (t)': [10000],
         'Latitude': [-15.793889],
