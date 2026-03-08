@@ -25,6 +25,8 @@ try:
     MUNICIPIOS_PATH = os.path.join(DATA_DIR, 'municipios.csv')
     ESTADOS_PATH = os.path.join(DATA_DIR, 'estados.csv')
     BASE_ARMAZENS_PATH = os.path.join(DATA_DIR, 'Armazens_Credenciados_Habilitados_Base.csv')
+    BASE_CADASTRADOS_PATH = os.path.join(DATA_DIR, 'Armazens_Cadastrados_Base.csv')
+    BASE_PERSONALIZADOS_PATH = os.path.join(DATA_DIR, 'Armazens_Personalizados_Base.csv')
     STORAGE_COSTS_PATH = os.path.join(DATA_DIR, 'Tarifa_de_Armazenagem.csv')
     FREIGHT_COSTS_PATH = os.path.join(DATA_DIR, 'Valor_Tonelada_km.csv')
 
@@ -521,6 +523,41 @@ def get_tab1_layout():
 
 # 4. Tab Armazéns Content
 def get_tab_armazens_layout():
+    # Dropdown Selection
+    card_select_base = dbc.Card(
+        [
+            dbc.CardHeader(
+                html.Div([
+                    html.Span("Selecionar Base", className="me-2"),
+                    html.I(className="bi bi-question-circle-fill text-muted", id="help-select-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                    dbc.Tooltip(
+                        "Escolha a base de armazéns que deseja utilizar.",
+                        target="help-select-base",
+                        placement="right"
+                    ),
+                ], className="d-flex align-items-center"),
+                className="card-header-custom"
+            ),
+            dbc.CardBody(
+                [
+                    dcc.Dropdown(
+                        id="dropdown-armazens-base",
+                        options=[
+                            {"label": "Armazéns Credenciados (Conab)", "value": "credenciados"},
+                            {"label": "Armazéns Cadastrados (SICARM)", "value": "cadastrados"},
+                            {"label": "Base Personalizada", "value": "personalizada"}
+                        ],
+                        value="credenciados",
+                        clearable=False,
+                        className="mb-2"
+                    ),
+                ],
+                className="card-body-custom"
+            ),
+        ],
+        className="card-custom mb-24"
+    )
+
     # Card 2: Update and Save
     card_update_save = dbc.Card(
         [
@@ -549,12 +586,20 @@ def get_tab_armazens_layout():
                                     html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
                                     html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
                                     html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                    html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                    html.Div("Formatos: .csv, .xlsx", className="text-muted small mt-2")
                                 ]),
                                 className="upload-box",
                                 multiple=False,
-                                accept='.csv'
+                                accept='.csv, .xlsx'
                             )
+                        ],
+                        style={"display": "none"}
+                    ),
+
+                    html.Div(
+                        id="fetch-sicarm-container",
+                        children=[
+                            dbc.Button("Baixar dados do SICARM", id="btn-fetch-sicarm", color="primary", className="w-100 mt-2")
                         ],
                         style={"display": "none"}
                     ),
@@ -734,21 +779,7 @@ def get_tab_armazens_layout():
             dbc.ModalHeader(dbc.ModalTitle("Como Atualizar a Base"), close_button=True),
             dbc.ModalBody(
                 [
-                    html.P("Siga os passos abaixo para atualizar a base de armazéns:"),
-                    html.Ol([
-                        html.Li([
-                            "Acesse o link: ",
-                            html.A("Consulta Conab", href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
-                        ]),
-                        html.Li("Marque apenas a opção 'Armazéns Credenciados'."),
-                        html.Li("Deixe os outros campos em branco."),
-                        html.Li("Preencha o código de segurança e clique em 'Consultar'."),
-                        html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
-                        html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela."),
-                        html.Li("O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'."),
-                        html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
-                    ]),
-                    html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
+                    html.Div(id="modal-tutorial-content")
                 ]
             ),
             dbc.ModalFooter(
@@ -791,6 +822,7 @@ def get_tab_armazens_layout():
         dbc.Row(
             [
                 dbc.Col([
+                    card_select_base,
                     html.Div(card_update_save, className="flex-grow-1 h-100")
                 ], width=12, lg=3, className="mb-24 d-flex flex-column h-100"),
                 dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
@@ -1376,14 +1408,16 @@ def download_data(n_clicks, stored_data):
     Output('modal-missing-cdas', 'is_open'),
     Output('modal-missing-cdas-body', 'children'),
     [Input('main-tabs', 'active_tab'),
+     Input('dropdown-armazens-base', 'value'),
      Input('upload-update-base', 'contents'),
+     Input('btn-fetch-sicarm', 'n_clicks'),
      Input('table-armazens', 'data_timestamp')],
     [State('store-armazens', 'data'),
      State('table-armazens', 'data'),
      State('upload-update-base', 'filename')],
     prevent_initial_call=True
 )
-def manage_armazens_data(active_tab, upload_contents, timestamp,
+def manage_armazens_data(active_tab, base_type, upload_contents, n_fetch, timestamp,
                          stored_data, table_data, upload_filename):
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -1397,6 +1431,9 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
+                if 'Telefone' in df.columns:
+                    df = df.drop(columns=['Telefone'])
+
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
              except Exception:
                 return no_update, no_update, no_update, no_update, False, no_update
@@ -1404,59 +1441,135 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    # Load from Base
-    if trigger_id == 'main-tabs' and active_tab == 'tab-armazens':
-        # Only load if store is empty to preserve session edits, or if we want to force reload?
-        # Requirement: "load automatico". If user edited and switched tabs, we should probably keep edits.
-        # But if it's the first load, we need data.
-        if not stored_data:
+    # Load from Base (Switching bases or tabs)
+    if trigger_id in ('main-tabs', 'dropdown-armazens-base'):
+        # Determine path based on selection
+        if base_type == "credenciados":
+            current_path = BASE_ARMAZENS_PATH
+        elif base_type == "cadastrados":
+            current_path = BASE_CADASTRADOS_PATH
+        else:
+            current_path = BASE_PERSONALIZADOS_PATH
+
+        if os.path.exists(current_path):
             try:
                 # Load CSV
-                df = pd.read_csv(BASE_ARMAZENS_PATH, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
+                # For credenciados, skip first row since it's a title. Others might not have it, but standard is 1 header row.
+                # Actually, our save logic writes the title for credenciados.
+                skip_r = 1 if base_type == "credenciados" else 0
+
+                df = pd.read_csv(current_path, sep=';', encoding='iso-8859-1', skiprows=skip_r, index_col=False)
 
                 # Drop trailing empty column if exists
                 if not df.empty and "Unnamed" in str(df.columns[-1]):
                     df = df.iloc[:, :-1]
 
-                return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update, False, no_update
-            except Exception:
-                return no_update, no_update, no_update, no_update, False, no_update
-        return no_update, no_update, no_update, no_update, False, no_update # Keep current state
+                if 'Telefone' in df.columns:
+                    df = df.drop(columns=['Telefone'])
 
-    # Update from Upload (CSV)
+                return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "none"}, False, no_update
+            except Exception as e:
+                print(f"Error loading {current_path}: {e}")
+                if base_type == "cadastrados" or base_type == "personalizada":
+                    # Empty state
+                    empty_json = pd.DataFrame().to_json(date_format='iso', orient='split')
+                    return empty_json, no_update, no_update, {"display": "none"}, False, no_update
+                return no_update, no_update, no_update, no_update, False, no_update
+        else:
+             # If file doesn't exist, return empty dataframe structure to show empty table
+             if base_type == "cadastrados" or base_type == "personalizada":
+                 empty_json = pd.DataFrame().to_json(date_format='iso', orient='split')
+                 return empty_json, no_update, no_update, {"display": "none"}, False, no_update
+             return no_update, no_update, no_update, no_update, False, no_update
+
+    # Fetch SICARM Data
+    if trigger_id == 'btn-fetch-sicarm' and n_fetch:
+        try:
+            df_conab = get_conab_txt_data()
+            if df_conab.empty:
+                 return no_update, True, "Falha ao baixar dados do SICARM.", no_update, False, no_update
+
+            # Organize data
+            df = pd.DataFrame()
+            df['CDA'] = df_conab['identificacao_armazem']
+            df['Armazenador'] = df_conab['nome_armazenador']
+            df['Endereço'] = df_conab['endereco']
+
+            # Município and UF
+            # Treat nom_municipio (format municipio-UF)
+            def split_municipio(x):
+                if pd.isna(x):
+                    return pd.Series([np.nan, np.nan])
+                parts = str(x).rsplit('-', 1)
+                if len(parts) == 2:
+                    return pd.Series([parts[0].strip(), parts[1].strip()])
+                return pd.Series([x, np.nan])
+
+            # Apply split and assign
+            split_cols = df_conab['nom_municipio'].apply(split_municipio)
+            df['Município'] = split_cols[0]
+            df['UF'] = split_cols[1]
+
+            # Others
+            df['Tipo'] = 'Convencional' # Default
+            # Telefone is omitted
+            df['Email'] = df_conab['email']
+
+            # Convert to numeric where possible to clean up formatting
+            df['Capacidade (t)'] = pd.to_numeric(df_conab['qtd_capacidade_estatica(t)'], errors='coerce').fillna(0)
+            df['Latitude'] = pd.to_numeric(df_conab['latitude'].str.replace(',', '.'), errors='coerce')
+            df['Longitude'] = pd.to_numeric(df_conab['longitude'].str.replace(',', '.'), errors='coerce')
+            df['Estoque Inicial'] = 0
+            df['Capacidade de Recepção'] = pd.to_numeric(df_conab['qtd_capacidade_recepcao(t)'], errors='coerce').fillna(0)
+
+            # Filter rows without coordinates as they are necessary for routing
+            df = df.dropna(subset=['Latitude', 'Longitude'])
+
+            return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, False, no_update
+
+        except Exception as e:
+            print(f"Error fetching SICARM: {e}")
+            return no_update, True, f"Erro ao organizar dados do SICARM: {e}", no_update, False, no_update
+
+    # Update from Upload (CSV/XLSX)
     if trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
         decoded = base64.b64decode(content_string)
 
         try:
-            # Conab CSV Parsing Rules:
-            # 1. Encoding: iso-8859-1
-            # 2. Separator: ;
-            # 3. Skip Rows: 1 (Header is on line 2, index 1)
-            # 4. Trailing Delimiter: Drop last column
+            if upload_filename.endswith('.xlsx'):
+                df = pd.read_excel(io.BytesIO(decoded))
+            else:
+                # Conab CSV Parsing Rules:
+                decoded_str = decoded.decode('iso-8859-1')
+                # Skip rows only if it is credenciados base (has title line)
+                skip_r = 1 if base_type == "credenciados" else 0
+                df = pd.read_csv(
+                    io.StringIO(decoded_str),
+                    sep=';',
+                    encoding='iso-8859-1',
+                    skiprows=skip_r,
+                    index_col=False
+                )
 
-            # Decode using iso-8859-1
-            decoded_str = decoded.decode('iso-8859-1')
-
-            df = pd.read_csv(
-                io.StringIO(decoded_str),
-                sep=';',
-                encoding='iso-8859-1',
-                skiprows=1,
-                index_col=False
-            )
-
-            # Drop the last column if it's completely empty (result of trailing delimiter)
-            # The last column is usually 'Unnamed: X' due to the trailing delimiter
-            if not df.empty:
-                # Drop columns that are entirely null (fixes trailing delimiter issue)
-                df = df.dropna(axis=1, how='all')
-
-                # Also drop if the last column is explicitly unnamed (fallback)
-                if not df.empty and "Unnamed" in str(df.columns[-1]):
-                     df = df.iloc[:, :-1]
+                if not df.empty:
+                    # Drop columns that are entirely null (fixes trailing delimiter issue)
+                    df = df.dropna(axis=1, how='all')
+                    if not df.empty and "Unnamed" in str(df.columns[-1]):
+                         df = df.iloc[:, :-1]
 
             if df is not None:
+                if base_type == "personalizada":
+                    # Check required columns
+                    required_cols = ["CDA", "Armazenador", "Endereço", "Município", "UF", "Latitude", "Longitude"]
+                    missing_cols = [col for col in required_cols if col not in df.columns]
+                    if missing_cols:
+                        error_msg = f"O arquivo enviado não possui as colunas obrigatórias: {', '.join(missing_cols)}."
+                        return no_update, True, error_msg, no_update, False, no_update
+
+                if 'Telefone' in df.columns:
+                    df = df.drop(columns=['Telefone'])
+
                 if "Estoque Inicial" not in df.columns:
                     df["Estoque Inicial"] = 0
 
@@ -1478,13 +1591,14 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
                     missing_cdas = df.loc[missing_mask, 'CDA'].tolist()
 
                     # If column already exists (maybe in future CSVs), update it, otherwise create it
-                    df['Capacidade de Recepção'] = df['qtd_capacidade_recepcao(t)'].fillna(0)
+                    df['Capacidade de Recepção'] = pd.to_numeric(df['qtd_capacidade_recepcao(t)'], errors='coerce').fillna(0)
 
                     # Cleanup
                     df = df.drop(columns=['CDA_temp', 'identificacao_armazem', 'qtd_capacidade_recepcao(t)'])
                 else:
                     # Fallback if the data fetch failed or 'CDA' column missing
-                    df['Capacidade de Recepção'] = 0
+                    if 'Capacidade de Recepção' not in df.columns:
+                        df['Capacidade de Recepção'] = 0
                     if 'CDA' in df.columns:
                         missing_cdas = df['CDA'].tolist()
 
@@ -1515,10 +1629,19 @@ def manage_armazens_data(active_tab, upload_contents, timestamp,
              if "Estoque Inicial" not in df.columns:
                  df["Estoque Inicial"] = 0
 
+             # Determine save path based on current selection
+             if base_type == "credenciados":
+                 current_path = BASE_ARMAZENS_PATH
+             elif base_type == "cadastrados":
+                 current_path = BASE_CADASTRADOS_PATH
+             else:
+                 current_path = BASE_PERSONALIZADOS_PATH
+
              # Salvar na base (Auto-save)
              try:
-                 with open(BASE_ARMAZENS_PATH, 'w', encoding='iso-8859-1') as f:
-                     f.write("Armazéns Credenciados e Habilitados\n")
+                 with open(current_path, 'w', encoding='iso-8859-1') as f:
+                     if base_type == "credenciados":
+                         f.write("Armazéns Credenciados e Habilitados\n")
                      df.to_csv(f, sep=';', index=False, lineterminator='\n')
              except Exception as e:
                  print(f"Error auto-saving armazens table edit: {e}")
@@ -1652,24 +1775,81 @@ def close_missing_cdas_modal(n_clicks, is_open):
 @app.callback(
     Output("modal-tutorial", "is_open"),
     Output("upload-update-container", "style"),
+    Output("modal-tutorial-content", "children"),
+    Output("fetch-sicarm-container", "style"),
     [Input("btn-update-base", "n_clicks"),
-     Input("close-modal-tutorial", "n_clicks")],
+     Input("close-modal-tutorial", "n_clicks"),
+     Input("dropdown-armazens-base", "value")],
     [State("modal-tutorial", "is_open")]
 )
-def toggle_tutorial_modal(n_update, n_close, is_open):
+def toggle_tutorial_modal(n_update, n_close, base_type, is_open):
     ctx = dash.callback_context
+
+    # Build content based on selected base
+    content = []
+    show_upload = False
+    show_fetch = False
+    if base_type == "credenciados":
+        show_upload = True
+        content = [
+            html.P("Siga os passos abaixo para atualizar a base de armazéns credenciados:"),
+            html.Ol([
+                html.Li([
+                    "Acesse o link: ",
+                    html.A("Consulta Conab", href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
+                ]),
+                html.Li("Marque apenas a opção 'Armazéns Credenciados'."),
+                html.Li("Deixe os outros campos em branco."),
+                html.Li("Preencha o código de segurança e clique em 'Consultar'."),
+                html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
+                html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela."),
+                html.Li("O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'."),
+                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
+            ]),
+            html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
+        ]
+    elif base_type == "cadastrados":
+        show_fetch = True
+        content = [
+            html.P("Para atualizar a base de armazéns cadastrados (SICARM):"),
+            html.Ol([
+                html.Li("Clique no botão 'Baixar dados do SICARM' que aparecerá após fechar esta janela."),
+                html.Li("O sistema irá automaticamente buscar e processar a base de dados mais recente do portal da Conab."),
+                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente na tabela."))
+            ])
+        ]
+    else: # personalizada
+        show_upload = True
+        content = [
+            html.P("Para utilizar uma base de armazéns personalizada:"),
+            html.Ol([
+                html.Li("Envie um arquivo CSV ou XLSX na área que aparecerá após fechar esta janela."),
+                html.Li("Certifique-se de que a planilha possui as colunas obrigatórias compatíveis com a estrutura do aplicativo (ex: CDA, Armazenador, Endereço, Município, UF, Latitude, Longitude, etc.)."),
+                html.Li("A coluna 'Telefone' será automaticamente ignorada se existir."),
+                html.Li("Se a coluna 'Estoque Inicial' ou 'Capacidade de Recepção' estiver ausente, elas serão criadas e preenchidas com 0.")
+            ])
+        ]
+
     if not ctx.triggered:
-        return is_open, {"display": "none"}
+        return is_open, {"display": "none"}, content, {"display": "none"}
 
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    upload_style = {"display": "block"} if show_upload else {"display": "none"}
+    fetch_style = {"display": "block"} if show_fetch else {"display": "none"}
+
     if trigger_id == "btn-update-base":
-        return True, {"display": "block"} # Open modal, SHOW upload
+        return True, upload_style, content, fetch_style # Open modal, SHOW respective controls
 
     if trigger_id == "close-modal-tutorial":
-        return False, {"display": "block"} # Close modal, keep upload shown
+        return False, upload_style, content, fetch_style # Close modal, keep controls shown
 
-    return is_open, {"display": "none"}
+    if trigger_id == "dropdown-armazens-base":
+        # If dropdown changed, keep the modal state as is, but hide the upload/fetch controls
+        # because the user hasn't clicked "Atualizar a Base" yet for the new base
+        return is_open, {"display": "none"}, content, {"display": "none"}
+
+    return is_open, {"display": "none"}, content, {"display": "none"}
 
 # 9. Validation for Tab Prod x Armazens
 @app.callback(
