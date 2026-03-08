@@ -190,11 +190,3 @@ class OSRMClient:
         except requests.RequestException as e:
             print(f"Route request failed: {e}")
             return self._fallback_route(origin, destination)
-
-# Example usage (commented out)
-# if __name__ == "__main__":
-#     client = OSRMClient()
-#     origins = [(-15.7942, -47.8822), (-16.6869, -49.2648)] # Brasilia, Goiania
-#     destinations = [(-23.5505, -46.6333)] # Sao Paulo
-#     dist_matrix = client.get_distance_matrix(origins, destinations)
-#     print(dist_matrix)
