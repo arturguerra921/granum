@@ -21,7 +21,7 @@ def get_tab_distance_matrix_layout():
             dbc.CardBody(
                 [
                     html.P("Clique no botão abaixo para iniciar o cálculo. Isso pode levar alguns segundos dependendo da quantidade de dados.", className="text-muted small mb-3"),
-                    dbc.Button("Calcular Matriz", id="btn-calc-matrix", className="btn-primary-custom w-100 mb-2"),
+                    dbc.Button("Calcular Matriz", id="btn-calc-matrix", color="none", className="btn-primary-custom w-100 mb-2"),
                     html.Div(id="calc-status-message", className="text-center small mt-2")
                 ],
                 className="card-body-custom"
@@ -41,7 +41,7 @@ def get_tab_distance_matrix_layout():
             ),
             dbc.CardBody(
                 [
-                     dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-matrix", className="btn-success-custom w-100", disabled=True),
+                     dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-matrix", color="none", className="btn-success-custom w-100", disabled=True),
                      dcc.Download(id="download-matrix-xlsx")
                 ],
                 className="card-body-custom"

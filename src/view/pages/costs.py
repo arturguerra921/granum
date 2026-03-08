@@ -29,7 +29,7 @@ def get_tab_costs_layout():
                         [
                             dbc.Col(
                                 [
-                                    dbc.Button("Adicionar Linha", id="btn-add-storage-row", className="btn-primary-custom w-100 mb-2"),
+                                    dbc.Button("Adicionar Linha", id="btn-add-storage-row", color="none", className="btn-primary-custom w-100 mb-2"),
                                     dcc.Upload(
                                         id='upload-storage-csv',
                                         children=html.Div([
@@ -42,7 +42,7 @@ def get_tab_costs_layout():
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-storage", className="btn-success-custom w-100 mb-2"),
+                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-storage", color="none", className="btn-success-custom w-100 mb-2"),
                                     dcc.Download(id="download-storage-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
@@ -125,7 +125,7 @@ def get_tab_costs_layout():
                         [
                             dbc.Col(
                                 [
-                                    dbc.Button("Adicionar Linha", id="btn-add-freight-row", className="btn-primary-custom w-100 mb-2"),
+                                    dbc.Button("Adicionar Linha", id="btn-add-freight-row", color="none", className="btn-primary-custom w-100 mb-2"),
                                     dcc.Upload(
                                         id='upload-freight-csv',
                                         children=html.Div([
@@ -138,7 +138,7 @@ def get_tab_costs_layout():
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-freight", className="btn-success-custom w-100 mb-2"),
+                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-freight", color="none", className="btn-success-custom w-100 mb-2"),
                                     dcc.Download(id="download-freight-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"

@@ -343,3 +343,29 @@ small, .small {
 .text-primary-custom {
     color: #003366 !important; /* UNB_BLUE */
 }
+
+/* Custom Switch for Configuração do Modelo */
+.custom-switch .form-check-input:checked {
+    background-color: #003366 !important; /* UNB_BLUE */
+    border-color: #003366 !important;
+}
+
+.custom-switch .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(0, 51, 102, 0.25) !important;
+    border-color: #003366 !important;
+}
+
+/* Custom Backgrounds */
+.bg-primary-custom {
+    background-color: #003366 !important; /* UNB_BLUE */
+    color: #FFFFFF !important;
+}
+
+/* Fix for buttons with color="none" */
+.btn-none {
+    background-color: transparent;
+    border: none;
+}
+.btn-light-custom {
+    color: #212529 !important; /* Dark text for contrast */
+}
