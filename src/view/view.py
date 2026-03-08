@@ -1512,19 +1512,31 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
             # Split Municipio and UF
             if 'nom_municipio' in df_conab.columns:
-                split_mun = df_conab['nom_municipio'].str.split(' - ', expand=True)
+                # Based on raw data: "CRUZEIRO DO SUL-AC                                "
+                # The separator is "-" and it can have trailing spaces
+                split_mun = df_conab['nom_municipio'].astype(str).str.strip().str.rsplit('-', n=1, expand=True)
                 if split_mun.shape[1] >= 2:
-                    df_new['Município'] = split_mun[0]
-                    df_new['UF'] = split_mun[1]
+                    df_new['Município'] = split_mun[0].str.strip()
+                    df_new['UF'] = split_mun[1].str.strip()
                 else:
-                    df_new['Município'] = df_conab['nom_municipio']
+                    df_new['Município'] = df_conab['nom_municipio'].astype(str).str.strip()
                     df_new['UF'] = ""
             else:
                 df_new['Município'] = ""
                 df_new['UF'] = ""
 
+            # Use UF column if it exists in the Conab data to be safer
+            if 'uf' in df_conab.columns:
+                # override any potential issue from split
+                df_new['UF'] = df_conab['uf'].astype(str).str.strip()
+
             df_new['Tipo'] = "Não Informado" # The txt doesn't seem to have "Tipo", fallback
-            df_new['Email'] = df_conab.get('email', '')
+            # email column might be uppercase or lowercase, let's use a safe check
+            email_col = next((c for c in df_conab.columns if 'email' in str(c).lower()), None)
+            if email_col:
+                df_new['Email'] = df_conab[email_col].fillna('')
+            else:
+                df_new['Email'] = ''
             df_new['Capacidade (t)'] = df_conab.get('qtd_capacidade_estatica(t)', 0)
             df_new['Latitude'] = df_conab.get('latitude', '')
             df_new['Longitude'] = df_conab.get('longitude', '')
@@ -1822,7 +1834,9 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
         body = [
             html.P("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este modal e clicar no botão 'Baixar Dados do Conab'."),
             html.P("O sistema buscará automaticamente as informações mais recentes do site oficial do Conab e substituirá a base atual."),
-            html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
+            html.Ul([
+                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
+            ])
         ]
     elif dropdown_value == 'personalizada':
         title = "Como Enviar uma Base Personalizada"
