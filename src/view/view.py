@@ -866,6 +866,18 @@ def get_tab_armazens_layout():
         is_open=False,
     )
 
+    lentidao_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Aviso de Desempenho"), close_button=True),
+            dbc.ModalBody("Esta base possui mais de 1000 armazéns e isso pode causar lentidões na sua utilização."),
+            dbc.ModalFooter(
+                dbc.Button("Entendi", id="close-lentidao-modal", className="ms-auto", n_clicks=0)
+            ),
+        ],
+        id="modal-lentidao-armazens",
+        is_open=False,
+    )
+
     return html.Div([
         dbc.Row(
             [
@@ -878,7 +890,8 @@ def get_tab_armazens_layout():
         ),
         tutorial_modal,
         confirm_save_modal,
-        missing_cdas_modal
+        missing_cdas_modal,
+        lentidao_modal
     ])
 
 # 5. Tab Produto e Armazéns Content
@@ -1519,7 +1532,12 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     # Dropdown Base Changed
     if trigger_id == 'dropdown-base-armazens':
         try:
-            # Load CSV for the selected base
+            # Ao trocar de base, retornamos dados vazios primeiro se preferível, mas o store-armazens já sobrescreve.
+            # O problema principal de lentidão é manter os dados antigos no layout da tabela enquanto novos dados carregam,
+            # ou renderizar muitos nós repetidas vezes.
+            # O retorno no callback 'update_armazens_table_view' reconstrói a UI. Para evitar que os dados da
+            # aba 3 (Matrizes) acumulem, não precisamos mexer neles até que seja acionada a atualização.
+            # Apenas garantimos que o Store será resetado com a nova base.
             df = pd.read_csv(current_path, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
 
             # Drop trailing empty column if exists
@@ -1575,7 +1593,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                 # override any potential issue from split
                 df_new['UF'] = df_conab['uf'].astype(str).str.strip()
 
-            df_new['Tipo'] = "Não Informado" # The txt doesn't seem to have "Tipo", fallback
+            if 'dsc_tipo_armazem' in df_conab.columns:
+                df_new['Tipo'] = df_conab['dsc_tipo_armazem'].fillna("Não Informado")
+            else:
+                df_new['Tipo'] = "Não Informado"
             # email column might be uppercase or lowercase, let's use a safe check
             email_col = next((c for c in df_conab.columns if 'email' in str(c).lower()), None)
             if email_col:
@@ -1586,7 +1607,10 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             df_new['Latitude'] = df_conab.get('latitude', '')
             df_new['Longitude'] = df_conab.get('longitude', '')
             df_new['Estoque Inicial'] = 0
-            df_new['Capacidade de Recepção'] = df_conab.get('qtd_capacidade_recepcao(t)', 0)
+            if 'qtd_capacidade_recepcao(t)' in df_conab.columns:
+                df_new['Capacidade de Recepção'] = df_conab['qtd_capacidade_recepcao(t)'].fillna(0)
+            else:
+                df_new['Capacidade de Recepção'] = 0
 
             return df_new.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, False, no_update, None
 
@@ -1805,11 +1829,12 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     Output('metric-armazens-capacity', 'children'),
     Output('metric-armazens-public', 'children'),
     Output('metric-armazens-private', 'children'),
+    Output('modal-lentidao-armazens', 'is_open'),
     Input('store-armazens', 'data')
 )
 def update_armazens_table_view(stored_data):
     if not stored_data:
-        return [], [], "0", "0.00", "0", "0"
+        return [], [], "0", "0.00", "0", "0", False
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
@@ -1862,10 +1887,29 @@ def update_armazens_table_view(stored_data):
         # To ensure the column shows even if the JSON parsing somehow missed my initial addition,
         # we check the dicts too. `df.to_dict('records')` uses `df.columns` which now definitely has 'Estoque Inicial'.
 
-        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str
+        # Display performance warning if more than 1000 rows
+        # But ensure it's not the first load since we only want to warn when switching or loading large dataset
+        # To avoid overlaps with the tutorial modal, we'll only trigger lentidao
+        # when actually displaying a new base from the store.
+        is_lentidao = count > 1000
+
+        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str, is_lentidao
     except Exception as e:
         print(f"Error in update_armazens_table_view: {e}")
-        return [], [], "0", "0.00", "0", "0"
+        return [], [], "0", "0.00", "0", "0", False
+
+# 5.1. Fechar modal de lentidão
+@app.callback(
+    Output("modal-lentidao-armazens", "is_open", allow_duplicate=True),
+    Input("close-lentidao-modal", "n_clicks"),
+    State("modal-lentidao-armazens", "is_open"),
+    prevent_initial_call=True
+)
+def close_lentidao_modal(n_clicks, is_open):
+    if n_clicks:
+        return False
+    return is_open
+
 
 # 6. Save Confirmation Modal
 @app.callback(
@@ -1970,7 +2014,8 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
             html.P("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este pop-up e clicar no botão 'Baixar Dados da Conab'."),
             html.P("O sistema buscará automaticamente as informações mais recentes do site oficial da Conab e substituirá a base atual."),
             html.Ul([
-                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
+                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação.")),
+                html.Li(html.B("Atenção: Para as unidades em que a base não fornecer o valor da capacidade de recepção, este será definido automaticamente como 0."))
             ])
         ]
     elif dropdown_value == 'personalizada':
