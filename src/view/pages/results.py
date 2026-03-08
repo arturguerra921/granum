@@ -144,7 +144,7 @@ def get_tab_results_layout():
                     ),
                     html.Div(className="d-flex justify-content-end mt-3", children=[
                         dbc.Button(
-                            [html.I(className="bi bi-download me-2"), "Baixar Relatório Completo (Excel)"],
+                            [html.I(className="bi bi-download me-2"), "Baixar Relatório Completo (.xlsx)"],
                             id='btn-download-results',
                             color="success",
                             className="btn-success-custom"

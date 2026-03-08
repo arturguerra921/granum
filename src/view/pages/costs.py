@@ -36,13 +36,13 @@ def get_tab_costs_layout():
                                             html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
                                             html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
                                             html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                            html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                            html.Div("Formatos: .csv, .xlsx", className="text-muted small mt-2")
                                         ]),
                                         className="upload-box mb-3",
                                         multiple=False,
-                                        accept='.csv'
+                                        accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar CSV", id="btn-download-storage", color="success", className="w-100 mb-2"),
+                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-storage", color="success", className="w-100 mb-2"),
                                     dcc.Download(id="download-storage-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
@@ -132,13 +132,13 @@ def get_tab_costs_layout():
                                             html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
                                             html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
                                             html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                            html.Div("Formatos: .csv", className="text-muted small mt-2")
+                                            html.Div("Formatos: .csv, .xlsx", className="text-muted small mt-2")
                                         ]),
                                         className="upload-box mb-3",
                                         multiple=False,
-                                        accept='.csv'
+                                        accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar CSV", id="btn-download-freight", color="success", className="w-100 mb-2"),
+                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-freight", color="success", className="w-100 mb-2"),
                                     dcc.Download(id="download-freight-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
