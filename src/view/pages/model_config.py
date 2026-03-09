@@ -71,28 +71,31 @@ def get_tab_model_config_layout():
                                 ], width=6),
 
                                 dbc.Col([
-                                    # Use a dummy spacer matching the exact height of the label above the input to align them perfectly
+                                    # Para o alinhamento perfeito, a estrutura deve espelhar o lado esquerdo
+                                    # Criamos um cabeçalho invisível do exato mesmo tamanho e espaçamento:
                                     html.Div([
-                                        html.Div("Spacer", className="fw-bold small mb-1", style={"visibility": "hidden"}),
-                                        html.Div([
-                                            dbc.Switch(
-                                                id="toggle-use-recepcao",
-                                                value=False,
-                                                className="custom-switch mb-0 small"
-                                            ),
-                                            html.Label(
-                                                "Utilizar Capacidade de Recepção",
-                                                htmlFor="toggle-use-recepcao",
-                                                className="mb-0 mx-2 text-muted cursor-pointer small"
-                                            ),
-                                            html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                            dbc.Tooltip(
-                                                "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como carga máxima diária. O campo numérico de carga máxima será desativado.",
-                                                target="help-use-recepcao",
-                                                placement="top"
-                                            )
-                                        ], className="d-flex align-items-center h-100", style={"paddingTop": "6px", "paddingBottom": "6px"}) # Center alignment visually against input height
-                                    ], className="h-100 d-flex flex-column mb-4")
+                                        dbc.Label("Spacer", className="fw-bold small me-2 mb-0", style={"visibility": "hidden"}),
+                                        html.I(className="bi bi-question-circle-fill", style={"visibility": "hidden", "fontSize": "var(--font-size-small)"})
+                                    ], className="d-flex align-items-center mb-1"),
+                                    # Colocamos o conteúdo do switch num container do tamanho do input (altura 38px do bootstrap) e usamos flex center
+                                    html.Div([
+                                        dbc.Switch(
+                                            id="toggle-use-recepcao",
+                                            value=False,
+                                            className="custom-switch mb-0 small"
+                                        ),
+                                        html.Label(
+                                            "Utilizar Capacidade de Recepção",
+                                            htmlFor="toggle-use-recepcao",
+                                            className="mb-0 mx-2 text-muted cursor-pointer small"
+                                        ),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(
+                                            "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como carga máxima diária. O campo numérico de carga máxima será desativado.",
+                                            target="help-use-recepcao",
+                                            placement="top"
+                                        )
+                                    ], className="d-flex align-items-center mb-4", style={"height": "38px"}) # 38px is the default height of dbc.Input
                                 ], width=6),
                             ]),
 
