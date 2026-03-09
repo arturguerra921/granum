@@ -8,6 +8,7 @@ UNB_THEME = {
     'UNB_BLUE': '#003366',      # Pantone 654
     'UNB_GREEN': '#006633',     # Pantone 348
     'UNB_YELLOW_MED': '#FDCA00',
+    'UNB_YELLOW_DARK': '#997A00', # Optimized for light backgrounds
     'UNB_YELLOW_PURE': '#FFED00',
     'UNB_BLUE_MED': '#0068B4',
     'UNB_BLUE_GREEN': '#00A0A7',
@@ -25,8 +26,8 @@ UNB_THEME = {
 
     # Semantic Mapping
     'PRIMARY': '#003366',           # UnB Blue
-    'WARNING': '#FDCA00',           # UnB Yellow Medium
-    'DANGER': '#FF0000',            # Placeholder Red (Standard)
+    'WARNING': '#997A00',           # UnB Yellow Dark
+    'DANGER': '#C8102E',            # Red
     'SUCCESS': '#006633',           # UnB Green
     'SECONDARY': '#7E7E65',         # UnB Gray Dark
     'BACKGROUND': '#F4F6F8',        # Updated Background
