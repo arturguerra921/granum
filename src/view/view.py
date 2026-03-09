@@ -610,7 +610,7 @@ def get_tab_armazens_layout():
             ),
             dbc.CardBody(
                 [
-                    dbc.Button("Atualizar a Base", id="btn-update-base", color="none", className="btn-info-custom w-100 mb-2"),
+                    dbc.Button("Atualizar a Base", id="btn-update-base", color="none", className="btn-primary-custom w-100 mb-2"),
                     # Manage Container (Initially Hidden, dynamic content)
                     html.Div(
                         id="manage-base-container",
