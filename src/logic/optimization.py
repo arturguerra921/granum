@@ -547,7 +547,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # Registrar tempo total e imprimir no log
         end_time = time.time()
         total_time_seconds = end_time - start_time
-        print(f"\nTempo total para resolver o modelo (do clique à solução): {total_time_seconds:.2f} segundos.")
+        print(f"\nTempo de execução: {total_time_seconds:.2f} segundos.")
 
         # Adiciona o tempo ao dicionário de resultados
         results_dict["kpis"]["execution_time"] = total_time_seconds
