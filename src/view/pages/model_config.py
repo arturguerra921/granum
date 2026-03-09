@@ -21,6 +21,85 @@ def get_tab_model_config_layout():
             dbc.CardBody(
                 [
                     html.P("Certifique-se de que preencheu os dados em todas as abas anteriores antes de executar.", className="text-muted small mb-3"),
+
+                    html.Div([
+                        dbc.Switch(
+                            id="toggle-min-max-capacity",
+                            value=False,
+                            className="custom-switch mb-0 small"
+                        ),
+                        html.Label(
+                            "Adicionar carga mínima e máxima",
+                            htmlFor="toggle-min-max-capacity",
+                            className="mb-0 mx-2 text-muted cursor-pointer small"
+                        ),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-min-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(
+                            "Ative para configurar capacidades diárias mínimas e máximas de recepção para os armazéns durante o período alocado.",
+                            target="help-min-max",
+                            placement="top"
+                        )
+                    ], className="mb-4 d-flex align-items-center justify-content-center"),
+
+                    # Container for extra options (initially hidden)
+                    html.Div(
+                        id="container-min-max-options",
+                        style={"display": "none"},
+                        children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Carga mínima diária (ton)", className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Quantidade mínima de carga (em toneladas) que deve ser alocada diariamente.", target="help-carga-min")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-carga-min", type="number", min=0, placeholder="Ex: 10", className="mb-3")
+                                ], width=6),
+
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Quantidade de dias que serão considerados para a alocação de toda a carga.", target="help-dias")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-3")
+                                ], width=6),
+                            ]),
+
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Carga máxima diária (ton)", className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Quantidade máxima de carga (em toneladas) que pode ser alocada diariamente.", target="help-carga-max")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-carga-max", type="number", min=0, placeholder="Ex: 100", className="mb-3")
+                                ], width=6),
+
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Switch(
+                                            id="toggle-use-recepcao",
+                                            value=False,
+                                            className="custom-switch mb-0 small"
+                                        ),
+                                        html.Label(
+                                            "Utilizar Capacidade de Recepção",
+                                            htmlFor="toggle-use-recepcao",
+                                            className="mb-0 mx-2 text-muted cursor-pointer small"
+                                        ),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(
+                                            "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como carga máxima diária. O campo numérico de carga máxima será desativado.",
+                                            target="help-use-recepcao",
+                                            placement="top"
+                                        )
+                                    ], className="d-flex align-items-center h-100 pb-3") # Align with input
+                                ], width=6),
+                            ]),
+                            html.Hr(className="mt-0 mb-4")
+                        ]
+                    ),
                     html.Div([
                         dbc.Switch(
                             id="toggle-detailed-log",

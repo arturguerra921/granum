@@ -2959,6 +2959,25 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         return default_fig
 
 
+
+# --- Model Config Callbacks ---
+
+@app.callback(
+    Output("container-min-max-options", "style"),
+    Input("toggle-min-max-capacity", "value")
+)
+def toggle_min_max_container(is_active):
+    if is_active:
+        return {"display": "block"}
+    return {"display": "none"}
+
+@app.callback(
+    Output("input-carga-max", "disabled"),
+    Input("toggle-use-recepcao", "value")
+)
+def toggle_carga_max_input(use_recepcao):
+    return use_recepcao
+
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
     output=(
