@@ -39,8 +39,8 @@ def get_tab_model_config_layout():
                             placement="top"
                         )
                     ], className="mb-4 d-flex align-items-center justify-content-center"),
-                    dbc.Button("Rodar Modelo", id="btn-run-model", color="none", className="btn-primary-custom w-100 mb-3"),
-                    dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", color="none", className="btn-outline-secondary-custom w-100 mb-3", disabled=True),
+                    dbc.Button("Rodar Modelo", id="btn-run-model", className="btn-primary-custom w-100 mb-3"),
+                    dbc.Button("Baixar Log de Execução (.txt)", id="btn-download-log", className="btn-outline-secondary-custom w-100 mb-3", disabled=True),
                     dcc.Download(id="download-model-log"),
                     html.Div(id="model-output-text", className="mt-3 text-center")
                 ],

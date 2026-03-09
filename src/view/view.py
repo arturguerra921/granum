@@ -172,46 +172,46 @@ navbar = dbc.Navbar(
 # Modal de Ajuda
 help_modal = dbc.Modal(
     [
-        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-primary-custom"), "Guia de Uso do Granum"]), close_button=True),
+        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), "Guia de Uso do Granum"]), close_button=True),
         dbc.ModalBody(
             [
                 html.P("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", className="mb-4 text-muted"),
 
                 dbc.ListGroup([
                     dbc.ListGroupItem([
-                        html.H5([html.Span("1.", className="badge bg-primary-custom rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("1.", className="badge bg-info-custom rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("2.", className="badge bg-primary-custom rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("2.", className="badge bg-info-custom rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("3.", className="badge bg-primary-custom rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("3.", className="badge bg-info-custom rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("4.", className="badge bg-primary-custom rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("4.", className="badge bg-info-custom rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("5.", className="badge bg-primary-custom rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("5.", className="badge bg-info-custom rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("6.", className="badge bg-primary-custom rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("6.", className="badge bg-info-custom rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Na aba de Configuração, apenas rode o modelo de otimização matemática. Em seguida, na aba Resultados, você poderá visualizar as métricas globais, explorar as rotas sugeridas pelo mapa interativo e baixar o relatório final completo.", className="mb-0 text-muted")
                     ], className="border-0 py-3"),
                 ], flush=True),
             ]
         ),
         dbc.ModalFooter(
-            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="none", className="btn-primary-custom", n_clicks=0)
+            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="none", className="btn-info-custom", n_clicks=0)
         ),
     ],
     id="modal-help",
@@ -3389,14 +3389,14 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
         fmt_dist = f"{route_detail['Distancia (km)']:,.2f} km".replace(",", "X").replace(".", ",").replace("X", ".")
 
         details_html = dbc.Card([
-            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), style={"backgroundColor": UNB_THEME['UNB_BLUE']}),
+            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), className="bg-primary-custom"),
             dbc.ListGroup([
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-geo-alt-fill text-success me-2"), html.Strong("Origem: ")]),
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-success-custom me-2"), html.Strong("Origem: ")]),
                     html.Span(orig_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger me-2"), html.Strong("Destino: ")]),
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger-custom me-2"), html.Strong("Destino: ")]),
                     html.Span(dest_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
@@ -3404,26 +3404,26 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
                     html.Span(prod_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-truck text-secondary me-2"), html.Strong("Distância: ")]),
+                    html.Div([html.I(className="bi bi-truck text-secondary-custom me-2"), html.Strong("Distância: ")]),
                     html.Span(fmt_dist, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-boxes text-info me-2"), html.Strong("Movimentado: ")]),
-                    html.Span(fmt_qtd, className="fw-bold text-info d-block ms-4")
+                    html.Div([html.I(className="bi bi-boxes text-info-custom me-2"), html.Strong("Movimentado: ")]),
+                    html.Span(fmt_qtd, className="fw-bold text-info-custom d-block ms-4")
                 ], className="py-2"),
             ], flush=True),
             dbc.CardFooter([
                 html.Div([
                     html.Span("Custo de Frete: ", className="text-muted small"),
-                    html.Span(fmt_freight, className="float-end fw-bold", style={"color": "#dc3545"})
+                    html.Span(fmt_freight, className="float-end fw-bold text-danger-custom")
                 ], className="mb-1"),
                 html.Div([
                     html.Span("Custo de Armaz.: ", className="text-muted small"),
-                    html.Span(fmt_storage, className="float-end fw-bold", style={"color": "#fd7e14"})
+                    html.Span(fmt_storage, className="float-end fw-bold text-warning-custom")
                 ], className="mb-2"),
                 html.Div([
                     html.Span("Custo da Rota:", className="fw-bold"),
-                    html.H5(fmt_total, className="float-end fw-bold mb-0 text-success")
+                    html.H5(fmt_total, className="float-end fw-bold mb-0 text-success-custom")
                 ], className="mt-2 border-top pt-2")
             ], className="bg-light")
         ], className="shadow-sm border-0 h-100")
@@ -3489,13 +3489,14 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
 
 @app.callback(
     Output("btn-download-log", "disabled"),
+    Output("btn-download-log", "className"),
     Input("store-model-log", "data"),
     prevent_initial_call=False
 )
 def update_download_button_state(log_data):
     if log_data:
-        return False
-    return True
+        return False, "btn-secondary-custom w-100 mb-3"
+    return True, "btn-outline-secondary-custom w-100 mb-3"
 
 import flask
 import os
