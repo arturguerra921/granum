@@ -114,9 +114,13 @@ body {
     background-color: transparent !important;
     font-weight: 500 !important;
 }
-.btn-outline-secondary-custom:hover {
+.btn-outline-secondary-custom:hover:not(:disabled) {
     background-color: #7E7E65 !important;
     color: #FFFFFF !important; /* WHITE */
+}
+.btn-outline-secondary-custom:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
 }
 
 /* Danger */

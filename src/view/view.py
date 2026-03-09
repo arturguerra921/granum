@@ -3389,14 +3389,14 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
         fmt_dist = f"{route_detail['Distancia (km)']:,.2f} km".replace(",", "X").replace(".", ",").replace("X", ".")
 
         details_html = dbc.Card([
-            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), style={"backgroundColor": UNB_THEME['UNB_BLUE']}),
+            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), className="bg-primary-custom"),
             dbc.ListGroup([
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-geo-alt-fill text-success me-2"), html.Strong("Origem: ")]),
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-success-custom me-2"), html.Strong("Origem: ")]),
                     html.Span(orig_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger me-2"), html.Strong("Destino: ")]),
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger-custom me-2"), html.Strong("Destino: ")]),
                     html.Span(dest_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
@@ -3404,26 +3404,26 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
                     html.Span(prod_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-truck text-secondary me-2"), html.Strong("Distância: ")]),
+                    html.Div([html.I(className="bi bi-truck text-secondary-custom me-2"), html.Strong("Distância: ")]),
                     html.Span(fmt_dist, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-boxes text-info me-2"), html.Strong("Movimentado: ")]),
-                    html.Span(fmt_qtd, className="fw-bold text-info d-block ms-4")
+                    html.Div([html.I(className="bi bi-boxes text-info-custom me-2"), html.Strong("Movimentado: ")]),
+                    html.Span(fmt_qtd, className="fw-bold text-info-custom d-block ms-4")
                 ], className="py-2"),
             ], flush=True),
             dbc.CardFooter([
                 html.Div([
                     html.Span("Custo de Frete: ", className="text-muted small"),
-                    html.Span(fmt_freight, className="float-end fw-bold", style={"color": "#dc3545"})
+                    html.Span(fmt_freight, className="float-end fw-bold text-danger-custom")
                 ], className="mb-1"),
                 html.Div([
                     html.Span("Custo de Armaz.: ", className="text-muted small"),
-                    html.Span(fmt_storage, className="float-end fw-bold", style={"color": "#fd7e14"})
+                    html.Span(fmt_storage, className="float-end fw-bold text-warning-custom")
                 ], className="mb-2"),
                 html.Div([
                     html.Span("Custo da Rota:", className="fw-bold"),
-                    html.H5(fmt_total, className="float-end fw-bold mb-0 text-success")
+                    html.H5(fmt_total, className="float-end fw-bold mb-0 text-success-custom")
                 ], className="mt-2 border-top pt-2")
             ], className="bg-light")
         ], className="shadow-sm border-0 h-100")
@@ -3489,13 +3489,14 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
 
 @app.callback(
     Output("btn-download-log", "disabled"),
+    Output("btn-download-log", "className"),
     Input("store-model-log", "data"),
     prevent_initial_call=False
 )
 def update_download_button_state(log_data):
     if log_data:
-        return False
-    return True
+        return False, "btn-secondary-custom w-100 mb-3"
+    return True, "btn-outline-secondary-custom w-100 mb-3"
 
 import flask
 import os
