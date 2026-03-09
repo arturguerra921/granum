@@ -47,6 +47,7 @@ def get_tab_model_config_layout():
                         style={"display": "none"},
                         children=[
                             html.Hr(className="mt-2 mb-4"),
+                            # Linha 1: Carga Mínima
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
@@ -55,18 +56,10 @@ def get_tab_model_config_layout():
                                         dbc.Tooltip("Quantidade mínima de carga (em toneladas) que deve ser alocada diariamente.", target="help-carga-min")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-carga-min", type="number", min=0, placeholder="Ex: 10", className="mb-4")
-                                ], width=6),
-
-                                dbc.Col([
-                                    html.Div([
-                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Quantidade de dias que serão considerados para a alocação de toda a carga.", target="help-dias")
-                                    ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
-                                ], width=6),
+                                ], width=6)
                             ]),
 
+                            # Linha 2: Carga Máxima (Esquerda) e Switch Recepção (Direita)
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
@@ -78,25 +71,41 @@ def get_tab_model_config_layout():
                                 ], width=6),
 
                                 dbc.Col([
+                                    # Use a dummy spacer matching the exact height of the label above the input to align them perfectly
                                     html.Div([
-                                        dbc.Switch(
-                                            id="toggle-use-recepcao",
-                                            value=False,
-                                            className="custom-switch mb-0 small"
-                                        ),
-                                        html.Label(
-                                            "Utilizar Capacidade de Recepção",
-                                            htmlFor="toggle-use-recepcao",
-                                            className="mb-0 mx-2 text-muted cursor-pointer small"
-                                        ),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(
-                                            "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como carga máxima diária. O campo numérico de carga máxima será desativado.",
-                                            target="help-use-recepcao",
-                                            placement="top"
-                                        )
-                                    ], className="d-flex align-items-center", style={"marginTop": "28px"}) # Exactly 28px align with input box (label height is ~20px + mb-1 (~4px) + input padding. 28px usually works perfect)
+                                        html.Div("Spacer", className="fw-bold small mb-1", style={"visibility": "hidden"}),
+                                        html.Div([
+                                            dbc.Switch(
+                                                id="toggle-use-recepcao",
+                                                value=False,
+                                                className="custom-switch mb-0 small"
+                                            ),
+                                            html.Label(
+                                                "Utilizar Capacidade de Recepção",
+                                                htmlFor="toggle-use-recepcao",
+                                                className="mb-0 mx-2 text-muted cursor-pointer small"
+                                            ),
+                                            html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                            dbc.Tooltip(
+                                                "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como carga máxima diária. O campo numérico de carga máxima será desativado.",
+                                                target="help-use-recepcao",
+                                                placement="top"
+                                            )
+                                        ], className="d-flex align-items-center h-100", style={"paddingTop": "6px", "paddingBottom": "6px"}) # Center alignment visually against input height
+                                    ], className="h-100 d-flex flex-column mb-4")
                                 ], width=6),
+                            ]),
+
+                            # Linha 3: Dias para alocação
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Quantidade de dias que serão considerados para a alocação de toda a carga.", target="help-dias")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
+                                ], width=6)
                             ]),
                             html.Hr(className="mt-0 mb-4")
                         ]
