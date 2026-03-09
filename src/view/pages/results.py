@@ -20,7 +20,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo Total Ótimo (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['SUCCESS']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -31,7 +31,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Total Movimentado (ton)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-tons", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                    html.H4(id="res-kpi-tons", children="0.00", className="mb-0", style={"color": UNB_THEME['PRIMARY']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -42,7 +42,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Distância Total (km)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-km", children="0.00", className="mb-0", style={"color": "#6C757D"})
+                                    html.H4(id="res-kpi-km", children="0.00", className="mb-0", style={"color": UNB_THEME['SECONDARY']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -53,7 +53,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo com Frete (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-freight", children="R$ 0,00", className="mb-0", style={"color": "#dc3545"})
+                                    html.H4(id="res-kpi-freight", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['DANGER']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -64,7 +64,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo Armazenagem (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-storage", children="R$ 0,00", className="mb-0", style={"color": "#fd7e14"})
+                                    html.H4(id="res-kpi-storage", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['WARNING']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -118,11 +118,11 @@ def get_tab_results_layout():
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
                                     'fontSize': 'var(--font-size-small)',
-                                    'color': UNB_THEME['UNB_GRAY_DARK']
+                                    'color': UNB_THEME['SECONDARY']
                                 },
                                 style_header={
                                     'backgroundColor': '#F8F9FA',
-                                    'color': UNB_THEME['UNB_BLUE'],
+                                    'color': UNB_THEME['PRIMARY'],
                                     'fontWeight': 'bold',
                                     'border': 'none',
                                     'padding': '12px',

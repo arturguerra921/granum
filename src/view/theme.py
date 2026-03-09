@@ -26,7 +26,7 @@ UNB_THEME = {
     # Semantic Mapping
     'PRIMARY': '#003366',           # UnB Blue
     'WARNING': '#FDCA00',           # UnB Yellow Medium
-    'DANGER': '#FF0000',            # Placeholder Red (Standard)
+    'DANGER': '#C8102E',            # Red
     'SUCCESS': '#006633',           # UnB Green
     'SECONDARY': '#7E7E65',         # UnB Gray Dark
     'BACKGROUND': '#F4F6F8',        # Updated Background

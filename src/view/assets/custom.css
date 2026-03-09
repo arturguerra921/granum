@@ -346,13 +346,13 @@ small, .small {
 
 /* Custom Switch for Configuração do Modelo */
 .custom-switch .form-check-input:checked {
-    background-color: #003366 !important; /* UNB_BLUE */
-    border-color: #003366 !important;
+    background-color: #006633 !important; /* UNB_GREEN */
+    border-color: #006633 !important;
 }
 
 .custom-switch .form-check-input:focus {
-    box-shadow: 0 0 0 0.25rem rgba(0, 51, 102, 0.25) !important;
-    border-color: #003366 !important;
+    box-shadow: 0 0 0 0.25rem rgba(0, 102, 51, 0.25) !important;
+    border-color: #006633 !important;
 }
 
 /* Custom Backgrounds */
@@ -365,7 +365,4 @@ small, .small {
 .btn-none {
     background-color: transparent;
     border: none;
-}
-.btn-light-custom {
-    color: #212529 !important; /* Dark text for contrast */
 }
