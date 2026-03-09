@@ -328,6 +328,9 @@ label {
     /* Define the base size for all small text across the application here.
        Change this value (e.g., to 1.1rem or 16px) to globally scale small text. */
     --font-size-small: 1rem;
+
+    /* Scale factor for all toggle switches (e.g., 1.0 is default, 1.3 is 30% larger) */
+    --switch-scale: 1.3;
 }
 
 /* Override Bootstrap's small and .small to use our custom variable */
@@ -412,4 +415,18 @@ small, .small {
 .btn-none {
     background-color: transparent;
     border: none;
+}
+
+/* Dynamic Switch Scaling */
+.form-switch {
+    /* Scale the padding so the label moves to the right proportionally */
+    padding-left: calc(2.5em * var(--switch-scale)) !important;
+}
+
+.form-switch .form-check-input {
+    /* Scale the switch button itself */
+    transform: scale(var(--switch-scale)) !important;
+    transform-origin: left center !important;
+    /* Move the switch button to the left proportionally */
+    margin-left: calc(-2.5em * var(--switch-scale)) !important;
 }
