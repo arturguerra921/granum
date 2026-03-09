@@ -40,7 +40,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     mun_col_dest = next((c for c in df_demand.columns if 'munic' in str(c).lower()), None)
     cda_col = next((c for c in df_demand.columns if 'cda' in str(c).lower()), None)
 
-    demand_capacity = {}
+    # Dicionários separados para capacidade total e estoque inicial
+    demand_total_capacity = {}
+    demand_initial_inventory = {}
     is_public = {}
 
     # Store the mapping from CDA back to full formatted name for the final output
@@ -83,10 +85,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         except:
             estoque = 0.0
 
-        # A capacidade disponível é a capacidade total menos o estoque inicial
-        available_cap = max(0.0, cap - estoque)
-
-        demand_capacity[cda] = available_cap
+        # Agora mantemos capacidade e estoque separados
+        demand_total_capacity[cda] = cap
+        demand_initial_inventory[cda] = estoque
 
         # Determine if public or private
         if armazenador_col and str(row[armazenador_col]).upper() == "COMPANHIA NACIONAL DE ABASTECIMENTO":
@@ -204,7 +205,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             pub_val = pub_dict.get(prod_norm, fallback_pub)
             priv_val = priv_dict.get(prod_norm, fallback_priv)
 
-            for dest in demand_capacity.keys():
+            for dest in demand_total_capacity.keys():
                 if is_public.get(dest, False):
                     storage_cost[(dest, prod)] = pub_val
                 else:
@@ -214,7 +215,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print(f"Erro ao processar tarifas de armazenagem: {e}")
         # Default fallback
         for prod in all_products:
-            for dest in demand_capacity.keys():
+            for dest in demand_total_capacity.keys():
                 storage_cost[(dest, prod)] = 50.0
 
 
@@ -266,12 +267,19 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print("Iniciando a construção do modelo matemático...")
         model = pyo.ConcreteModel(name="Alocacao_Armazens")
 
-        # Conjuntos (Sets)
-        model.Origins = pyo.Set(initialize=df_supply['Cidade'].unique().tolist())
-        model.Destinations = pyo.Set(initialize=list(demand_capacity.keys()))
-        model.Products = pyo.Set(initialize=all_products)
+        # =========================================================================
+        # 2.1 CONJUNTOS (SETS)
+        # =========================================================================
+        # Definem os índices sobre os quais o modelo irá operar.
 
-        # Filtrar rotas válidas (onde a distância é conhecida e o produto é aceito)
+        model.Origins = pyo.Set(initialize=df_supply['Cidade'].unique().tolist(), doc="Cidades de Origem da Oferta")
+        model.Destinations = pyo.Set(initialize=list(demand_total_capacity.keys()), doc="Armazéns de Destino")
+        model.Products = pyo.Set(initialize=all_products, doc="Tipos de Produtos")
+
+        # [BOA PRÁTICA DE PERFORMANCE]
+        # Pré-filtramos as rotas válidas no Python antes de criar as variáveis de decisão.
+        # Isso evita a "explosão combinatória" de variáveis vazias no solver, melhorando
+        # significativamente o uso de memória e a velocidade da otimização.
         valid_routes = []
         for o in model.Origins:
             for d in model.Destinations:
@@ -280,102 +288,135 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                         valid_routes.append((o, d, p))
 
         print(f"Total de combinações (Origem x Destino x Produto) válidas: {len(valid_routes)}")
+        model.ValidRoutes = pyo.Set(initialize=valid_routes, dimen=3, doc="Rotas Válidas (Origem, Destino, Produto)")
 
-        model.ValidRoutes = pyo.Set(initialize=valid_routes, dimen=3)
+        # =========================================================================
+        # 2.2 PARÂMETROS (PARAMETERS)
+        # =========================================================================
+        # Valores fixos conhecidos fornecidos como dados de entrada para o modelo.
 
-        # Variáveis (Variables) - Fluxo de produto da origem o para o destino d (em toneladas)
-        model.Flow = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeReals)
-
-        # Variável Dummy de Capacidade Extra (por armazém)
-        model.DummyCapacity = pyo.Var(model.Destinations, domain=pyo.NonNegativeReals)
-
-        # Variável Dummy de Oferta Não Alocada (por origem e produto)
-        model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals)
-
-        # Parâmetros (Parameters)
+        # --- Parâmetros de Oferta e Demanda ---
         def supply_init(model, o, p):
             return supply.get((o, p), 0.0)
-        model.Supply = pyo.Param(model.Origins, model.Products, initialize=supply_init)
+        model.Supply = pyo.Param(model.Origins, model.Products, initialize=supply_init, doc="Oferta disponível por (Origem, Produto)")
 
-        def capacity_init(model, d):
-            return demand_capacity.get(d, 0.0)
-        model.Capacity = pyo.Param(model.Destinations, initialize=capacity_init)
+        def total_capacity_init(model, d):
+            return demand_total_capacity.get(d, 0.0)
+        model.TotalCapacity = pyo.Param(model.Destinations, initialize=total_capacity_init, doc="Capacidade estática total do armazém (ton)")
 
+        def initial_inventory_init(model, d):
+            return demand_initial_inventory.get(d, 0.0)
+        model.InitialInventory = pyo.Param(model.Destinations, initialize=initial_inventory_init, doc="Estoque inicial presente no armazém (ton)")
+
+        # --- Parâmetros de Custos e Distâncias ---
         def dist_init(model, o, d):
             return distance.get((o, d), 999999.0)
-        model.Distance = pyo.Param(model.Origins, model.Destinations, initialize=dist_init)
+        model.Distance = pyo.Param(model.Origins, model.Destinations, initialize=dist_init, doc="Distância entre Origem e Destino (km)")
 
         def freight_init(model, o):
             return freight_cost.get(o, avg_freight)
-        model.Freight = pyo.Param(model.Origins, initialize=freight_init)
+        model.Freight = pyo.Param(model.Origins, initialize=freight_init, doc="Custo unitário de frete (R$/ton-km) a partir da Origem")
 
         def storage_init(model, d, p):
             return storage_cost.get((d, p), 50.0)
-        model.Storage = pyo.Param(model.Destinations, model.Products, initialize=storage_init)
+        model.Storage = pyo.Param(model.Destinations, model.Products, initialize=storage_init, doc="Tarifa de armazenagem no Destino para o Produto (R$/ton)")
 
-        # Calcular um big_M dinâmico com base nos custos máximos possíveis
+        # --- Parâmetros de Penalização (Big M) ---
+        # Calculamos um Big M dinâmico baseado nos custos máximos do sistema
         max_freight = max(freight_cost.values()) if freight_cost else 0.0
         max_dist = max(distance.values()) if distance else 0.0
         max_storage = max(storage_cost.values()) if storage_cost else 0.0
 
-        # O big_M deve ser ordens de grandeza maior que os custos reais para forçar as dummies a serem usadas apenas em último caso
-        big_M_capacity = (max_freight * max_dist + max_storage) * 1000000
-        if big_M_capacity == 0:
-            big_M_capacity = 1000000
+        # Big M da Capacidade: ordens de grandeza maior que o custo de transportar e armazenar
+        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000000
+        if val_big_m_cap == 0:
+            val_big_m_cap = 1000000
 
-        # O custo de não alocar (DummyUnallocated) DEVE ser muito maior que o custo de alocar usando capacidade artificial
-        # Caso contrário, o solver prefere "não alocar" para economizar o custo normal de frete + armazenamento.
-        big_M_unallocated = big_M_capacity * 10
+        # Big M de Não Alocação: deve ser ainda mais alto que a falta de capacidade, forçando a alocação sempre que possível
+        val_big_m_unalloc = val_big_m_cap * 10
 
-        print(f"Valor dinâmico para big_M (Capacidade Artificial): {big_M_capacity:.2e}")
-        print(f"Valor dinâmico para big_M (Oferta Não Alocada): {big_M_unallocated:.2e}")
+        print(f"Valor dinâmico para Big_M (Capacidade Artificial): {val_big_m_cap:.2e}")
+        print(f"Valor dinâmico para Big_M (Oferta Não Alocada): {val_big_m_unalloc:.2e}")
 
-        # Função Objetivo (Objective)
-        # Minimize sum(Flow * Distance * FreightCost) + sum(Flow * StorageTariff) + sum(Dummies * big_M)
+        model.BigMCapacity = pyo.Param(initialize=val_big_m_cap, doc="Custo de penalização por tonelada de capacidade artificial")
+        model.BigMUnallocated = pyo.Param(initialize=val_big_m_unalloc, doc="Custo de penalização por tonelada de oferta não alocada")
+
+        # =========================================================================
+        # 2.3 VARIÁVEIS DE DECISÃO (VARIABLES)
+        # =========================================================================
+        # Valores que o solver tentará determinar para otimizar o resultado.
+
+        # Fluxo de produto (quantidade a ser transportada) em toneladas
+        model.Flow = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeReals, doc="Quantidade transportada (o, d, p)")
+
+        # Variáveis de folga (Dummies) para garantir viabilidade matemática do modelo
+        model.DummyCapacity = pyo.Var(model.Destinations, domain=pyo.NonNegativeReals, doc="Capacidade extra artificial alocada (ton)")
+        model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals, doc="Oferta não alocada a nenhum destino (ton)")
+
+        # =========================================================================
+        # 2.4 FUNÇÃO OBJETIVO (OBJECTIVE)
+        # =========================================================================
+        # Expressão matemática a ser minimizada (Minimizar Custos).
+
         def objective_rule(model):
+            # Custo normal do sistema = (Custo de Frete) + (Custo de Armazenagem)
             normal_costs = sum(
-                model.Flow[o, d, p] * model.Distance[o, d] * model.Freight[o] +
-                model.Flow[o, d, p] * model.Storage[d, p]
+                (model.Flow[o, d, p] * model.Distance[o, d] * model.Freight[o]) +
+                (model.Flow[o, d, p] * model.Storage[d, p])
                 for (o, d, p) in model.ValidRoutes
             )
-            dummy_capacity_costs = sum(model.DummyCapacity[d] * big_M_capacity for d in model.Destinations)
-            dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * big_M_unallocated for o in model.Origins for p in model.Products)
+
+            # Custo de penalização por violar restrições lógicas
+            dummy_capacity_costs = sum(model.DummyCapacity[d] * model.BigMCapacity for d in model.Destinations)
+            dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * model.BigMUnallocated for o in model.Origins for p in model.Products)
 
             return normal_costs + dummy_capacity_costs + dummy_unallocated_costs
 
-        model.Objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
+        model.Objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize, doc="Minimização dos Custos Totais")
 
-        # Restrições (Constraints)
+        # =========================================================================
+        # 2.5 RESTRIÇÕES (CONSTRAINTS)
+        # =========================================================================
+        # Regras que as variáveis de decisão devem obedecer obrigatoriamente.
 
-        # 1. Supply limit: A oferta deve ser totalmente alocada (via rotas válidas ou variável dummy)
+        # Restrição 1: Conservação de Fluxo (Limite de Oferta)
+        # A oferta total disponível em uma origem para um produto DEVE ser escoada,
+        # seja via alocação real (Flow) ou via folga (DummyUnallocated).
         def supply_rule(model, o, p):
             if model.Supply[o, p] <= 0:
                 return pyo.Constraint.Skip
 
             valid_dests = [d for d in model.Destinations if (o, d, p) in model.ValidRoutes]
             if not valid_dests:
-                # Não tem rotas válidas para escoar esta oferta, forçar dummy.
+                # Não existem rotas válidas, toda a oferta vai para a variável dummy
                 return model.DummyUnallocated[o, p] == model.Supply[o, p]
 
             flow_sum = sum(model.Flow[o, d, p] for d in valid_dests)
             return flow_sum + model.DummyUnallocated[o, p] == model.Supply[o, p]
 
-        model.SupplyConstraint = pyo.Constraint(model.Origins, model.Products, rule=supply_rule)
+        model.SupplyConstraint = pyo.Constraint(model.Origins, model.Products, rule=supply_rule, doc="Restrição de Limite de Oferta")
 
-        # 2. Capacity limit: Não exceder a capacidade máxima (real + dummy)
+        # Restrição 2: Limite de Capacidade dos Armazéns
+        # A quantidade total que chega a um destino não pode ultrapassar sua capacidade disponível real.
+        # Capacidade Disponível = (Capacidade Total - Estoque Inicial)
+        # Caso o solver não tenha alternativa, usará a DummyCapacity pagando a penalização.
         def capacity_rule(model, d):
             valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
             if not valid_ops:
                 return pyo.Constraint.Skip
 
             flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
-            if model.Capacity[d] > 0:
-                return flow_sum <= model.Capacity[d] + model.DummyCapacity[d]
+
+            # Tratamento para evitar capacidade efetiva negativa caso estoque inicial > total
+            effective_cap = max(0.0, model.TotalCapacity[d] - model.InitialInventory[d])
+
+            if effective_cap > 0:
+                return flow_sum <= effective_cap + model.DummyCapacity[d]
             else:
-                # Se a capacidade é 0, qualquer fluxo usará apenas a dummy
+                # Se efetivamente não há capacidade, o armazém só pode receber carga gerando Dummy
                 return flow_sum <= model.DummyCapacity[d]
 
-        model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule)
+        model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule, doc="Restrição de Limite de Capacidade Efetiva")
 
         #Mostrar o modelo para debug apenas se solicitado pelo usuário
         if detailed_log:
@@ -478,8 +519,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
             if dummy_cap_used or dummy_unalloc_used:
                 print(f"\nNota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.")
-                print(f"Custo de Capacidade Artificial (big_M) = {big_M_capacity:.2e}")
-                print(f"Custo de Oferta Não Alocada (big_M * 10) = {big_M_unallocated:.2e}")
+                print(f"Custo de Capacidade Artificial (Big M) = {pyo.value(model.BigMCapacity):.2e}")
+                print(f"Custo de Oferta Não Alocada (Big M) = {pyo.value(model.BigMUnallocated):.2e}")
 
         else:
             print("Não foi possível encontrar uma solução ótima. O modelo pode estar mal-condicionado.")
