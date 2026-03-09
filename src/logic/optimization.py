@@ -6,10 +6,15 @@ import io
 import tempfile
 import os
 
+import time
+
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False):
     """
     Roda o modelo matemático de otimização linear para alocação de produtos.
     """
+    # Início do cronômetro para medir o tempo total desde a chamada até a solução
+    start_time = time.time()
+
     # 1. Preparação dos dados
 
     # Oferta (Supply)
@@ -408,10 +413,11 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
 
             # Tratamento para evitar capacidade efetiva negativa caso estoque inicial > total
-            effective_cap = max(0.0, model.TotalCapacity[d] - model.InitialInventory[d])
+            # Extraindo o valor numérico para permitir a verificação booleana
+            effective_cap = max(0.0, pyo.value(model.TotalCapacity[d]) - pyo.value(model.InitialInventory[d]))
 
             if effective_cap > 0:
-                return flow_sum <= effective_cap + model.DummyCapacity[d]
+                return flow_sum <= (model.TotalCapacity[d] - model.InitialInventory[d]) + model.DummyCapacity[d]
             else:
                 # Se efetivamente não há capacidade, o armazém só pode receber carga gerando Dummy
                 return flow_sum <= model.DummyCapacity[d]
@@ -537,6 +543,11 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print(traceback.format_exc())
 
     finally:
+        # Registrar tempo total e imprimir no log
+        end_time = time.time()
+        total_time_seconds = end_time - start_time
+        print(f"\nTempo total para resolver o modelo (do clique à solução): {total_time_seconds:.2f} segundos.")
+
         # Fechar o arquivo temporário de log e restaurar stdout
         new_stdout.close()
         sys.stdout = old_stdout

@@ -3,6 +3,7 @@ import io
 import os
 import pandas as pd
 from dash import Dash, dcc, html, Input, Output, State, dash_table, no_update
+import dash
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 from src.view.pages.distance_matrix import get_tab_distance_matrix_layout
@@ -12,6 +13,7 @@ from src.view.pages.results import get_tab_results_layout
 from src.logic.osrm import OSRMClient
 from src.logic.optimization import run_optimization_model
 import dash
+import time
 from dash import DiskcacheManager
 import diskcache
 import plotly.express as px
@@ -2577,6 +2579,8 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
     if not n_clicks:
         return no_update, no_update, no_update, no_update, True
 
+    start_time = time.time()
+
     if not stored_data or not stored_armazens:
         return no_update, [], [], "Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", True
 
@@ -2727,7 +2731,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
 
         columns = [{"name": i, "id": i} for i in final_df.columns]
 
-        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, "Cálculo concluído com sucesso!", False
+        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, f"Cálculo concluído com sucesso! (Tempo de execução: {time.time() - start_time:.2f} segundos)", False
 
     except Exception as e:
         print(f"Calculation error: {e}")
