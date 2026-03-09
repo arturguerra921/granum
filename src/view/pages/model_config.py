@@ -46,34 +46,35 @@ def get_tab_model_config_layout():
                         id="container-min-max-options",
                         style={"display": "none"},
                         children=[
+                            html.Hr(className="mt-0 mb-4"),
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        dbc.Label("Carga mínima diária (ton)", className="fw-bold small me-2 mb-0"),
+                                        dbc.Label("Carga mínima diária (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip("Quantidade mínima de carga (em toneladas) que deve ser alocada diariamente.", target="help-carga-min")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-carga-min", type="number", min=0, placeholder="Ex: 10", className="mb-3")
+                                    dbc.Input(id="input-carga-min", type="number", min=0, placeholder="Ex: 10", className="mb-4")
                                 ], width=6),
 
                                 dbc.Col([
                                     html.Div([
-                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0"),
+                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip("Quantidade de dias que serão considerados para a alocação de toda a carga.", target="help-dias")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-3")
+                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
                                 ], width=6),
                             ]),
 
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        dbc.Label("Carga máxima diária (ton)", className="fw-bold small me-2 mb-0"),
+                                        dbc.Label("Carga máxima diária (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip("Quantidade máxima de carga (em toneladas) que pode ser alocada diariamente.", target="help-carga-max")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-carga-max", type="number", min=0, placeholder="Ex: 100", className="mb-3")
+                                    dbc.Input(id="input-carga-max", type="number", min=0, placeholder="Ex: 100", className="mb-4")
                                 ], width=6),
 
                                 dbc.Col([
@@ -94,7 +95,7 @@ def get_tab_model_config_layout():
                                             target="help-use-recepcao",
                                             placement="top"
                                         )
-                                    ], className="d-flex align-items-center h-100 pb-3") # Align with input
+                                    ], className="d-flex align-items-center mb-4", style={"paddingTop": "26px"}) # Align with input field (approx height of label + mb-1)
                                 ], width=6),
                             ]),
                             html.Hr(className="mt-0 mb-4")
