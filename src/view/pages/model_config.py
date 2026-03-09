@@ -46,7 +46,7 @@ def get_tab_model_config_layout():
                         id="container-min-max-options",
                         style={"display": "none"},
                         children=[
-                            html.Hr(className="mt-0 mb-4"),
+                            html.Hr(className="mt-2 mb-4"),
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
@@ -95,7 +95,7 @@ def get_tab_model_config_layout():
                                             target="help-use-recepcao",
                                             placement="top"
                                         )
-                                    ], className="d-flex align-items-center mb-4", style={"paddingTop": "26px"}) # Align with input field (approx height of label + mb-1)
+                                    ], className="d-flex align-items-center", style={"marginTop": "28px"}) # Exactly 28px align with input box (label height is ~20px + mb-1 (~4px) + input padding. 28px usually works perfect)
                                 ], width=6),
                             ]),
                             html.Hr(className="mt-0 mb-4")
