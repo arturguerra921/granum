@@ -307,3 +307,62 @@ label {
 small, .small {
     font-size: var(--font-size-small) !important;
 }
+
+/* Custom Alerts */
+.alert-danger-custom {
+    color: #C8102E !important; /* Red text */
+    background-color: #f8d7da !important; /* Standard alert danger bg */
+    border-color: #C8102E !important; /* Custom UnB border */
+    padding: 1rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+.alert-warning-custom {
+    color: #212529 !important; /* Dark text for warning */
+    background-color: #fff3cd !important;
+    border-color: #FDCA00 !important; /* UNB_YELLOW_MED */
+    padding: 1rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+.alert-info-custom {
+    color: #00A0A7 !important; /* UNB_BLUE_GREEN text */
+    background-color: #d1ecf1 !important;
+    border-color: #00A0A7 !important;
+    padding: 1rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+/* Custom Text Primary for Spinners */
+.text-primary-custom {
+    color: #003366 !important; /* UNB_BLUE */
+}
+
+/* Custom Switch for Configuração do Modelo */
+.custom-switch .form-check-input:checked {
+    background-color: #006633 !important; /* UNB_GREEN */
+    border-color: #006633 !important;
+}
+
+.custom-switch .form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(0, 102, 51, 0.25) !important;
+    border-color: #006633 !important;
+}
+
+/* Custom Backgrounds */
+.bg-primary-custom {
+    background-color: #003366 !important; /* UNB_BLUE */
+    color: #FFFFFF !important;
+}
+
+/* Fix for buttons with color="none" */
+.btn-none {
+    background-color: transparent;
+    border: none;
+}

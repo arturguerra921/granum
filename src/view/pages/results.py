@@ -20,7 +20,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo Total Ótimo (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['SUCCESS']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -31,7 +31,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Total Movimentado (ton)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-tons", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                    html.H4(id="res-kpi-tons", children="0.00", className="mb-0", style={"color": UNB_THEME['PRIMARY']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -42,7 +42,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Distância Total (km)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-km", children="0.00", className="mb-0", style={"color": "#6C757D"})
+                                    html.H4(id="res-kpi-km", children="0.00", className="mb-0", style={"color": UNB_THEME['SECONDARY']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -53,7 +53,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo com Frete (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-freight", children="R$ 0,00", className="mb-0", style={"color": "#dc3545"})
+                                    html.H4(id="res-kpi-freight", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['DANGER']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -64,7 +64,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo Armazenagem (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-storage", children="R$ 0,00", className="mb-0", style={"color": "#fd7e14"})
+                                    html.H4(id="res-kpi-storage", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['WARNING']})
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -118,11 +118,11 @@ def get_tab_results_layout():
                                     'fontFamily': "'Roboto', sans-serif",
                                     'padding': '12px',
                                     'fontSize': 'var(--font-size-small)',
-                                    'color': UNB_THEME['UNB_GRAY_DARK']
+                                    'color': UNB_THEME['SECONDARY']
                                 },
                                 style_header={
                                     'backgroundColor': '#F8F9FA',
-                                    'color': UNB_THEME['UNB_BLUE'],
+                                    'color': UNB_THEME['PRIMARY'],
                                     'fontWeight': 'bold',
                                     'border': 'none',
                                     'padding': '12px',
@@ -140,14 +140,13 @@ def get_tab_results_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                     html.Div(className="d-flex justify-content-end mt-3", children=[
                         dbc.Button(
                             [html.I(className="bi bi-download me-2"), "Baixar Relatório Completo (.xlsx)"],
                             id='btn-download-results',
-                            color="success",
-                            className="btn-success-custom"
+                            color="none", className="btn-success-custom"
                         ),
                         dcc.Download(id="download-results-xlsx")
                     ])
@@ -171,7 +170,7 @@ def get_tab_results_layout():
                         placement="right"
                     ),
                     html.Div(
-                        dbc.Button("Ver Todas as Rotas", id="btn-show-all-routes", size="sm", color="secondary", outline=True, className="ms-3"),
+                        dbc.Button("Ver Todas as Rotas", id="btn-show-all-routes", size="sm", color="none", className="btn-outline-secondary-custom ms-3"),
                         className="ms-auto"
                     )
                 ], className="d-flex align-items-center w-100"),
@@ -200,7 +199,7 @@ def get_tab_results_layout():
                                     },
                                     style={"height": "600px", "borderRadius": "8px", "overflow": "hidden"}
                                 ),
-                                color="primary"
+                                spinner_class_name="text-primary-custom"
                             ),
                             width=12, lg=8, className="mb-3"
                         ),
@@ -235,8 +234,8 @@ def get_tab_results_layout():
             ),
             dbc.ModalFooter(
                 [
-                    dbc.Button("Cancelar", id="btn-cancel-all-routes", className="me-2", n_clicks=0),
-                    dbc.Button("Sim, carregar todas as rotas", id="btn-confirm-all-routes", color="danger", n_clicks=0),
+                    dbc.Button("Cancelar", id="btn-cancel-all-routes", color="none", className="btn-secondary-custom me-2", n_clicks=0),
+                    dbc.Button("Sim, carregar todas as rotas", id="btn-confirm-all-routes", color="none", className="btn-danger-custom", n_clicks=0),
                 ]
             ),
         ],

@@ -156,8 +156,7 @@ navbar = dbc.Navbar(
                 dbc.Button(
                     [html.I(className="bi bi-question-circle me-2"), "Ajuda"],
                     id="btn-help-modal",
-                    color="light",
-                    className="text-primary border-primary fw-bold ms-auto",
+                    color="none", className="btn-light-custom fw-bold ms-auto",
                     size="md",
                     style={"borderRadius": "8px"}
                 ),
@@ -173,46 +172,46 @@ navbar = dbc.Navbar(
 # Modal de Ajuda
 help_modal = dbc.Modal(
     [
-        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-primary"), "Guia de Uso do Granum"]), close_button=True),
+        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-primary-custom"), "Guia de Uso do Granum"]), close_button=True),
         dbc.ModalBody(
             [
                 html.P("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", className="mb-4 text-muted"),
 
                 dbc.ListGroup([
                     dbc.ListGroupItem([
-                        html.H5([html.Span("1.", className="badge bg-primary rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("1.", className="badge bg-primary-custom rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("2.", className="badge bg-primary rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("2.", className="badge bg-primary-custom rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("3.", className="badge bg-primary rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("3.", className="badge bg-primary-custom rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("4.", className="badge bg-primary rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("4.", className="badge bg-primary-custom rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("5.", className="badge bg-primary rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("5.", className="badge bg-primary-custom rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("6.", className="badge bg-primary rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("6.", className="badge bg-primary-custom rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Na aba de Configuração, apenas rode o modelo de otimização matemática. Em seguida, na aba Resultados, você poderá visualizar as métricas globais, explorar as rotas sugeridas pelo mapa interativo e baixar o relatório final completo.", className="mb-0 text-muted")
                     ], className="border-0 py-3"),
                 ], flush=True),
             ]
         ),
         dbc.ModalFooter(
-            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="primary", n_clicks=0)
+            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="none", className="btn-primary-custom", n_clicks=0)
         ),
     ],
     id="modal-help",
@@ -374,7 +373,7 @@ def get_tab1_layout():
                         ),
                         dbc.Col(
                             [
-                                dbc.Button("🔒", id="btn-manual-edit", color="secondary", className="d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
+                                dbc.Button("🔒", id="btn-manual-edit", color="none", className="btn-secondary-custom d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
                             ],
                             width=2,
                             className="d-flex align-items-end"
@@ -384,7 +383,7 @@ def get_tab1_layout():
                         dbc.Button(
                             "Adicionar Linha",
                             id='btn-add-row',
-                            className="btn-primary-custom"
+                            color="none", className="btn-primary-custom"
                         ),
                     ])
                 ],
@@ -416,7 +415,7 @@ def get_tab1_layout():
                         dbc.Button(
                             "Baixar Planilha (.xlsx)",
                             id='btn-download',
-                            className="btn-success-custom"
+                            color="none", className="btn-success-custom"
                         ),
                     ])
                 ],
@@ -530,7 +529,7 @@ def get_tab1_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                     metrics_section
                 ],
@@ -611,7 +610,7 @@ def get_tab_armazens_layout():
             ),
             dbc.CardBody(
                 [
-                    dbc.Button("Atualizar a Base", id="btn-update-base", color="info", className="w-100 mb-2 text-white", style={"backgroundColor": "#17a2b8", "borderColor": "#17a2b8"}),
+                    dbc.Button("Atualizar a Base", id="btn-update-base", color="none", className="btn-primary-custom w-100 mb-2"),
                     # Manage Container (Initially Hidden, dynamic content)
                     html.Div(
                         id="manage-base-container",
@@ -639,7 +638,7 @@ def get_tab_armazens_layout():
                             html.Div(
                                 id="download-example-container",
                                 children=[
-                                    dbc.Button("Baixar Planilha Exemplo (.xlsx)", id="btn-download-example", color="secondary", outline=True, className="w-100 mt-2"),
+                                    dbc.Button("Baixar Planilha Exemplo (.xlsx)", id="btn-download-example", color="none", className="btn-outline-secondary-custom w-100 mt-2"),
                                     dcc.Download(id="download-example-personalizada")
                                 ],
                                 style={"display": "none"}
@@ -648,7 +647,7 @@ def get_tab_armazens_layout():
                             html.Div(
                                 id="fetch-cadastrados-container",
                                 children=[
-                                    dbc.Button("Baixar Dados da Conab", id="btn-fetch-cadastrados", color="primary", className="w-100 mt-2")
+                                    dbc.Button("Baixar Dados da Conab", id="btn-fetch-cadastrados", color="none", className="btn-primary-custom w-100 mt-2")
                                 ],
                                 style={"display": "none"}
                             )
@@ -657,7 +656,7 @@ def get_tab_armazens_layout():
                     ),
 
                     # Salvar na base (Initially Hidden)
-                    dbc.Button("Salvar na Base", id="btn-save-base", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
+                    dbc.Button("Salvar na Base", id="btn-save-base", color="none", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
                 ],
                 className="card-body-custom"
             ),
@@ -814,7 +813,7 @@ def get_tab_armazens_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                     armazens_metrics_section
                 ],
@@ -831,7 +830,7 @@ def get_tab_armazens_layout():
             dbc.ModalHeader(dbc.ModalTitle(id="modal-tutorial-title"), close_button=True),
             dbc.ModalBody(id="modal-tutorial-body"),
             dbc.ModalFooter(
-                dbc.Button("Entendi", id="close-modal-tutorial", className="ms-auto", n_clicks=0)
+                dbc.Button("Entendi", id="close-modal-tutorial", className="btn-primary-custom ms-auto", n_clicks=0)
             ),
         ],
         id="modal-tutorial",
@@ -845,8 +844,8 @@ def get_tab_armazens_layout():
             dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. A nova base enviada será utilizada para todos os futuros usos do aplicativo. Tem certeza que deseja continuar?"),
             dbc.ModalFooter(
                 [
-                    dbc.Button("Cancelar", id="cancel-save", className="me-2", n_clicks=0),
-                    dbc.Button("Confirmar e Salvar", id="confirm-save", color="danger", n_clicks=0),
+                    dbc.Button("Cancelar", id="cancel-save", color="none", className="btn-secondary-custom me-2", n_clicks=0),
+                    dbc.Button("Confirmar e Salvar", id="confirm-save", color="none", className="btn-danger-custom", n_clicks=0),
                 ]
             ),
         ],
@@ -859,7 +858,7 @@ def get_tab_armazens_layout():
             dbc.ModalHeader(dbc.ModalTitle("Atenção: Capacidade de Recepção Não Encontrada"), close_button=True),
             dbc.ModalBody(id="modal-missing-cdas-body", children=""),
             dbc.ModalFooter(
-                dbc.Button("Fechar", id="close-missing-cdas", className="ms-auto", n_clicks=0)
+                dbc.Button("Fechar", id="close-missing-cdas", className="btn-primary-custom ms-auto", n_clicks=0)
             ),
         ],
         id="modal-missing-cdas",
@@ -871,7 +870,7 @@ def get_tab_armazens_layout():
             dbc.ModalHeader(dbc.ModalTitle("Aviso de Desempenho"), close_button=True),
             dbc.ModalBody("Esta base possui mais de 1000 armazéns e isso pode causar lentidões na sua utilização."),
             dbc.ModalFooter(
-                dbc.Button("Entendi", id="close-lentidao-modal", className="ms-auto", n_clicks=0)
+                dbc.Button("Entendi", id="close-lentidao-modal", className="btn-primary-custom ms-auto", n_clicks=0)
             ),
         ],
         id="modal-lentidao-armazens",
@@ -963,7 +962,7 @@ def get_tab_prod_armazens_layout():
                                 ]
                             )
                         ], className="h-100"),
-                        color="primary"
+                        spinner_class_name="text-primary-custom"
                     ),
                 ],
                 className="card-body-custom"
@@ -979,7 +978,7 @@ def get_tab_prod_armazens_layout():
             dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=False),
             dbc.ModalBody(id="modal-missing-data-body", children="Faltam dados."),
             dbc.ModalFooter(
-                dbc.Button("Confirmar", id="btn-confirm-missing-data", className="ms-auto", n_clicks=0)
+                dbc.Button("Confirmar", id="btn-confirm-missing-data", color="none", className="btn-primary-custom ms-auto", n_clicks=0)
             ),
         ],
         id="modal-missing-data",
@@ -1004,7 +1003,7 @@ error_modal = dbc.Modal(
         dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
         dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
         dbc.ModalFooter(
-            dbc.Button("Fechar", id="close-modal", className="ms-auto", n_clicks=0)
+            dbc.Button("Fechar", id="close-modal", className="btn-primary-custom ms-auto", n_clicks=0)
         ),
     ],
     id="error-modal",
@@ -3087,7 +3086,7 @@ def update_results_kpis_and_table(results_data):
                 html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-0")
-            ], color="danger", className="shadow-sm mb-3"))
+            ], className="alert-danger-custom shadow-sm mb-3"))
     else:
         # 1. Capacity warnings
         capacity_warnings = warnings.get("capacity", [])
@@ -3106,7 +3105,7 @@ def update_results_kpis_and_table(results_data):
                     html.Li("Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga."),
                     html.Li("Reduza a quantidade ofertada na aba 'Oferta'.")
                 ], className="mb-0")
-            ], color="warning", className="shadow-sm mb-3"))
+            ], className="alert-warning-custom shadow-sm mb-3"))
 
         # 2. Unallocated warnings
         unallocated_warnings = warnings.get("unallocated", [])
@@ -3123,8 +3122,8 @@ def update_results_kpis_and_table(results_data):
                 html.Ul([
                     html.Li("Recalcule a matriz de distâncias para garantir que todas as origens tenham rotas mapeadas.")
                 ], className="mb-3"),
-                dbc.Button("Ir para a aba Matriz de Distâncias", id="btn-go-to-distance-matrix", color="primary", size="sm")
-            ], color="danger", className="shadow-sm mb-3"))
+                dbc.Button("Ir para a aba Matriz de Distâncias", id="btn-go-to-distance-matrix", color="none", className="btn-primary-custom", size="sm")
+            ], className="alert-danger-custom shadow-sm mb-3"))
 
         # 3. General warnings
         general_warnings = warnings.get("general", [])
@@ -3134,7 +3133,7 @@ def update_results_kpis_and_table(results_data):
                 html.H5([html.I(className="bi bi-exclamation-circle-fill me-2"), "Aviso Geral"], className="alert-heading"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-0")
-            ], color="info", className="shadow-sm mb-3"))
+            ], className="alert-info-custom shadow-sm mb-3"))
 
     return obj_str, tons, kms, freight, storage, table_data, warnings_html
 
@@ -3401,7 +3400,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
                     html.Span(dest_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-box-seam-fill text-primary me-2"), html.Strong("Produto: ")]),
+                    html.Div([html.I(className="bi bi-box-seam-fill text-primary-custom me-2"), html.Strong("Produto: ")]),
                     html.Span(prod_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
