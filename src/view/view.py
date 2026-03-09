@@ -172,46 +172,46 @@ navbar = dbc.Navbar(
 # Modal de Ajuda
 help_modal = dbc.Modal(
     [
-        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-primary-custom"), "Guia de Uso do Granum"]), close_button=True),
+        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), "Guia de Uso do Granum"]), close_button=True),
         dbc.ModalBody(
             [
                 html.P("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", className="mb-4 text-muted"),
 
                 dbc.ListGroup([
                     dbc.ListGroupItem([
-                        html.H5([html.Span("1.", className="badge bg-primary-custom rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("1.", className="badge bg-info-custom rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("2.", className="badge bg-primary-custom rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("2.", className="badge bg-info-custom rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("3.", className="badge bg-primary-custom rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("3.", className="badge bg-info-custom rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("4.", className="badge bg-primary-custom rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("4.", className="badge bg-info-custom rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("5.", className="badge bg-primary-custom rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("5.", className="badge bg-info-custom rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.", className="mb-0 text-muted")
                     ], className="border-0 border-bottom py-3"),
 
                     dbc.ListGroupItem([
-                        html.H5([html.Span("6.", className="badge bg-primary-custom rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
+                        html.H5([html.Span("6.", className="badge bg-info-custom rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
                         html.P("Na aba de Configuração, apenas rode o modelo de otimização matemática. Em seguida, na aba Resultados, você poderá visualizar as métricas globais, explorar as rotas sugeridas pelo mapa interativo e baixar o relatório final completo.", className="mb-0 text-muted")
                     ], className="border-0 py-3"),
                 ], flush=True),
             ]
         ),
         dbc.ModalFooter(
-            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="none", className="btn-primary-custom", n_clicks=0)
+            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="none", className="btn-info-custom", n_clicks=0)
         ),
     ],
     id="modal-help",

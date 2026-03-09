@@ -20,7 +20,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo Total Ótimo (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['SUCCESS']})
+                                    html.H4(id="res-kpi-objective", children="R$ 0,00", className="mb-0 text-success-custom")
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -31,7 +31,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Total Movimentado (ton)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-tons", children="0.00", className="mb-0", style={"color": UNB_THEME['PRIMARY']})
+                                    html.H4(id="res-kpi-tons", children="0.00", className="mb-0 text-primary-custom")
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -42,7 +42,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Distância Total (km)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-km", children="0.00", className="mb-0", style={"color": UNB_THEME['SECONDARY']})
+                                    html.H4(id="res-kpi-km", children="0.00", className="mb-0 text-secondary-custom")
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -53,7 +53,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo com Frete (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-freight", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['DANGER']})
+                                    html.H4(id="res-kpi-freight", children="R$ 0,00", className="mb-0 text-danger-custom")
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
@@ -64,7 +64,7 @@ def get_tab_results_layout():
                             dbc.Card(
                                 dbc.CardBody([
                                     html.H6("Custo Armazenagem (R$)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                    html.H4(id="res-kpi-storage", children="R$ 0,00", className="mb-0", style={"color": UNB_THEME['WARNING']})
+                                    html.H4(id="res-kpi-storage", children="R$ 0,00", className="mb-0 text-warning-custom")
                                 ]),
                                 className="shadow-sm border-0 h-100 text-center",
                                 style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}

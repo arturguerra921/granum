@@ -142,6 +142,29 @@ body {
     color: #FFFFFF !important;
 }
 
+/* Info */
+.btn-info-custom {
+    background-color: #00A0A7 !important; /* UNB_BLUE_GREEN */
+    border-color: #00A0A7 !important;
+    color: #FFFFFF !important;
+    font-weight: 500 !important;
+}
+.btn-info-custom:hover {
+    background-color: #008085 !important; /* Darker blue-green */
+    border-color: #008085 !important;
+}
+
+.btn-outline-info-custom {
+    color: #00A0A7 !important;
+    border-color: #00A0A7 !important;
+    background-color: transparent !important;
+    font-weight: 500 !important;
+}
+.btn-outline-info-custom:hover {
+    background-color: #00A0A7 !important;
+    color: #FFFFFF !important;
+}
+
 /* Warning */
 .btn-warning-custom {
     background-color: #FDCA00 !important; /* UNB_YELLOW_MED */
@@ -339,9 +362,24 @@ small, .small {
     border-radius: 0.25rem;
 }
 
-/* Custom Text Primary for Spinners */
+/* Custom Text Colors */
 .text-primary-custom {
     color: #003366 !important; /* UNB_BLUE */
+}
+.text-success-custom {
+    color: #006633 !important; /* UNB_GREEN */
+}
+.text-secondary-custom {
+    color: #7E7E65 !important; /* UNB_GRAY_DARK */
+}
+.text-danger-custom {
+    color: #C8102E !important; /* Red */
+}
+.text-warning-custom {
+    color: #997A00 !important; /* UNB_YELLOW_DARK */
+}
+.text-info-custom {
+    color: #00A0A7 !important; /* UNB_BLUE_GREEN */
 }
 
 /* Custom Switch for Configuração do Modelo */
@@ -358,6 +396,11 @@ small, .small {
 /* Custom Backgrounds */
 .bg-primary-custom {
     background-color: #003366 !important; /* UNB_BLUE */
+    color: #FFFFFF !important;
+}
+
+.bg-info-custom {
+    background-color: #00A0A7 !important; /* UNB_BLUE_GREEN */
     color: #FFFFFF !important;
 }
 
