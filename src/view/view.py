@@ -3026,7 +3026,11 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             detailed_log=detailed_log
         )
 
-        status_msg = "Modelo executado com sucesso!" if results_dict.get("status") == "optimal" else "Falha ao encontrar solução ótima."
+        # Obter tempo de execução
+        exec_time = results_dict.get('kpis', {}).get('execution_time', 0.0)
+        time_str = f" (Tempo de execução: {exec_time:.2f} segundos)" if exec_time else ""
+
+        status_msg = f"Modelo executado com sucesso!{time_str}" if results_dict.get("status") == "optimal" else f"Falha ao encontrar solução ótima.{time_str}"
         status_class = "text-success mt-3 fw-bold" if results_dict.get("status") == "optimal" else "text-warning mt-3 fw-bold"
 
         # Redirecionar para aba de resultados se sucesso

@@ -233,7 +233,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
     os.makedirs(log_dir, exist_ok=True)
 
     # Limpar arquivos antigos para não estourar o disco
-    import time
+
     now = time.time()
     for filename in os.listdir(log_dir):
         filepath = os.path.join(log_dir, filename)
@@ -259,7 +259,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             "total_tons": 0.0,
             "total_km": 0.0,
             "total_freight_cost": 0.0,
-            "total_storage_cost": 0.0
+            "total_storage_cost": 0.0,
+            "execution_time": 0.0
         },
         "warnings": {
             "capacity": [],
@@ -547,6 +548,9 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         end_time = time.time()
         total_time_seconds = end_time - start_time
         print(f"\nTempo total para resolver o modelo (do clique à solução): {total_time_seconds:.2f} segundos.")
+
+        # Adiciona o tempo ao dicionário de resultados
+        results_dict["kpis"]["execution_time"] = total_time_seconds
 
         # Fechar o arquivo temporário de log e restaurar stdout
         new_stdout.close()
