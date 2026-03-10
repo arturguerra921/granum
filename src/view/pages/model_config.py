@@ -55,7 +55,7 @@ def get_tab_model_config_layout():
 
                             html.H6("Limites de Recepção do Armazém", className="fw-bold small text-primary-custom mb-3"),
 
-                            # Linha 1: Recepção Mínima e Dias
+                            # Linha 1: Recepção Mínima
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
@@ -64,14 +64,6 @@ def get_tab_model_config_layout():
                                         dbc.Tooltip("A soma de todas as rotas chegando em um armazém deve ser pelo menos este valor diariamente.", target="help-carga-min")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-carga-min", type="number", min=0, placeholder="Ex: 10", className="mb-4")
-                                ], width=6),
-                                dbc.Col([
-                                    html.Div([
-                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Quantidade de dias que multiplica as cargas diárias (mínima e máxima) de recepção do armazém, simulando mais de um dia de operação.", target="help-dias")
-                                    ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
                                 ], width=6)
                             ]),
 
@@ -111,6 +103,18 @@ def get_tab_model_config_layout():
                                         )
                                     ], className="d-flex align-items-center mb-4", style={"height": "38px"})
                                 ], width=6),
+                            ]),
+
+                            # Linha 3: Dias para alocação
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Quantidade de dias que multiplica as cargas diárias (mínima e máxima) de recepção do armazém, simulando mais de um dia de operação.", target="help-dias")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
+                                ], width=6)
                             ]),
 
                             html.Hr(className="mt-2 mb-4"),
