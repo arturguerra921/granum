@@ -464,7 +464,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print("\nChamando solver CBC...")
         solver = SolverFactory('cbc')
         # Limite de tempo para não travar infinitamente
-        solver.options['sec'] = 300
+        solver.options['sec'] = 600
 
         results = solver.solve(model, tee=True)
 
@@ -873,7 +873,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
         print("\nChamando solver CBC (MILP)...")
         solver = SolverFactory('cbc')
-        solver.options['sec'] = 300
+        solver.options['sec'] = 600
 
         results = solver.solve(model, tee=True)
 
