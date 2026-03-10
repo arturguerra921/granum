@@ -46,38 +46,51 @@ def get_tab_model_config_layout():
                         id="container-min-max-options",
                         style={"display": "none"},
                         children=[
-                            html.Hr(className="mt-2 mb-4"),
-                            # Linha 1: Carga Mínima
+                            html.Hr(className="mt-2 mb-3"),
+
+                            html.P([
+                                html.I(className="bi bi-info-circle me-1"),
+                                "Campos deixados em branco (sem valor numérico) não serão considerados no limite. Você não precisa preencher todos."
+                            ], className="text-muted small mb-3 fst-italic", style={"fontSize": "0.8rem"}),
+
+                            html.H6("Limites de Recepção do Armazém", className="fw-bold small text-primary-custom mb-3"),
+
+                            # Linha 1: Recepção Mínima e Dias
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        dbc.Label("Carga mínima diária (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        dbc.Label("Recepção mínima diária (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Quantidade mínima de carga (em toneladas) que deve ser alocada diariamente.", target="help-carga-min")
+                                        dbc.Tooltip("A soma de todas as rotas chegando em um armazém deve ser pelo menos este valor diariamente.", target="help-carga-min")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-carga-min", type="number", min=0, placeholder="Ex: 10", className="mb-4")
+                                ], width=6),
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Quantidade de dias que multiplica as cargas diárias (mínima e máxima) de recepção do armazém, simulando mais de um dia de operação.", target="help-dias")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
                                 ], width=6)
                             ]),
 
-                            # Linha 2: Carga Máxima (Esquerda) e Switch Recepção (Direita)
+                            # Linha 2: Recepção Máxima e Switch
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        dbc.Label("Carga máxima diária (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        dbc.Label("Recepção máxima diária (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Quantidade máxima de carga (em toneladas) que pode ser alocada diariamente.", target="help-carga-max")
+                                        dbc.Tooltip("A soma de todas as rotas chegando em um armazém não pode ultrapassar este valor diariamente.", target="help-carga-max")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-carga-max", type="number", min=0, placeholder="Ex: 100", className="mb-4")
                                 ], width=6),
-
                                 dbc.Col([
-                                    # Para o alinhamento perfeito, a estrutura deve espelhar o lado esquerdo
-                                    # Criamos um cabeçalho invisível do exato mesmo tamanho e espaçamento:
+                                    # Para o alinhamento perfeito
                                     html.Div([
                                         dbc.Label("Spacer", className="fw-bold small me-2 mb-0", style={"visibility": "hidden"}),
                                         html.I(className="bi bi-question-circle-fill", style={"visibility": "hidden", "fontSize": "var(--font-size-small)"})
                                     ], className="d-flex align-items-center mb-1"),
-                                    # Colocamos o conteúdo do switch num container do tamanho do input (altura 38px do bootstrap) e usamos flex center
                                     html.Div([
                                         dbc.Switch(
                                             id="toggle-use-recepcao",
@@ -85,31 +98,45 @@ def get_tab_model_config_layout():
                                             className="custom-switch mb-0 small"
                                         ),
                                         html.Label(
-                                            "Utilizar Capacidade de Recepção",
+                                            "Utilizar Cap. de Recepção",
                                             htmlFor="toggle-use-recepcao",
-                                            className="mb-0 mx-2 text-muted cursor-pointer small"
+                                            className="mb-0 mx-2 text-muted cursor-pointer small",
+                                            style={"whiteSpace": "nowrap"}
                                         ),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip(
-                                            "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como carga máxima diária. O campo numérico de carga máxima será desativado.",
+                                            "Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como recepção máxima diária.",
                                             target="help-use-recepcao",
                                             placement="top"
                                         )
-                                    ], className="d-flex align-items-center mb-4", style={"height": "38px"}) # 38px is the default height of dbc.Input
+                                    ], className="d-flex align-items-center mb-4", style={"height": "38px"})
                                 ], width=6),
                             ]),
 
-                            # Linha 3: Dias para alocação
+                            html.Hr(className="mt-2 mb-4"),
+
+                            html.H6("Limites de Rota Individual (Frete)", className="fw-bold small text-primary-custom mb-3"),
+
+                            # Linha 3: Carga mínima e máxima de frete
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Quantidade de dias que serão considerados para a alocação de toda a carga.", target="help-dias")
+                                        dbc.Label("Carga mínima de frete (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-frete-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Valor mínimo que uma rota individual deve transportar. Rotas com carga menor que esta não existirão.", target="help-frete-min")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
+                                    dbc.Input(id="input-frete-min", type="number", min=0, placeholder="Ex: 15", className="mb-4")
+                                ], width=6),
+                                dbc.Col([
+                                    html.Div([
+                                        dbc.Label("Carga máxima de frete (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-frete-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip("Valor máximo que uma rota individual pode transportar. Nenhuma rota terá carga maior que esta.", target="help-frete-max")
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-frete-max", type="number", min=0, placeholder="Ex: 50", className="mb-4")
                                 ], width=6)
                             ]),
+
                             html.Hr(className="mt-0 mb-4")
                         ]
                     ),
