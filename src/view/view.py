@@ -2993,7 +2993,14 @@ def toggle_carga_max_input(use_recepcao):
         State('store-armazens', 'data'),
         State('store-prod-armazens', 'data'),
         State('store-distance-matrix', 'data'),
-        State('toggle-detailed-log', 'value')
+        State('toggle-detailed-log', 'value'),
+        State('toggle-min-max-capacity', 'value'),
+        State('input-carga-min', 'value'),
+        State('input-carga-max', 'value'),
+        State('toggle-use-recepcao', 'value'),
+        State('input-dias-alocacao', 'value'),
+        State('input-frete-min', 'value'),
+        State('input-frete-max', 'value')
     ],
     background=True,
     running=[
@@ -3004,7 +3011,8 @@ def toggle_carga_max_input(use_recepcao):
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
 )
-def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log):
+def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log,
+                  toggle_min_max_capacity, input_carga_min, input_carga_max, toggle_use_recepcao, input_dias_alocacao, input_frete_min, input_frete_max):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -3042,7 +3050,14 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_dist=df_dist,
             df_freight=df_freight,
             df_storage=df_storage,
-            detailed_log=detailed_log
+            detailed_log=detailed_log,
+            toggle_min_max_capacity=toggle_min_max_capacity,
+            input_carga_min=input_carga_min,
+            input_carga_max=input_carga_max,
+            toggle_use_recepcao=toggle_use_recepcao,
+            input_dias_alocacao=input_dias_alocacao,
+            input_frete_min=input_frete_min,
+            input_frete_max=input_frete_max
         )
 
         # Obter tempo de execução
