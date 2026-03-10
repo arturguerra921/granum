@@ -29,13 +29,13 @@ def get_tab_model_config_layout():
                             className="custom-switch mb-0 small"
                         ),
                         html.Label(
-                            "Adicionar carga mínima e máxima",
+                            "Adicionar limites de recepção e rota",
                             htmlFor="toggle-min-max-capacity",
                             className="mb-0 mx-2 text-muted cursor-pointer small"
                         ),
                         html.I(className="bi bi-question-circle-fill text-muted", id="help-min-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                         dbc.Tooltip(
-                            "Ative para configurar capacidades diárias mínimas e máximas de recepção para os armazéns durante o período alocado.",
+                            "Ative para configurar limites de recepção e limites de rota. Utilizar estes limites pode ajudar a criar soluções mais realistas, mas também pode aumentar consideravelmente o tempo de resolução do modelo.",
                             target="help-min-max",
                             placement="top"
                         )
@@ -111,7 +111,7 @@ def get_tab_model_config_layout():
                                     html.Div([
                                         dbc.Label("Dias para alocação", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Quantidade de dias que multiplica as cargas diárias (mínima e máxima) de recepção do armazém, simulando mais de um dia de operação.", target="help-dias")
+                                        dbc.Tooltip("Quantidade de dias que multiplica as recepções (mínima e máxima) do armazém, simulando mais de um dia de operação.", target="help-dias")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder="Ex: 5", className="mb-4")
                                 ], width=6)
@@ -127,7 +127,7 @@ def get_tab_model_config_layout():
                                     html.Div([
                                         dbc.Label("Carga mínima de frete (ton)", className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-frete-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip("Valor mínimo que uma rota individual deve transportar. Rotas com carga menor que esta não existirão.", target="help-frete-min")
+                                        dbc.Tooltip("Valor mínimo que uma rota individual deve transportar. Nenhuma rota terá carga menor que esta.", target="help-frete-min")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-frete-min", type="number", min=0, placeholder="Ex: 15", className="mb-4")
                                 ], width=6),
