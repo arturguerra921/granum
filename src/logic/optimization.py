@@ -662,6 +662,10 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         print("Iniciando a construção do modelo matemático (MILP com restrições de limite)...")
         model = pyo.ConcreteModel(name="Alocacao_Armazens_MILP")
 
+        # =========================================================================
+        # 3.1 CONJUNTOS (SETS)
+        # =========================================================================
+        # Definem os índices sobre os quais o modelo irá operar.
         model.Origins = pyo.Set(initialize=origins_list, doc="Cidades de Origem da Oferta")
         model.Destinations = pyo.Set(initialize=list(demand_total_capacity.keys()), doc="Armazéns de Destino")
         model.Products = pyo.Set(initialize=all_products, doc="Tipos de Produtos")
@@ -676,29 +680,36 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         print(f"Total de combinações (Origem x Destino x Produto) válidas: {len(valid_routes)}")
         model.ValidRoutes = pyo.Set(initialize=valid_routes, dimen=3, doc="Rotas Válidas (Origem, Destino, Produto)")
 
+        # =========================================================================
+        # 3.2 PARÂMETROS (PARAMETERS)
+        # =========================================================================
+        # Valores fixos conhecidos fornecidos como dados de entrada para o modelo.
+
+        # --- Parâmetros de Oferta e Demanda ---
         def supply_init(model, o, p):
             return supply.get((o, p), 0.0)
-        model.Supply = pyo.Param(model.Origins, model.Products, initialize=supply_init)
+        model.Supply = pyo.Param(model.Origins, model.Products, initialize=supply_init, doc="Oferta disponível por (Origem, Produto)")
 
         def total_capacity_init(model, d):
             return demand_total_capacity.get(d, 0.0)
-        model.TotalCapacity = pyo.Param(model.Destinations, initialize=total_capacity_init)
+        model.TotalCapacity = pyo.Param(model.Destinations, initialize=total_capacity_init, doc="Capacidade estática total do armazém (ton)")
 
         def initial_inventory_init(model, d):
             return demand_initial_inventory.get(d, 0.0)
-        model.InitialInventory = pyo.Param(model.Destinations, initialize=initial_inventory_init)
+        model.InitialInventory = pyo.Param(model.Destinations, initialize=initial_inventory_init, doc="Estoque inicial presente no armazém (ton)")
 
+        # --- Parâmetros de Custos e Distâncias ---
         def dist_init(model, o, d):
             return distance.get((o, d), 999999.0)
-        model.Distance = pyo.Param(model.Origins, model.Destinations, initialize=dist_init)
+        model.Distance = pyo.Param(model.Origins, model.Destinations, initialize=dist_init, doc="Distância entre Origem e Destino (km)")
 
         def freight_init(model, o):
             return freight_cost.get(o, avg_freight)
-        model.Freight = pyo.Param(model.Origins, initialize=freight_init)
+        model.Freight = pyo.Param(model.Origins, initialize=freight_init, doc="Custo unitário de frete (R$/ton-km) a partir da Origem")
 
         def storage_init(model, d, p):
             return storage_cost.get((d, p), 50.0)
-        model.Storage = pyo.Param(model.Destinations, model.Products, initialize=storage_init)
+        model.Storage = pyo.Param(model.Destinations, model.Products, initialize=storage_init, doc="Tarifa de armazenagem no Destino para o Produto (R$/ton)")
 
         max_freight = max(freight_cost.values()) if freight_cost else 0.0
         max_dist = max(distance.values()) if distance else 0.0
@@ -710,18 +721,31 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
         val_big_m_unalloc = val_big_m_cap * 10
 
-        model.BigMCapacity = pyo.Param(initialize=val_big_m_cap)
-        model.BigMUnallocated = pyo.Param(initialize=val_big_m_unalloc)
+        # --- Parâmetros de Penalização (Big M) ---
+        model.BigMCapacity = pyo.Param(initialize=val_big_m_cap, doc="Custo de penalização por tonelada de capacidade artificial")
+        model.BigMUnallocated = pyo.Param(initialize=val_big_m_unalloc, doc="Custo de penalização por tonelada de oferta não alocada")
 
-        # Variáveis
-        model.Flow = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeReals, doc="Quantidade transportada")
-        model.DummyCapacity = pyo.Var(model.Destinations, domain=pyo.NonNegativeReals)
-        model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals)
+        # =========================================================================
+        # 3.3 VARIÁVEIS DE DECISÃO (VARIABLES)
+        # =========================================================================
+        # Valores que o solver tentará determinar para otimizar o resultado.
 
-        # Variável Binária para Limites Individuais de Rota
+        # Fluxo de produto (quantidade a ser transportada) em toneladas
+        model.Flow = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeReals, doc="Quantidade transportada (o, d, p)")
+
+        # Variáveis de folga (Dummies) para garantir viabilidade matemática do modelo
+        model.DummyCapacity = pyo.Var(model.Destinations, domain=pyo.NonNegativeReals, doc="Capacidade extra artificial alocada (ton)")
+        model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals, doc="Oferta não alocada a nenhum destino (ton)")
+
+        # Variáveis Binárias para Limites
         model.RouteActive = pyo.Var(model.ValidRoutes, domain=pyo.Binary, doc="1 se a rota for usada, 0 caso contrário")
+        # model.WarehouseActive declarada mais abaixo na seção de Constraints MILP
 
-        # Objective
+        # =========================================================================
+        # 3.4 FUNÇÃO OBJETIVO (OBJECTIVE)
+        # =========================================================================
+        # Expressão matemática a ser minimizada (Minimizar Custos).
+
         def objective_rule(model):
             normal_costs = sum(
                 (model.Flow[o, d, p] * model.Distance[o, d] * model.Freight[o]) +
@@ -732,9 +756,14 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * model.BigMUnallocated for o in model.Origins for p in model.Products)
             return normal_costs + dummy_capacity_costs + dummy_unallocated_costs
 
-        model.Objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
+        model.Objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize, doc="Minimização dos Custos Totais")
 
-        # Constraints Base
+        # =========================================================================
+        # 3.5 RESTRIÇÕES (CONSTRAINTS)
+        # =========================================================================
+        # Regras que as variáveis de decisão devem obedecer obrigatoriamente.
+
+        # Restrição 1: Conservação de Fluxo (Limite de Oferta)
         def supply_rule(model, o, p):
             if model.Supply[o, p] <= 0:
                 return pyo.Constraint.Skip
@@ -743,8 +772,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return model.DummyUnallocated[o, p] == model.Supply[o, p]
             flow_sum = sum(model.Flow[o, d, p] for d in valid_dests)
             return flow_sum + model.DummyUnallocated[o, p] == model.Supply[o, p]
-        model.SupplyConstraint = pyo.Constraint(model.Origins, model.Products, rule=supply_rule)
+        model.SupplyConstraint = pyo.Constraint(model.Origins, model.Products, rule=supply_rule, doc="Restrição de Limite de Oferta")
 
+        # Restrição 2: Limite de Capacidade Efetiva Estática
         def capacity_rule(model, d):
             valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
             if not valid_ops:
@@ -755,22 +785,25 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return flow_sum <= (model.TotalCapacity[d] - model.InitialInventory[d]) + model.DummyCapacity[d]
             else:
                 return flow_sum <= model.DummyCapacity[d]
-        model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule)
+        model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule, doc="Restrição de Limite de Capacidade Efetiva")
 
-        # MILP Constraints
+        # =========================================================================
+        # 3.6 RESTRIÇÕES MILP (LIMITES LOGÍSTICOS ADICIONAIS)
+        # =========================================================================
 
-        # Big M for flow logic
+        # Big M dinâmico para limite superior lógico de fluxo
         big_m_flow = sum(supply.values()) if supply else 999999.0
 
         def route_active_max_rule(model, o, d, p):
             max_val = frete_max if frete_max is not None else big_m_flow
             return model.Flow[o, d, p] <= model.RouteActive[o, d, p] * max_val
-        model.RouteActiveMaxRule = pyo.Constraint(model.ValidRoutes, rule=route_active_max_rule)
+        model.RouteActiveMaxRule = pyo.Constraint(model.ValidRoutes, rule=route_active_max_rule, doc="Limite máximo de frete na rota ou ligação Big M se não estipulado")
 
+        # Limite mínimo de Frete (opcional)
         if frete_min is not None:
             def route_active_min_rule(model, o, d, p):
                 return model.Flow[o, d, p] >= model.RouteActive[o, d, p] * frete_min
-            model.RouteActiveMinRule = pyo.Constraint(model.ValidRoutes, rule=route_active_min_rule)
+            model.RouteActiveMinRule = pyo.Constraint(model.ValidRoutes, rule=route_active_min_rule, doc="Limite mínimo de frete na rota caso ela seja usada")
 
         if carga_min is not None:
             def min_reception_rule(model, d):
@@ -788,8 +821,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             pass
 
         # We need WarehouseActive to handle minimums correctly
-        model.WarehouseActive = pyo.Var(model.Destinations, domain=pyo.Binary)
+        model.WarehouseActive = pyo.Var(model.Destinations, domain=pyo.Binary, doc="1 se o armazém receber qualquer rota, 0 caso contrário")
 
+        # Liga o fluxo do armazém com sua variável de ativação (WarehouseActive)
         def link_warehouse_active_rule(model, d):
             valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
             if not valid_ops:
@@ -797,8 +831,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
             flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
             return flow_sum <= model.WarehouseActive[d] * big_m_flow
-        model.LinkWarehouseActive = pyo.Constraint(model.Destinations, rule=link_warehouse_active_rule)
+        model.LinkWarehouseActive = pyo.Constraint(model.Destinations, rule=link_warehouse_active_rule, doc="Vincula o armazém a rotas ativas")
 
+        # Limite mínimo de recepção de carga no armazém (opcional)
         if carga_min is not None:
             def min_reception_rule(model, d):
                 valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
@@ -806,8 +841,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                     return pyo.Constraint.Skip
                 flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
                 return flow_sum >= model.WarehouseActive[d] * (carga_min * days)
-            model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule)
+            model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule, doc="Recepção Mínima do Armazém se for ativado")
 
+        # Limite máximo de recepção de carga no armazém (opcional ou pela Cap. Recepção do Banco)
         def max_reception_rule(model, d):
             valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
             if not valid_ops:
@@ -829,7 +865,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return flow_sum <= limit + model.DummyCapacity[d]
             return pyo.Constraint.Skip
 
-        model.MaxReceptionRule = pyo.Constraint(model.Destinations, rule=max_reception_rule)
+        model.MaxReceptionRule = pyo.Constraint(model.Destinations, rule=max_reception_rule, doc="Recepção Máxima no Armazém com tolerância de folga Dummy")
 
 
         if detailed_log:
