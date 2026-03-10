@@ -94,9 +94,20 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         except:
             estoque = 0.0
 
-        # Agora mantemos capacidade e estoque separados
+        # Parse reception capacity correctly
+        try:
+            if reception_col and pd.notna(row[reception_col]):
+                rec_str = str(row[reception_col]).replace('.', '').replace(',', '.')
+                recepcao = float(rec_str)
+            else:
+                recepcao = 0.0
+        except:
+            recepcao = 0.0
+
+        # Agora mantemos capacidade, estoque e recepção separados
         demand_total_capacity[cda] = cap
         demand_initial_inventory[cda] = estoque
+        demand_reception_capacity[cda] = recepcao
 
         # Determine if public or private
         if armazenador_col and str(row[armazenador_col]).upper() == "COMPANHIA NACIONAL DE ABASTECIMENTO":
