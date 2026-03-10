@@ -949,31 +949,43 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             results_dict["kpis"]["total_freight_cost"] = total_freight_cost
             results_dict["kpis"]["total_storage_cost"] = total_storage_cost
 
+            # Verificar uso das variáveis Dummies
             dummy_cap_used = False
+            print("\n--- AVISOS: CAPACIDADE ARTIFICIAL (DUMMIES) ---")
             for d in model.Destinations:
                 d_val = pyo.value(model.DummyCapacity[d])
                 if d_val > 0.001:
                     dummy_cap_used = True
                     d_name = cda_to_name.get(d, d)
                     msg = f"O Armazém '{d_name}' precisou de capacidade de armazenamento artificial de {d_val:.2f} toneladas."
+                    print(f"ALERTA: {msg}")
                     results_dict["warnings"]["capacity"].append(msg)
+
+            if not dummy_cap_used:
+                print("Nenhuma capacidade estática artificial foi necessária.")
 
             if "reception" not in results_dict["warnings"]:
                 results_dict["warnings"]["reception"] = []
 
             dummy_reception_used = False
+            print("\n--- AVISOS: RECEPÇÃO DIÁRIA ARTIFICIAL (DUMMIES) ---")
             for d in model.Destinations:
                 d_val = pyo.value(model.DummyReception[d])
                 if d_val > 0.001:
                     dummy_reception_used = True
                     d_name = cda_to_name.get(d, d)
                     msg = f"O Armazém '{d_name}' precisou de capacidade de recepção diária artificial de {d_val:.2f} toneladas."
+                    print(f"ALERTA: {msg}")
                     results_dict["warnings"]["reception"].append(msg)
+
+            if not dummy_reception_used:
+                print("Nenhuma capacidade de recepção artificial foi necessária.")
 
             if "freight" not in results_dict["warnings"]:
                 results_dict["warnings"]["freight"] = []
 
             dummy_unalloc_used = False
+            print("\n--- AVISOS: OFERTA SEM ROTAS / NÃO ALOCADA (DUMMIES) ---")
             for o in model.Origins:
                 for p in model.Products:
                     u_val = pyo.value(model.DummyUnallocated[o, p])
@@ -981,13 +993,20 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                         dummy_unalloc_used = True
 
                         # Inferir se a inalocação pode ser por conta do frete apertado
-                        # Se temos frete_min ou frete_max e existe oferta não alocada, pode ser por conta disso
                         if frete_min is not None or frete_max is not None:
-                            msg = f"A origem '{o}' possui oferta de '{p}' não alocada ({u_val:.2f} toneladas). Isso provavelmente ocorreu devido às restrições de carga de frete mínima/máxima impostas que impediram o fluxo completo."
+                            msg = f"A origem '{o}' possui oferta de '{p}' não alocada ({u_val:.2f} toneladas). Isso provavelmente ocorreu devido às restrições de carga de frete mínima/máxima impostas."
+                            print(f"ALERTA: {msg}")
                             results_dict["warnings"]["freight"].append(msg)
                         else:
                             msg = f"A origem '{o}' possui oferta de '{p}' não alocada: {u_val:.2f} toneladas."
+                            print(f"ALERTA: {msg}")
                             results_dict["warnings"]["unallocated"].append(msg)
+
+            if not dummy_unalloc_used:
+                print("Toda a oferta conseguiu ser escoada em rotas válidas.")
+
+            if dummy_cap_used or dummy_reception_used or dummy_unalloc_used:
+                print(f"\nNota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.")
 
         else:
             print("Não foi possível encontrar uma solução ótima.")
