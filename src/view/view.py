@@ -3088,13 +3088,14 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
      Output("res-kpi-freight", "children"),
      Output("res-kpi-storage", "children"),
      Output("table-results-routes", "data"),
+     Output("table-results-routes", "columns"),
      Output("results-warnings-container", "children")],
     Input("store-model-results", "data"),
     prevent_initial_call=True
 )
 def update_results_kpis_and_table(results_data):
     if not results_data or results_data.get("status") != "optimal":
-        return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update
+        return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update, dash.no_update
 
     kpis = results_data.get("kpis", {})
     routes = results_data.get("routes", [])
@@ -3107,14 +3108,31 @@ def update_results_kpis_and_table(results_data):
     freight = f"R$ {kpis.get('total_freight_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     storage = f"R$ {kpis.get('total_storage_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    has_viagens = False
     table_data = []
     for r in routes:
-        table_data.append({
+        row_data = {
             "Origem": r["Origem"],
             "Destino": r["Destino"],
             "Produto": r["Produto"],
             "Quantidade (ton)": round(r["Quantidade (ton)"], 2)
-        })
+        }
+
+        if "Qtd. de Viagens" in r and r["Qtd. de Viagens"] is not None:
+            has_viagens = True
+            row_data["Qtd. de Viagens"] = r["Qtd. de Viagens"]
+
+        table_data.append(row_data)
+
+    columns = [
+        {'name': 'Origem', 'id': 'Origem'},
+        {'name': 'Destino', 'id': 'Destino'},
+        {'name': 'Produto', 'id': 'Produto'},
+        {'name': 'Qtd (ton)', 'id': 'Quantidade (ton)'}
+    ]
+
+    if has_viagens:
+        columns.append({'name': 'Qtd. de Viagens', 'id': 'Qtd. de Viagens'})
 
     # Render warnings
     warnings_html = []
@@ -3177,7 +3195,7 @@ def update_results_kpis_and_table(results_data):
                 html.Ul(warnings_list, className="mb-0")
             ], className="alert-info-custom shadow-sm mb-3"))
 
-    return obj_str, tons, kms, freight, storage, table_data, warnings_html
+    return obj_str, tons, kms, freight, storage, table_data, columns, warnings_html
 
 @app.callback(
     Output("main-tabs", "active_tab", allow_duplicate=True),
@@ -3204,6 +3222,11 @@ def download_results(n_clicks, results_data):
         return dash.no_update
 
     df = pd.DataFrame(routes)
+
+    # Remove Qtd. de Viagens if all values are None or missing
+    if "Qtd. de Viagens" in df.columns and df["Qtd. de Viagens"].isnull().all():
+        df = df.drop(columns=["Qtd. de Viagens"])
+
     return dcc.send_data_frame(df.to_excel, "Resultados_Otimizacao.xlsx", index=False)
 
 @app.callback(
