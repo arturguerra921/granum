@@ -365,7 +365,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         max_storage = max(storage_cost.values()) if storage_cost else 0.0
 
         # Big M da Capacidade: ordens de grandeza maior que o custo de transportar e armazenar
-        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000000
+        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000
         if val_big_m_cap == 0:
             val_big_m_cap = 1000000
 
@@ -738,7 +738,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals, doc="Oferta não alocada a nenhum destino (ton)")
 
         # Variáveis Binárias para Limites
-        model.RouteActive = pyo.Var(model.ValidRoutes, domain=pyo.Binary, doc="1 se a rota for usada, 0 caso contrário")
+        model.RouteActive = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeIntegers, doc="Número de viagens na rota")
         # model.WarehouseActive declarada mais abaixo na seção de Constraints MILP
 
         # =========================================================================
@@ -787,9 +787,21 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return flow_sum <= model.DummyCapacity[d]
         model.CapacityConstraint = pyo.Constraint(model.Destinations, rule=capacity_rule, doc="Restrição de Limite de Capacidade Efetiva")
 
-        # =========================================================================
+# =========================================================================
         # 3.6 RESTRIÇÕES MILP (LIMITES LOGÍSTICOS ADICIONAIS)
         # =========================================================================
+        print("\n--- CONFIGURAÇÕES DE LIMITES LOGÍSTICOS (MILP) ---")
+        print(f"Dias de alocação considerados: {days}")
+        if frete_min is not None:
+            print(f"Carga mínima de frete por rota ativada: {frete_min} ton")
+        if frete_max is not None:
+            print(f"Carga máxima de frete por rota ativada: {frete_max} ton")
+        if carga_min is not None:
+            print(f"Carga mínima diária de recepção ativada: {carga_min} ton/dia (Total: {carga_min * days} ton)")
+        if toggle_use_recepcao:
+            print(f"Capacidade máxima de recepção do banco de dados ativada.")
+        elif carga_max is not None:
+            print(f"Carga máxima diária de recepção ativada: {carga_max} ton/dia (Total: {carga_max * days} ton)")
 
         # Big M dinâmico para limite superior lógico de fluxo
         big_m_flow = sum(supply.values()) if supply else 999999.0
@@ -805,22 +817,8 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return model.Flow[o, d, p] >= model.RouteActive[o, d, p] * frete_min
             model.RouteActiveMinRule = pyo.Constraint(model.ValidRoutes, rule=route_active_min_rule, doc="Limite mínimo de frete na rota caso ela seja usada")
 
-        if carga_min is not None:
-            def min_reception_rule(model, d):
-                valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
-                if not valid_ops:
-                    return pyo.Constraint.Skip
-                # Only apply if warehouse receives anything? The problem says "sum of all routes must respect min"
-                # Meaning if a warehouse is chosen, it must receive >= carga_min * days
-                # But what if it's not chosen at all? We need a binary for warehouse used?
-                # For simplicity, based on typical LP, if it has capacity and receives, it must be >= min.
-                # Actually, the user requirement states: "a soma de todas as rotas destinadas a ele deve respeitar a recepção mínima e máxima diária".
-                # If we don't have a warehouse binary, `sum(Flow) >= min` forces EVERY warehouse to receive `min`, causing infeasibility.
-                # We need a WarehouseActive binary variable.
-                return pyo.Constraint.Skip # Handled below
-            pass
-
-        # We need WarehouseActive to handle minimums correctly
+        # Variável binária de ativação do armazém:
+        # Se um armazém for usado (receber qualquer fluxo), WarehouseActive = 1
         model.WarehouseActive = pyo.Var(model.Destinations, domain=pyo.Binary, doc="1 se o armazém receber qualquer rota, 0 caso contrário")
 
         # Liga o fluxo do armazém com sua variável de ativação (WarehouseActive)
@@ -844,6 +842,8 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule, doc="Recepção Mínima do Armazém se for ativado")
 
         # Limite máximo de recepção de carga no armazém (opcional ou pela Cap. Recepção do Banco)
+        # Observação: toggle_use_recepcao e carga_max são mutuamente exclusivos na lógica da UI,
+        # mas aqui explicitamos a prioridade: a capacidade do banco sobressai se ativada.
         def max_reception_rule(model, d):
             valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
             if not valid_ops:
@@ -859,9 +859,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 limit = carga_max * days
 
             if limit is not None:
-                # Flow can use dummy capacity if the limit is exceeded.
-                # We only restrict the real flow. Wait, dummy capacity is added to total static capacity,
-                # but reception capacity is a different constraint. We should also allow dummy capacity here to avoid infeasibility.
+                # Flow can use dummy capacity se o limite for ultrapassado
                 return flow_sum <= limit + model.DummyCapacity[d]
             return pyo.Constraint.Skip
 
