@@ -738,7 +738,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals, doc="Oferta não alocada a nenhum destino (ton)")
 
         # Variáveis Binárias para Limites
-        model.RouteActive = pyo.Var(model.ValidRoutes, domain=pyo.Binary, doc="1 se a rota for usada, 0 caso contrário")
+        model.RouteActive = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeIntegers, doc="Número de viagens na rota")
         # model.WarehouseActive declarada mais abaixo na seção de Constraints MILP
 
         # =========================================================================
