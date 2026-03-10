@@ -905,7 +905,10 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                     route_storage = val * s_cost
                     route_total = route_freight + route_storage
 
-                    print(f"De: {o} | Para: {d_name} | Produto: {p} | Qtd: {val:.2f} ton")
+                    viagens = pyo.value(model.RouteActive[o, d, p])
+                    viagens_val = int(round(viagens)) if viagens is not None else None
+
+                    print(f"De: {o} | Para: {d_name} | Produto: {p} | Qtd: {val:.2f} ton | Viagens: {viagens_val}")
 
                     results_dict["routes"].append({
                         "Origem": o,
@@ -917,7 +920,8 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                         "Custo Armazenagem (R$)": route_storage,
                         "Custo Total (R$)": route_total,
                         "Custo Frete Unitario (R$/ton-km)": f_cost,
-                        "Custo Armaz. Unitario (R$/ton)": s_cost
+                        "Custo Armaz. Unitario (R$/ton)": s_cost,
+                        "Qtd. de Viagens": viagens_val
                     })
 
                     total_transported += val
