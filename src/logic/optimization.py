@@ -747,6 +747,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         # Variáveis de folga (Dummies) para garantir viabilidade matemática do modelo
         model.DummyCapacity = pyo.Var(model.Destinations, domain=pyo.NonNegativeReals, doc="Capacidade extra artificial alocada (ton)")
         model.DummyUnallocated = pyo.Var(model.Origins, model.Products, domain=pyo.NonNegativeReals, doc="Oferta não alocada a nenhum destino (ton)")
+        model.DummyReception = pyo.Var(model.Destinations, domain=pyo.NonNegativeReals, doc="Capacidade de recepção diária extra artificial alocada (ton)")
 
         # Variáveis Binárias para Limites
         model.RouteActive = pyo.Var(model.ValidRoutes, domain=pyo.NonNegativeIntegers, doc="Número de viagens na rota")
@@ -764,8 +765,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 for (o, d, p) in model.ValidRoutes
             )
             dummy_capacity_costs = sum(model.DummyCapacity[d] * model.BigMCapacity for d in model.Destinations)
+            dummy_reception_costs = sum(model.DummyReception[d] * model.BigMCapacity for d in model.Destinations)
             dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * model.BigMUnallocated for o in model.Origins for p in model.Products)
-            return normal_costs + dummy_capacity_costs + dummy_unallocated_costs
+            return normal_costs + dummy_capacity_costs + dummy_reception_costs + dummy_unallocated_costs
 
         model.Objective = pyo.Objective(rule=objective_rule, sense=pyo.minimize, doc="Minimização dos Custos Totais")
 
@@ -870,11 +872,11 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 limit = carga_max * days
 
             if limit is not None:
-                # Flow can use dummy capacity se o limite for ultrapassado
-                return flow_sum <= limit + model.DummyCapacity[d]
+                # Flow can use dummy reception se o limite for ultrapassado
+                return flow_sum <= limit + model.DummyReception[d]
             return pyo.Constraint.Skip
 
-        model.MaxReceptionRule = pyo.Constraint(model.Destinations, rule=max_reception_rule, doc="Recepção Máxima no Armazém com tolerância de folga Dummy")
+        model.MaxReceptionRule = pyo.Constraint(model.Destinations, rule=max_reception_rule, doc="Recepção Máxima no Armazém com tolerância de folga DummyReception")
 
 
         if detailed_log:
@@ -956,14 +958,36 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                     msg = f"O Armazém '{d_name}' precisou de capacidade de armazenamento artificial de {d_val:.2f} toneladas."
                     results_dict["warnings"]["capacity"].append(msg)
 
+            if "reception" not in results_dict["warnings"]:
+                results_dict["warnings"]["reception"] = []
+
+            dummy_reception_used = False
+            for d in model.Destinations:
+                d_val = pyo.value(model.DummyReception[d])
+                if d_val > 0.001:
+                    dummy_reception_used = True
+                    d_name = cda_to_name.get(d, d)
+                    msg = f"O Armazém '{d_name}' precisou de capacidade de recepção diária artificial de {d_val:.2f} toneladas."
+                    results_dict["warnings"]["reception"].append(msg)
+
+            if "freight" not in results_dict["warnings"]:
+                results_dict["warnings"]["freight"] = []
+
             dummy_unalloc_used = False
             for o in model.Origins:
                 for p in model.Products:
                     u_val = pyo.value(model.DummyUnallocated[o, p])
                     if u_val > 0.001:
                         dummy_unalloc_used = True
-                        msg = f"A origem '{o}' possui oferta de '{p}' não alocada: {u_val:.2f} toneladas."
-                        results_dict["warnings"]["unallocated"].append(msg)
+
+                        # Inferir se a inalocação pode ser por conta do frete apertado
+                        # Se temos frete_min ou frete_max e existe oferta não alocada, pode ser por conta disso
+                        if frete_min is not None or frete_max is not None:
+                            msg = f"A origem '{o}' possui oferta de '{p}' não alocada ({u_val:.2f} toneladas). Isso provavelmente ocorreu devido às restrições de carga de frete mínima/máxima impostas que impediram o fluxo completo."
+                            results_dict["warnings"]["freight"].append(msg)
+                        else:
+                            msg = f"A origem '{o}' possui oferta de '{p}' não alocada: {u_val:.2f} toneladas."
+                            results_dict["warnings"]["unallocated"].append(msg)
 
         else:
             print("Não foi possível encontrar uma solução ótima.")
