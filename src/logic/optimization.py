@@ -365,7 +365,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         max_storage = max(storage_cost.values()) if storage_cost else 0.0
 
         # Big M da Capacidade: ordens de grandeza maior que o custo de transportar e armazenar
-        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000000
+        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000
         if val_big_m_cap == 0:
             val_big_m_cap = 1000000
 
