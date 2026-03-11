@@ -2959,6 +2959,25 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         return default_fig
 
 
+
+# --- Model Config Callbacks ---
+
+@app.callback(
+    Output("container-min-max-options", "style"),
+    Input("toggle-min-max-capacity", "value")
+)
+def toggle_min_max_container(is_active):
+    if is_active:
+        return {"display": "block"}
+    return {"display": "none"}
+
+@app.callback(
+    Output("input-carga-max", "disabled"),
+    Input("toggle-use-recepcao", "value")
+)
+def toggle_carga_max_input(use_recepcao):
+    return use_recepcao
+
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
     output=(
@@ -2974,7 +2993,14 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         State('store-armazens', 'data'),
         State('store-prod-armazens', 'data'),
         State('store-distance-matrix', 'data'),
-        State('toggle-detailed-log', 'value')
+        State('toggle-detailed-log', 'value'),
+        State('toggle-min-max-capacity', 'value'),
+        State('input-carga-min', 'value'),
+        State('input-carga-max', 'value'),
+        State('toggle-use-recepcao', 'value'),
+        State('input-dias-alocacao', 'value'),
+        State('input-frete-min', 'value'),
+        State('input-frete-max', 'value')
     ],
     background=True,
     running=[
@@ -2985,7 +3011,8 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
 )
-def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log):
+def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log,
+                  toggle_min_max_capacity, input_carga_min, input_carga_max, toggle_use_recepcao, input_dias_alocacao, input_frete_min, input_frete_max):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -3023,7 +3050,14 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_dist=df_dist,
             df_freight=df_freight,
             df_storage=df_storage,
-            detailed_log=detailed_log
+            detailed_log=detailed_log,
+            toggle_min_max_capacity=toggle_min_max_capacity,
+            input_carga_min=input_carga_min,
+            input_carga_max=input_carga_max,
+            toggle_use_recepcao=toggle_use_recepcao,
+            input_dias_alocacao=input_dias_alocacao,
+            input_frete_min=input_frete_min,
+            input_frete_max=input_frete_max
         )
 
         # Obter tempo de execução
@@ -3054,13 +3088,14 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
      Output("res-kpi-freight", "children"),
      Output("res-kpi-storage", "children"),
      Output("table-results-routes", "data"),
+     Output("table-results-routes", "columns"),
      Output("results-warnings-container", "children")],
     Input("store-model-results", "data"),
     prevent_initial_call=True
 )
 def update_results_kpis_and_table(results_data):
     if not results_data or results_data.get("status") != "optimal":
-        return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update
+        return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update, dash.no_update
 
     kpis = results_data.get("kpis", {})
     routes = results_data.get("routes", [])
@@ -3073,14 +3108,31 @@ def update_results_kpis_and_table(results_data):
     freight = f"R$ {kpis.get('total_freight_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     storage = f"R$ {kpis.get('total_storage_cost', 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+    has_viagens = False
     table_data = []
     for r in routes:
-        table_data.append({
+        row_data = {
             "Origem": r["Origem"],
             "Destino": r["Destino"],
             "Produto": r["Produto"],
             "Quantidade (ton)": round(r["Quantidade (ton)"], 2)
-        })
+        }
+
+        if "Qtd. de Viagens" in r and r["Qtd. de Viagens"] is not None:
+            has_viagens = True
+            row_data["Qtd. de Viagens"] = r["Qtd. de Viagens"]
+
+        table_data.append(row_data)
+
+    columns = [
+        {'name': 'Origem', 'id': 'Origem'},
+        {'name': 'Destino', 'id': 'Destino'},
+        {'name': 'Produto', 'id': 'Produto'},
+        {'name': 'Qtd (ton)', 'id': 'Quantidade (ton)'}
+    ]
+
+    if has_viagens:
+        columns.append({'name': 'Qtd. de Viagens', 'id': 'Qtd. de Viagens'})
 
     # Render warnings
     warnings_html = []
@@ -3115,7 +3167,44 @@ def update_results_kpis_and_table(results_data):
                 ], className="mb-0")
             ], className="alert-warning-custom shadow-sm mb-3"))
 
-        # 2. Unallocated warnings
+        # 2. Reception warnings (MILP)
+        reception_warnings = warnings.get("reception", [])
+        if reception_warnings:
+            warnings_list = [html.Li(w) for w in reception_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-calendar2-x-fill me-2"), "Capacidade de Recepção Diária Insuficiente"], className="alert-heading"),
+                html.P("O volume alocado superou a capacidade diária de recepção (em toneladas por dia) de um ou mais armazéns dentro do tempo estipulado.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução', o sistema utilizou uma capacidade de recepção artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="mb-2"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-3"),
+                html.P(html.B("Possíveis Soluções:")),
+                html.Ul([
+                    html.Li("Aumente a carga máxima de recepção diária ou os dias de alocação na configuração do modelo."),
+                    html.Li("Se estiver usando a capacidade do banco de dados, certifique-se de que os armazéns escolhidos possuem valores suficientes de recepção na base."),
+                    html.Li("Distribua melhor a oferta entre outros armazéns habilitados.")
+                ], className="mb-0")
+            ], className="alert-warning-custom shadow-sm mb-3"))
+
+        # 3. Freight warnings (MILP)
+        freight_warnings = warnings.get("freight", [])
+        if freight_warnings:
+            warnings_list = [html.Li(w) for w in freight_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-truck-flatbed me-2"), "Conflito nas Regras de Frete Mínimo/Máximo"], className="alert-heading"),
+                html.P("Existem ofertas não alocadas porque as restrições de frete (carga mínima ou máxima por viagem) inviabilizaram o escoamento total dessa carga para qualquer destino válido.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os custos totais sofreram penalização altíssima pela oferta não alocada. Quando uma rota de frete é amarrada entre um mínimo e um máximo, sobras que não formam um caminhão viável ou grandes volumes não absorvidos são penalizados em vez de transportados.", className="mb-2"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-3"),
+                html.P(html.B("Possíveis Soluções:")),
+                html.Ul([
+                    html.Li("Alivie as restrições de frete mínimo ou máximo na configuração do modelo."),
+                    html.Li("Certifique-se de que as quantidades ofertadas são compatíveis com os limites de carga estabelecidos.")
+                ], className="mb-0")
+            ], className="alert-danger-custom shadow-sm mb-3"))
+
+        # 4. Unallocated warnings
         unallocated_warnings = warnings.get("unallocated", [])
         if unallocated_warnings:
             warnings_list = [html.Li(w) for w in unallocated_warnings]
@@ -3143,7 +3232,7 @@ def update_results_kpis_and_table(results_data):
                 html.Ul(warnings_list, className="mb-0")
             ], className="alert-info-custom shadow-sm mb-3"))
 
-    return obj_str, tons, kms, freight, storage, table_data, warnings_html
+    return obj_str, tons, kms, freight, storage, table_data, columns, warnings_html
 
 @app.callback(
     Output("main-tabs", "active_tab", allow_duplicate=True),
@@ -3170,6 +3259,11 @@ def download_results(n_clicks, results_data):
         return dash.no_update
 
     df = pd.DataFrame(routes)
+
+    # Remove Qtd. de Viagens if all values are None or missing
+    if "Qtd. de Viagens" in df.columns and df["Qtd. de Viagens"].isnull().all():
+        df = df.drop(columns=["Qtd. de Viagens"])
+
     return dcc.send_data_frame(df.to_excel, "Resultados_Otimizacao.xlsx", index=False)
 
 @app.callback(
