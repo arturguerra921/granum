@@ -65,6 +65,7 @@ body {
 .btn-outline-primary-custom {
     color: #003366 !important;
     border-color: #003366 !important;
+    border: 1px solid #003366 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -88,6 +89,7 @@ body {
 .btn-outline-success-custom {
     color: #006633 !important;
     border-color: #006633 !important;
+    border: 1px solid #006633 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -111,6 +113,7 @@ body {
 .btn-outline-secondary-custom {
     color: #7E7E65 !important; /* UNB_GRAY_DARK */
     border-color: #7E7E65 !important;
+    border: 1px solid #7E7E65 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -138,6 +141,7 @@ body {
 .btn-outline-danger-custom {
     color: #C8102E !important;
     border-color: #C8102E !important;
+    border: 1px solid #C8102E !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -161,6 +165,7 @@ body {
 .btn-outline-info-custom {
     color: #00A0A7 !important;
     border-color: #00A0A7 !important;
+    border: 1px solid #00A0A7 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -184,6 +189,7 @@ body {
 .btn-outline-warning-custom {
     color: #cba200 !important; /* Darker yellow for outline to ensure readability on white backgrounds */
     border-color: #FDCA00 !important;
+    border: 1px solid #FDCA00 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -207,6 +213,7 @@ body {
 .btn-outline-info-custom {
     color: #00A0A7 !important;
     border-color: #00A0A7 !important;
+    border: 1px solid #00A0A7 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -230,6 +237,7 @@ body {
 .btn-outline-light-custom {
     color: #F4F6F8 !important;
     border-color: #F4F6F8 !important;
+    border: 1px solid #F4F6F8 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
@@ -253,6 +261,7 @@ body {
 .btn-outline-dark-custom {
     color: #000000 !important;
     border-color: #000000 !important;
+    border: 1px solid #000000 !important;
     background-color: transparent !important;
     font-weight: 500 !important;
 }
