@@ -1343,9 +1343,10 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
     # Table Edited (Manual Data Entry)
     if trigger_id == 'editable-table':
+        # Ignore initial mount/hydration events (like language swap) to prevent wiping data
         if timestamp is None:
-            # Table just mounted (e.g., language switch), do not wipe stored data
             return no_update, no_update, no_update, no_update
+
         try:
             # Reconstruct DF from table data
             if table_data is None:
@@ -1438,22 +1439,64 @@ def update_product_suggestions(stored_data):
         print(f"Error updating product suggestions: {e}")
         return []
 
-# Standard callback for updating metric texts safely
-@app.callback(
-    [Output('metric-total-weight', 'children'),
-     Output('metric-unique-products', 'children')],
+# Client-side callback for animating metrics
+app.clientside_callback(
+    """
+    function(data, lang) {
+        if (!data) return window.dash_clientside.no_update;
+
+        // Give Dash React tree a moment to hydrate DOM elements after language switch
+        setTimeout(() => {
+            const animate = (id, endValue, isFloat) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                // Get current value (stripped of formatting) or default to 0
+                let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
+                const duration = 1000; // 1 second
+                const startTime = performance.now();
+
+                const step = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+
+                    // Ease out cubic
+                    const ease = 1 - Math.pow(1 - progress, 3);
+
+                    const current = startValue + (endValue - startValue) * ease;
+
+                    if (isFloat) {
+                        el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    } else {
+                        el.innerText = Math.round(current).toString();
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                         // Ensure final value is exact
+                        if (isFloat) {
+                            el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        } else {
+                            el.innerText = endValue.toString();
+                        }
+                    }
+                };
+
+                requestAnimationFrame(step);
+            };
+
+            animate('metric-total-weight', data.weight, true);
+            animate('metric-unique-products', data.count, false);
+        }, 100); // 100ms is safer for rendering cycles
+
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output('metric-total-weight', 'id'), # Dummy output
     [Input('metrics-store', 'data'),
      Input('store-lang', 'data')]
 )
-def update_kpi_text(data, lang):
-    if not data:
-        return "0.00", "0"
-
-    # Format directly in Python ensuring correct string generation across layout hydrates
-    weight_str = f"{data.get('weight', 0):,.2f}"
-    count_str = str(data.get('count', 0))
-
-    return weight_str, count_str
 
 # 3. Download
 @app.callback(
