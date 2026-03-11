@@ -1492,6 +1492,19 @@ app.clientside_callback(
 
 # 3. Download
 @app.callback(
+    Output("btn-run-model", "disabled", allow_duplicate=True),
+    [Input("stored-data", "data"),
+     Input("store-armazens", "data"),
+     Input("store-prod-armazens", "data"),
+     Input("store-distance-matrix", "data")],
+    prevent_initial_call=True
+)
+def update_run_model_button_state(d1, d2, d3, d4):
+    if not d1 or not d2 or not d3 or not d4:
+        return True
+    return False
+
+@app.callback(
     Output("download-dataframe-xlsx", "data"),
     Input("btn-download", "n_clicks"),
     State('stored-data', 'data'),
@@ -3059,6 +3072,7 @@ def toggle_carga_max_input(use_recepcao):
     running=[
         (Output("btn-run-model", "disabled"), True, False),
         (Output("btn-cancel-model", "disabled"), False, True),
+        (Output("modal-model-running", "is_open"), True, False),
     ],
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
@@ -3687,29 +3701,3 @@ def view():
     host = os.environ.get("HOST", "127.0.0.1")
     app.run(debug=False, host=host)
 
-@app.callback(
-    Output("modal-model-running", "is_open"),
-    [Input("btn-run-model", "n_clicks"),
-     Input("store-model-results", "data"),
-     Input("btn-cancel-model", "n_clicks"),
-     Input("model-output-text", "children")],
-    [State("stored-data", "data"),
-     State("store-armazens", "data"),
-     State("store-prod-armazens", "data"),
-     State("store-distance-matrix", "data")],
-    prevent_initial_call=True
-)
-def toggle_model_modal(run_clicks, results, cancel_clicks, error_text, d1, d2, d3, d4):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return dash.no_update
-
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
-    if trigger_id == "btn-run-model":
-        if run_clicks and d1 and d2 and d3 and d4:
-            return True
-        return False
-    else:
-        # For results update, cancel, or error message update, close modal
-        return False

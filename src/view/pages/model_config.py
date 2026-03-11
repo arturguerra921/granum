@@ -156,7 +156,7 @@ def get_tab_model_config_layout(lang='pt'):
                             placement="top"
                         )
                     ], className="mb-4 d-flex align-items-center justify-content-center"),
-                    dbc.Button(translate("Rodar Modelo", lang), id="btn-run-model", className="btn-primary-custom w-100 mb-3"),
+                    dbc.Button(translate("Rodar Modelo", lang), id="btn-run-model", className="btn-primary-custom w-100 mb-3", disabled=True),
                     dbc.Button(translate("Baixar Log de Execução (.txt)", lang), id="btn-download-log", className="btn-outline-secondary-custom w-100 mb-3", disabled=True),
                     dcc.Download(id="download-model-log"),
                     html.Div(id="model-output-text", className="mt-3 text-center")
