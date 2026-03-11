@@ -1438,56 +1438,60 @@ def update_product_suggestions(stored_data):
 # Client-side callback for animating metrics
 app.clientside_callback(
     """
-    function(data) {
+    function(data, lang) {
         if (!data) return window.dash_clientside.no_update;
 
-        const animate = (id, endValue, isFloat) => {
-            const el = document.getElementById(id);
-            if (!el) return;
+        // Small delay ensures layout is hydrated before fetching elements
+        setTimeout(() => {
+            const animate = (id, endValue, isFloat) => {
+                const el = document.getElementById(id);
+                if (!el) return;
 
-            // Get current value (stripped of formatting) or default to 0
-            let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
-            const duration = 1000; // 1 second
-            const startTime = performance.now();
+                // Get current value (stripped of formatting) or default to 0
+                let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
+                const duration = 1000; // 1 second
+                const startTime = performance.now();
 
-            const step = (currentTime) => {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
+                const step = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
 
-                // Ease out cubic
-                const ease = 1 - Math.pow(1 - progress, 3);
+                    // Ease out cubic
+                    const ease = 1 - Math.pow(1 - progress, 3);
 
-                const current = startValue + (endValue - startValue) * ease;
+                    const current = startValue + (endValue - startValue) * ease;
 
-                if (isFloat) {
-                    el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                } else {
-                    el.innerText = Math.round(current).toString();
-                }
-
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                     // Ensure final value is exact
                     if (isFloat) {
-                        el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     } else {
-                        el.innerText = endValue.toString();
+                        el.innerText = Math.round(current).toString();
                     }
-                }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                         // Ensure final value is exact
+                        if (isFloat) {
+                            el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        } else {
+                            el.innerText = endValue.toString();
+                        }
+                    }
+                };
+
+                requestAnimationFrame(step);
             };
 
-            requestAnimationFrame(step);
-        };
-
-        animate('metric-total-weight', data.weight, true);
-        animate('metric-unique-products', data.count, false);
+            animate('metric-total-weight', data.weight, true);
+            animate('metric-unique-products', data.count, false);
+        }, 50);
 
         return window.dash_clientside.no_update;
     }
     """,
     Output('metric-total-weight', 'id'), # Dummy output
-    Input('metrics-store', 'data')
+    [Input('metrics-store', 'data'),
+     Input('store-lang', 'data')]
 )
 
 # 3. Download
@@ -3696,7 +3700,7 @@ app.clientside_callback(
 )
 
 @app.callback(
-    Output("modal-model-running", "is_open"),
+    Output("modal-model-running", "is_open", allow_duplicate=True),
     [Input("store-model-results", "data"),
      Input("btn-cancel-model", "n_clicks"),
      Input("model-output-text", "children")],
