@@ -3059,7 +3059,6 @@ def toggle_carga_max_input(use_recepcao):
     running=[
         (Output("btn-run-model", "disabled"), True, False),
         (Output("btn-cancel-model", "disabled"), False, True),
-        (Output("modal-model-running", "is_open"), True, False),
     ],
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
@@ -3681,6 +3680,30 @@ app.clientside_callback(
     State("store-model-log", "data"),
     prevent_initial_call=True
 )
+
+app.clientside_callback(
+    """
+    function(n_clicks) {
+        if (n_clicks) {
+            return true;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("modal-model-running", "is_open", allow_duplicate=True),
+    Input("btn-run-model", "n_clicks"),
+    prevent_initial_call=True
+)
+
+@app.callback(
+    Output("modal-model-running", "is_open"),
+    [Input("store-model-results", "data"),
+     Input("btn-cancel-model", "n_clicks"),
+     Input("model-output-text", "children")],
+    prevent_initial_call=True
+)
+def close_model_modal(results, cancel_clicks, error_text):
+    return False
 
 def view():
     # Use environment variable to determine if we are in Docker or dev
