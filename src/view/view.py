@@ -3059,7 +3059,6 @@ def toggle_carga_max_input(use_recepcao):
     running=[
         (Output("btn-run-model", "disabled"), True, False),
         (Output("btn-cancel-model", "disabled"), False, True),
-        (Output("modal-model-running", "is_open"), True, False),
     ],
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
@@ -3679,6 +3678,42 @@ app.clientside_callback(
     Output("download-model-log", "data"),
     Input("btn-download-log", "n_clicks"),
     State("store-model-log", "data"),
+    prevent_initial_call=True
+)
+
+app.clientside_callback(
+    """
+    function(run_clicks, results, cancel_clicks, error_text, d1, d2, d3, d4) {
+        var ctx = dash_clientside.callback_context;
+        if (!ctx.triggered || ctx.triggered.length === 0) {
+            return window.dash_clientside.no_update;
+        }
+
+        var trigger_id = ctx.triggered[0].prop_id.split('.')[0];
+
+        // Trigger is opening the modal
+        if (trigger_id === "btn-run-model") {
+            // Verify all data stores have content before opening
+            if (run_clicks && d1 && d2 && d3 && d4) {
+                return true;
+            }
+            return false;
+        }
+        // Trigger is finishing/canceling
+        else {
+            return false;
+        }
+    }
+    """,
+    Output("modal-model-running", "is_open"),
+    [Input("btn-run-model", "n_clicks"),
+     Input("store-model-results", "data"),
+     Input("btn-cancel-model", "n_clicks"),
+     Input("model-output-text", "children")],
+    [State("stored-data", "data"),
+     State("store-armazens", "data"),
+     State("store-prod-armazens", "data"),
+     State("store-distance-matrix", "data")],
     prevent_initial_call=True
 )
 
