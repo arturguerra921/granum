@@ -1497,7 +1497,7 @@ app.clientside_callback(
      Input("store-armazens", "data"),
      Input("store-prod-armazens", "data"),
      Input("store-distance-matrix", "data")],
-    prevent_initial_call=True
+    prevent_initial_call="initial_duplicate"
 )
 def update_run_model_button_state(d1, d2, d3, d4):
     if not d1 or not d2 or not d3 or not d4:
@@ -3072,7 +3072,6 @@ def toggle_carga_max_input(use_recepcao):
     running=[
         (Output("btn-run-model", "disabled"), True, False),
         (Output("btn-cancel-model", "disabled"), False, True),
-        (Output("modal-model-running", "is_open"), True, False),
     ],
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
@@ -3695,9 +3694,32 @@ app.clientside_callback(
     prevent_initial_call=True
 )
 
+@app.callback(
+    Output("modal-model-running", "is_open"),
+    [Input("btn-run-model", "n_clicks"),
+     Input("store-model-results", "data"),
+     Input("btn-cancel-model", "n_clicks"),
+     Input("model-output-text", "children")],
+    prevent_initial_call=True
+)
+def toggle_model_modal(run_clicks, results, cancel_clicks, error_text):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if trigger_id == "btn-run-model":
+        if run_clicks:
+            return True
+        return False
+    else:
+        # For results update, cancel, or error message update, close modal
+        return False
+
+
 def view():
     # Use environment variable to determine if we are in Docker or dev
     # '0.0.0.0' allows external access (from host to docker container)
     host = os.environ.get("HOST", "127.0.0.1")
     app.run(debug=False, host=host)
-
