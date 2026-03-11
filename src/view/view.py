@@ -385,7 +385,7 @@ def serve_layout(lang="pt"):
                             ),
                             dbc.Col(
                                 [
-                                    dbc.Button("🔒", id="btn-manual-edit", color="none", className="btn-secondary-custom d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
+                                    dbc.Button("🔒", id="btn-manual-edit", color="none", className="btn-secondary-custom d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title=translate("Editar Lat/Long manualmente", lang))
                                 ],
                                 width=2,
                                 className="d-flex align-items-end"
