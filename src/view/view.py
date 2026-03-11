@@ -3167,7 +3167,44 @@ def update_results_kpis_and_table(results_data):
                 ], className="mb-0")
             ], className="alert-warning-custom shadow-sm mb-3"))
 
-        # 2. Unallocated warnings
+        # 2. Reception warnings (MILP)
+        reception_warnings = warnings.get("reception", [])
+        if reception_warnings:
+            warnings_list = [html.Li(w) for w in reception_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-calendar2-x-fill me-2"), "Capacidade de Recepção Diária Insuficiente"], className="alert-heading"),
+                html.P("O volume alocado superou a capacidade diária de recepção (em toneladas por dia) de um ou mais armazéns dentro do tempo estipulado.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução', o sistema utilizou uma capacidade de recepção artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="mb-2"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-3"),
+                html.P(html.B("Possíveis Soluções:")),
+                html.Ul([
+                    html.Li("Aumente a carga máxima de recepção diária ou os dias de alocação na configuração do modelo."),
+                    html.Li("Se estiver usando a capacidade do banco de dados, certifique-se de que os armazéns escolhidos possuem valores suficientes de recepção na base."),
+                    html.Li("Distribua melhor a oferta entre outros armazéns habilitados.")
+                ], className="mb-0")
+            ], className="alert-warning-custom shadow-sm mb-3"))
+
+        # 3. Freight warnings (MILP)
+        freight_warnings = warnings.get("freight", [])
+        if freight_warnings:
+            warnings_list = [html.Li(w) for w in freight_warnings]
+            warnings_html.append(dbc.Alert([
+                html.H5([html.I(className="bi bi-truck-flatbed me-2"), "Conflito nas Regras de Frete Mínimo/Máximo"], className="alert-heading"),
+                html.P("Existem ofertas não alocadas porque as restrições de frete (carga mínima ou máxima por viagem) inviabilizaram o escoamento total dessa carga para qualquer destino válido.", className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
+                html.P("Os custos totais sofreram penalização altíssima pela oferta não alocada. Quando uma rota de frete é amarrada entre um mínimo e um máximo, sobras que não formam um caminhão viável ou grandes volumes não absorvidos são penalizados em vez de transportados.", className="mb-2"),
+                html.Hr(),
+                html.Ul(warnings_list, className="mb-3"),
+                html.P(html.B("Possíveis Soluções:")),
+                html.Ul([
+                    html.Li("Alivie as restrições de frete mínimo ou máximo na configuração do modelo."),
+                    html.Li("Certifique-se de que as quantidades ofertadas são compatíveis com os limites de carga estabelecidos.")
+                ], className="mb-0")
+            ], className="alert-danger-custom shadow-sm mb-3"))
+
+        # 4. Unallocated warnings
         unallocated_warnings = warnings.get("unallocated", [])
         if unallocated_warnings:
             warnings_list = [html.Li(w) for w in unallocated_warnings]
