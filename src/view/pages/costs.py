@@ -2,20 +2,20 @@ import os
 import io
 import base64
 import pandas as pd
+from src.logic.i18n import translate
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 
-def get_tab_costs_layout():
+def get_tab_costs_layout(lang='pt'):
     # Card 1: Manage Storage Tariff
     storage_card = dbc.Card(
         [
             dbc.CardHeader(
                 html.Div([
-                    html.Span("Tarifa de Armazenagem", className="me-2"),
+                    html.Span(translate("Tarifa de Armazenagem", lang), className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-storage-costs", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Valores para armazenamento de cada produto. O sistema buscará o nome exato do produto (ignorando acentos e maiúsculas/minúsculas). Caso não encontre, utilizará a tarifa da linha 'Outros'. A linha 'Outros' é obrigatória e será criada automaticamente com valor 50 caso não exista em um novo arquivo. Atualizações na tabela serão salvas automaticamente.",
+                    dbc.Tooltip(translate("Valores para armazenamento de cada produto. O sistema buscará o nome exato do produto (ignorando acentos e maiúsculas/minúsculas). Caso não encontre, utilizará a tarifa da linha 'Outros'. A linha 'Outros' é obrigatória e será criada automaticamente com valor 50 caso não exista em um novo arquivo. Atualizações na tabela serão salvas automaticamente.", lang),
                         target="help-storage-costs",
                         placement="right",
                         style={"maxWidth": "400px"}
@@ -29,20 +29,20 @@ def get_tab_costs_layout():
                         [
                             dbc.Col(
                                 [
-                                    dbc.Button("Adicionar Linha", id="btn-add-storage-row", color="none", className="btn-primary-custom w-100 mb-2"),
+                                    dbc.Button(translate("Adicionar Linha", lang), id="btn-add-storage-row", color="none", className="btn-primary-custom w-100 mb-2"),
                                     dcc.Upload(
                                         id='upload-storage-csv',
                                         children=html.Div([
                                             html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
-                                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
-                                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                            html.Div("Formatos: .csv, .xlsx", className="text-muted small mt-2")
+                                            html.Span(translate('Arraste e solte ou ', lang), style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                            html.A(translate('Selecione', lang), className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                            html.Div(translate("Formatos: .csv, .xlsx", lang), className="text-muted small mt-2")
                                         ]),
                                         className="upload-box mb-3",
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-storage", color="none", className="btn-success-custom w-100 mb-2"),
+                                    dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-storage", color="none", className="btn-success-custom w-100 mb-2"),
                                     dcc.Download(id="download-storage-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
@@ -55,9 +55,9 @@ def get_tab_costs_layout():
                                                 id='table-costs-storage',
                                                 data=[],
                                                 columns=[
-                                                    {'name': 'Produto', 'id': 'Produto'},
-                                                    {'name': 'Armazenar Público', 'id': 'Armazenar_Publico'},
-                                                    {'name': 'Armazenar Privado', 'id': 'Armazenar_Privado'}
+                                                    {'name': translate('Produto', lang), 'id': 'Produto'},
+                                                    {'name': translate('Armazenar Público', lang), 'id': 'Armazenar_Publico'},
+                                                    {'name': translate('Armazenar Privado', lang), 'id': 'Armazenar_Privado'}
                                                 ],
                                                 editable=True,
                                                 row_deletable=True,
@@ -109,10 +109,9 @@ def get_tab_costs_layout():
         [
             dbc.CardHeader(
                 html.Div([
-                    html.Span("Valor do Frete", className="me-2"),
+                    html.Span(translate("Valor do Frete", lang), className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-freight-costs", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Valores de frete por tonelada e km para cada estado. Atualizações na tabela serão salvas automaticamente.",
+                    dbc.Tooltip(translate("Valores de frete por tonelada e km para cada estado. Atualizações na tabela serão salvas automaticamente.", lang),
                         target="help-freight-costs",
                         placement="right"
                     ),
@@ -125,20 +124,20 @@ def get_tab_costs_layout():
                         [
                             dbc.Col(
                                 [
-                                    dbc.Button("Adicionar Linha", id="btn-add-freight-row", color="none", className="btn-primary-custom w-100 mb-2"),
+                                    dbc.Button(translate("Adicionar Linha", lang), id="btn-add-freight-row", color="none", className="btn-primary-custom w-100 mb-2"),
                                     dcc.Upload(
                                         id='upload-freight-csv',
                                         children=html.Div([
                                             html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
-                                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
-                                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                            html.Div("Formatos: .csv, .xlsx", className="text-muted small mt-2")
+                                            html.Span(translate('Arraste e solte ou ', lang), style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                            html.A(translate('Selecione', lang), className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                            html.Div(translate("Formatos: .csv, .xlsx", lang), className="text-muted small mt-2")
                                         ]),
                                         className="upload-box mb-3",
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-freight", color="none", className="btn-success-custom w-100 mb-2"),
+                                    dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-freight", color="none", className="btn-success-custom w-100 mb-2"),
                                     dcc.Download(id="download-freight-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
@@ -151,8 +150,8 @@ def get_tab_costs_layout():
                                                 id='table-costs-freight',
                                                 data=[],
                                                 columns=[
-                                                    {'name': 'Estado', 'id': 'Estado'},
-                                                    {'name': 'Frete (R$/ton.km)', 'id': 'Frete Tonelada Km'}
+                                                    {'name': translate('Estado', lang), 'id': 'Estado'},
+                                                    {'name': translate('Frete (R$/ton.km)', lang), 'id': 'Frete Tonelada Km'}
                                                 ],
                                                 editable=True,
                                                 row_deletable=True,
