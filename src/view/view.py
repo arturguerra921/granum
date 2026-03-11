@@ -1343,6 +1343,9 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
     # Table Edited (Manual Data Entry)
     if trigger_id == 'editable-table':
+        if timestamp is None:
+            # Table just mounted (e.g., language switch), do not wipe stored data
+            return no_update, no_update, no_update, no_update
         try:
             # Reconstruct DF from table data
             if table_data is None:
@@ -1435,64 +1438,22 @@ def update_product_suggestions(stored_data):
         print(f"Error updating product suggestions: {e}")
         return []
 
-# Client-side callback for animating metrics
-app.clientside_callback(
-    """
-    function(data, lang) {
-        if (!data) return window.dash_clientside.no_update;
-
-        // Small delay ensures layout is hydrated before fetching elements
-        setTimeout(() => {
-            const animate = (id, endValue, isFloat) => {
-                const el = document.getElementById(id);
-                if (!el) return;
-
-                // Get current value (stripped of formatting) or default to 0
-                let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
-                const duration = 1000; // 1 second
-                const startTime = performance.now();
-
-                const step = (currentTime) => {
-                    const elapsed = currentTime - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-
-                    // Ease out cubic
-                    const ease = 1 - Math.pow(1 - progress, 3);
-
-                    const current = startValue + (endValue - startValue) * ease;
-
-                    if (isFloat) {
-                        el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    } else {
-                        el.innerText = Math.round(current).toString();
-                    }
-
-                    if (progress < 1) {
-                        requestAnimationFrame(step);
-                    } else {
-                         // Ensure final value is exact
-                        if (isFloat) {
-                            el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                        } else {
-                            el.innerText = endValue.toString();
-                        }
-                    }
-                };
-
-                requestAnimationFrame(step);
-            };
-
-            animate('metric-total-weight', data.weight, true);
-            animate('metric-unique-products', data.count, false);
-        }, 50);
-
-        return window.dash_clientside.no_update;
-    }
-    """,
-    Output('metric-total-weight', 'id'), # Dummy output
+# Standard callback for updating metric texts safely
+@app.callback(
+    [Output('metric-total-weight', 'children'),
+     Output('metric-unique-products', 'children')],
     [Input('metrics-store', 'data'),
      Input('store-lang', 'data')]
 )
+def update_kpi_text(data, lang):
+    if not data:
+        return "0.00", "0"
+
+    # Format directly in Python ensuring correct string generation across layout hydrates
+    weight_str = f"{data.get('weight', 0):,.2f}"
+    count_str = str(data.get('count', 0))
+
+    return weight_str, count_str
 
 # 3. Download
 @app.callback(
@@ -3685,32 +3646,35 @@ app.clientside_callback(
     prevent_initial_call=True
 )
 
-app.clientside_callback(
-    """
-    function(n_clicks) {
-        if (n_clicks) {
-            return true;
-        }
-        return window.dash_clientside.no_update;
-    }
-    """,
-    Output("modal-model-running", "is_open", allow_duplicate=True),
-    Input("btn-run-model", "n_clicks"),
-    prevent_initial_call=True
-)
-
-@app.callback(
-    Output("modal-model-running", "is_open", allow_duplicate=True),
-    [Input("store-model-results", "data"),
-     Input("btn-cancel-model", "n_clicks"),
-     Input("model-output-text", "children")],
-    prevent_initial_call=True
-)
-def close_model_modal(results, cancel_clicks, error_text):
-    return False
-
 def view():
     # Use environment variable to determine if we are in Docker or dev
     # '0.0.0.0' allows external access (from host to docker container)
     host = os.environ.get("HOST", "127.0.0.1")
     app.run(debug=False, host=host)
+
+@app.callback(
+    Output("modal-model-running", "is_open"),
+    [Input("btn-run-model", "n_clicks"),
+     Input("store-model-results", "data"),
+     Input("btn-cancel-model", "n_clicks"),
+     Input("model-output-text", "children")],
+    [State("stored-data", "data"),
+     State("store-armazens", "data"),
+     State("store-prod-armazens", "data"),
+     State("store-distance-matrix", "data")],
+    prevent_initial_call=True
+)
+def toggle_model_modal(run_clicks, results, cancel_clicks, error_text, d1, d2, d3, d4):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return dash.no_update
+
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+
+    if trigger_id == "btn-run-model":
+        if run_clicks and d1 and d2 and d3 and d4:
+            return True
+        return False
+    else:
+        # For results update, cancel, or error message update, close modal
+        return False
