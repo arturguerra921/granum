@@ -175,7 +175,7 @@ def serve_layout(lang="pt"):
                             dbc.DropdownMenuItem(translate("🇺🇸 EN", lang), id="lang-en", n_clicks=0),
                         ],
                         color="none",
-                        className="btn-light-custom fw-bold",
+                        toggle_class_name="btn-light-custom fw-bold",
                         toggle_style={"borderRadius": "8px", "color": "#000"},
                     )
                 ],
@@ -1079,7 +1079,7 @@ app.layout = html.Div([
     dcc.Store(id='store-model-results'), # New Store for Model Results
     dcc.Store(id='store-model-log'), # New Store for optimization logs
     dcc.Store(id='store-help-seen', storage_type='local'),
-    html.Div(id='page-content')
+    html.Div(id='page-content', children=serve_layout('pt'))
 ])
 
 
@@ -1105,7 +1105,8 @@ def update_language(pt_clicks, en_clicks, current_lang):
 
 @app.callback(
     Output('page-content', 'children'),
-    Input('store-lang', 'data')
+    [Input('store-lang', 'data')],
+    prevent_initial_call=True
 )
 def render_page(lang):
     if not lang:
