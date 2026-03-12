@@ -343,24 +343,6 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # =========================================================================
         # Valores fixos conhecidos fornecidos como dados de entrada para o modelo.
 
-        # --- Parâmetros de Constantes e Limites Logísticos ---
-        model.days = pyo.Param(initialize=days, within=pyo.Any, doc="Dias de alocação")
-        model.freight_min = pyo.Param(initialize=frete_min, within=pyo.Any, doc="Carga mínima de frete por rota")
-        model.freight_max = pyo.Param(initialize=frete_max, within=pyo.Any, doc="Carga máxima de frete por rota")
-
-        def reception_min_init(model, d):
-            return carga_min
-        model.reception_min = pyo.Param(model.Destinations, initialize=reception_min_init, within=pyo.Any, doc="Carga mínima diária de recepção")
-
-        def reception_max_init(model, d):
-            if toggle_use_recepcao:
-                return demand_reception_capacity.get(d, 0.0)
-            elif carga_max is not None:
-                return carga_max
-            return None
-
-        model.reception_max = pyo.Param(model.Destinations, initialize=reception_max_init, within=pyo.Any, doc="Carga máxima diária de recepção ou capacidade do banco")
-
         # --- Parâmetros de Oferta e Demanda ---
         def supply_init(model, o, p):
             return supply.get((o, p), 0.0)
@@ -713,6 +695,25 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         # 3.2 PARÂMETROS (PARAMETERS)
         # =========================================================================
         # Valores fixos conhecidos fornecidos como dados de entrada para o modelo.
+
+        # --- Parâmetros de Constantes e Limites Logísticos ---
+        model.days = pyo.Param(initialize=days, within=pyo.Any, doc="Dias de alocação")
+        model.freight_min = pyo.Param(initialize=frete_min, within=pyo.Any, doc="Carga mínima de frete por rota")
+        model.freight_max = pyo.Param(initialize=frete_max, within=pyo.Any, doc="Carga máxima de frete por rota")
+
+        def reception_min_init(model, d):
+            return carga_min
+        model.reception_min = pyo.Param(model.Destinations, initialize=reception_min_init, within=pyo.Any, doc="Carga mínima diária de recepção")
+
+        def reception_max_init(model, d):
+            if toggle_use_recepcao:
+                return demand_reception_capacity.get(d, 0.0)
+            elif carga_max is not None:
+                return carga_max
+            return None
+
+        model.reception_max = pyo.Param(model.Destinations, initialize=reception_max_init, within=pyo.Any, doc="Carga máxima diária de recepção ou capacidade do banco")
+
 
         # --- Parâmetros de Oferta e Demanda ---
         def supply_init(model, o, p):
