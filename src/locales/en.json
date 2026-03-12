@@ -108,5 +108,15 @@
     "Confirmar": "Confirm",
     "Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir.": "You need to add products in the 'Supply' tab and load the base in the 'Warehouses' tab before proceeding.",
     "Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir.": "You need to add at least one product in the 'Supply' tab before proceeding.",
-    "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir.": "You need to load the database in the 'Warehouses' tab before proceeding."
+    "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir.": "You need to load the database in the 'Warehouses' tab before proceeding.",
+    "Custos": "Costs",
+    "Tarifa de Armazenagem": "Storage Tariff",
+    "Valores para armazenamento de cada produto. O sistema buscará o nome exato do produto (ignorando acentos e maiúsculas/minúsculas). Caso não encontre, utilizará a tarifa da linha 'Outros'. A linha 'Outros' é obrigatória e será criada automaticamente com valor 50 caso não exista em um novo arquivo. Atualizações na tabela serão salvas automaticamente.": "Storage values for each product. The system will search for the exact product name (ignoring accents and case). If not found, it will use the 'Outros' (Others) row tariff. The 'Outros' row is mandatory and will be automatically created with a value of 50 if it doesn't exist in a new file. Table updates will be saved automatically.",
+    "Formatos: .csv, .xlsx": "Formats: .csv, .xlsx",
+    "Armazenar Público": "Public Storage",
+    "Armazenar Privado": "Private Storage",
+    "Valor do Frete": "Freight Cost",
+    "Valores de frete por tonelada e km para cada estado. Atualizações na tabela serão salvas automaticamente.": "Freight values per ton and km for each state. Table updates will be saved automatically.",
+    "Estado": "State",
+    "Frete (R$/ton.km)": "Freight (R$/ton.km)"
 }

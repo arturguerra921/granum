@@ -2444,14 +2444,20 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 
 @app.callback(
     Output('table-costs-storage', 'data'),
+    Output('table-costs-storage', 'columns'),
     Input('store-costs-storage', 'data'),
-    State('store-lang', 'data')
+    Input('store-lang', 'data')
 )
 def update_storage_table(stored_data, lang='pt'):
+    columns = [
+        {'name': translate('Produto', lang), 'id': 'Produto'},
+        {'name': translate('Armazenar Público', lang), 'id': 'Armazenar_Publico'},
+        {'name': translate('Armazenar Privado', lang), 'id': 'Armazenar_Privado'}
+    ]
     if not stored_data:
-        return []
+        return [], columns
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return df.to_dict('records')
+    return df.to_dict('records'), columns
 
 @app.callback(
     Output("download-storage-csv", "data"),
@@ -2555,14 +2561,19 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 
 @app.callback(
     Output('table-costs-freight', 'data'),
+    Output('table-costs-freight', 'columns'),
     Input('store-costs-freight', 'data'),
-    State('store-lang', 'data')
+    Input('store-lang', 'data')
 )
 def update_freight_table(stored_data, lang='pt'):
+    columns = [
+        {'name': translate('Estado', lang), 'id': 'Estado'},
+        {'name': translate('Frete (R$/ton.km)', lang), 'id': 'Frete Tonelada Km'}
+    ]
     if not stored_data:
-        return []
+        return [], columns
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return df.to_dict('records')
+    return df.to_dict('records'), columns
 
 @app.callback(
     Output("download-freight-csv", "data"),
