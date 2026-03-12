@@ -452,7 +452,7 @@ def serve_layout(lang="pt"):
                                         html.Div(
                                             [
                                                 html.H6(translate("Total Peso (ton)", lang), className="text-muted small text-uppercase fw-bold mb-1"),
-                                                html.H3(id="metric-total-weight", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                                html.H3(id="metric-total-weight", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']}, **{"data-raw-value": "0"})
                                             ]
                                         )
                                     ],
@@ -476,7 +476,7 @@ def serve_layout(lang="pt"):
                                         html.Div(
                                             [
                                                 html.H6(translate("Produtos Diferentes", lang), className="text-muted small text-uppercase fw-bold mb-1"),
-                                                html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                                html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']}, **{"data-raw-value": "0"})
                                             ]
                                         )
                                     ],
@@ -1438,15 +1438,18 @@ def update_product_suggestions(stored_data):
 # Client-side callback for animating metrics
 app.clientside_callback(
     """
-    function(data) {
+    function(data, lang) {
         if (!data) return window.dash_clientside.no_update;
+
+        // Map dash lang to browser locale string
+        const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
 
         const animate = (id, endValue, isFloat) => {
             const el = document.getElementById(id);
             if (!el) return;
 
-            // Get current value (stripped of formatting) or default to 0
-            let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
+            // Get current value from dataset attribute or default to 0
+            let startValue = parseFloat(el.dataset.rawValue) || 0;
             const duration = 1000; // 1 second
             const startTime = performance.now();
 
@@ -1460,9 +1463,9 @@ app.clientside_callback(
                 const current = startValue + (endValue - startValue) * ease;
 
                 if (isFloat) {
-                    el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    el.innerText = current.toLocaleString(locale, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 } else {
-                    el.innerText = Math.round(current).toString();
+                    el.innerText = Math.round(current).toLocaleString(locale);
                 }
 
                 if (progress < 1) {
@@ -1470,10 +1473,12 @@ app.clientside_callback(
                 } else {
                      // Ensure final value is exact
                     if (isFloat) {
-                        el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        el.innerText = endValue.toLocaleString(locale, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     } else {
-                        el.innerText = endValue.toString();
+                        el.innerText = endValue.toLocaleString(locale);
                     }
+                    // Update the raw value in the dataset attribute
+                    el.dataset.rawValue = endValue;
                 }
             };
 
@@ -1487,7 +1492,8 @@ app.clientside_callback(
     }
     """,
     Output('metric-total-weight', 'id'), # Dummy output
-    Input('metrics-store', 'data')
+    Input('metrics-store', 'data'),
+    State('store-lang', 'data')
 )
 
 # 3. Download
