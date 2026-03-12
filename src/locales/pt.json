@@ -95,5 +95,8 @@
     "Acesse o link: ": "Acesse o link: ",
     "Marque apenas a opção 'Armazéns Credenciados'.": "Marque apenas a opção 'Armazéns Credenciados'.",
     "Clique em 'Pesquisar'.": "Clique em 'Pesquisar'.",
-    "Armazéns": "Armazéns"
+    "Armazéns": "Armazéns",
+    "Preencha o código de segurança e clique em 'Consultar'.": "Preencha o código de segurança e clique em 'Consultar'.",
+    "O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'.": "O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'.",
+    "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:": "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:"
 }

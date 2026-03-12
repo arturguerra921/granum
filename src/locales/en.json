@@ -95,5 +95,8 @@
     "Acesse o link: ": "Access the link: ",
     "Marque apenas a opção 'Armazéns Credenciados'.": "Check only the 'Accredited Warehouses' option.",
     "Clique em 'Pesquisar'.": "Click 'Search'.",
-    "Armazéns": "Warehouses"
+    "Armazéns": "Warehouses",
+    "Preencha o código de segurança e clique em 'Consultar'.": "Fill in the security code and click 'Consultar'.",
+    "O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'.": "The system will automatically consult the SICARM database to fill the 'Reception Capacity' column.",
+    "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:": "The following CDAs in your file did not have their 'Reception Capacity' found in the updated SICARM (Conab) database, and were therefore set to 0:"
 }
