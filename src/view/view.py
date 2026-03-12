@@ -2643,17 +2643,18 @@ def toggle_checkbox(active_cell, viewport_data, table_data):
     Output('btn-download-matrix', 'disabled'),
     Input('btn-calc-matrix', 'n_clicks'),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data')],
+     State('store-armazens', 'data'),
+     State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
+def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt'):
     if not n_clicks:
         return no_update, no_update, no_update, no_update, True
 
     start_time = time.time()
 
     if not stored_data or not stored_armazens:
-        return no_update, [], [], "Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", True
+        return no_update, [], [], translate("Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", lang), True
 
     try:
         # Load Data
@@ -2661,13 +2662,13 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
 
         if df_input.empty or df_armazens.empty:
-            return no_update, [], [], "As tabelas de entrada ou armazéns estão vazias.", True
+            return no_update, [], [], translate("As tabelas de entrada ou armazéns estão vazias.", lang), True
 
         # Prepare Coordinates
         # Origins: Unique cities from input
         # Note: We need unique coordinate pairs. If multiple products come from same city, we only need one origin.
         if "Latitude" not in df_input.columns or "Longitude" not in df_input.columns:
-             return no_update, [], [], "Colunas de Latitude/Longitude ausentes na entrada.", True
+             return no_update, [], [], translate("Colunas de Latitude/Longitude ausentes na entrada.", lang), True
 
         origins_df = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
 
@@ -2685,7 +2686,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         origin_names = origins_df['Cidade_Display'].tolist()
 
         if not origins:
-             return no_update, [], [], "Nenhuma origem válida (com coordenadas) encontrada.", True
+             return no_update, [], [], translate("Nenhuma origem válida (com coordenadas) encontrada.", lang), True
 
         # Destinations: Warehouses
         # We try to use 'Município' or similar if available for labeling, but use lat/lon for routing
@@ -2727,14 +2728,14 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
                 # Filter out those without coords
                 dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
             else:
-                return no_update, [], [], "Não foi possível identificar coordenadas ou colunas de Município/UF nos armazéns.", True
+                return no_update, [], [], translate("Não foi possível identificar coordenadas ou colunas de Município/UF nos armazéns.", lang), True
         else:
             dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
             # Rename for consistency
             dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
         if dests_df.empty:
-             return no_update, [], [], "Nenhum armazém com coordenadas válidas encontrado.", True
+             return no_update, [], [], translate("Nenhum armazém com coordenadas válidas encontrado.", lang), True
 
         destinations = list(zip(dests_df['Latitude'], dests_df['Longitude']))
 
@@ -2760,7 +2761,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
             if parts:
                 label = " - ".join(parts)
             else:
-                label = f"Dest {idx}"
+                label = translate("Dest", lang) + f" {idx}"
 
             dest_labels.append(label)
 
@@ -2778,7 +2779,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         try:
             matrix = client.get_distance_matrix(origins, destinations)
         except Exception as e:
-             return no_update, [], [], f"Erro de conexão com OSRM: {str(e)}", True
+             return no_update, [], [], translate("Erro de conexão com OSRM:", lang) + f" {str(e)}", True
 
         # Format Result
         # Rows: Origins, Cols: Destinations
@@ -2800,15 +2801,15 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
 
         final_df = pd.DataFrame(final_data)
 
-        columns = [{"name": i, "id": i} for i in final_df.columns]
+        columns = [{"name": translate(i, lang) if i == "Origem" else i, "id": i} for i in final_df.columns]
 
-        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, f"Cálculo concluído com sucesso! (Tempo de execução: {time.time() - start_time:.2f} segundos)", False
+        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, translate("Cálculo concluído com sucesso! (Tempo de execução:", lang) + f" {time.time() - start_time:.2f} " + translate("segundos)", lang), False
 
     except Exception as e:
         print(f"Calculation error: {e}")
         import traceback
         traceback.print_exc()
-        return no_update, [], [], f"Erro inesperado: {str(e)}", True
+        return no_update, [], [], translate("Erro inesperado:", lang) + f" {str(e)}", True
 
 # 14. Download Matrix
 @app.callback(
@@ -2830,10 +2831,11 @@ def download_matrix(n_clicks, stored_matrix):
     Input("table-distance-matrix", "active_cell"),
     [State('stored-data', 'data'),
      State('store-armazens', 'data'),
-     State('table-distance-matrix', 'derived_viewport_data')],
+     State('table-distance-matrix', 'derived_viewport_data'),
+     State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def update_route_map(active_cell, stored_data, stored_armazens, table_data):
+def update_route_map(active_cell, stored_data, stored_armazens, table_data, lang='pt'):
     # Default map centered on Brazil
     default_fig = go.Figure(go.Scattermapbox())
     default_fig.update_layout(
@@ -2933,7 +2935,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             if parts:
                 label = " - ".join(parts)
             else:
-                label = f"Dest {idx}"
+                label = translate("Dest", lang) + f" {idx}"
 
             if label == dest_label:
                 dest_coords = (row['Latitude'], row['Longitude'])
@@ -2962,12 +2964,12 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         # We use distinct colors instead.
         line_color = UNB_THEME['UNB_BLUE']
         line_width = 4
-        line_name = "Rota (OSRM)"
+        line_name = translate("Rota (OSRM)", lang)
 
         if is_fallback:
             line_color = '#FF4500' # OrangeRed for visibility
             line_width = 3
-            line_name = "Rota Estimada (Linha Reta x 1.3)"
+            line_name = translate("Rota Estimada (Linha Reta x 1.3)", lang)
 
         # Create Figure
         fig = go.Figure(go.Scattermapbox(
@@ -2984,7 +2986,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             lon=[origin_coords[1]],
             lat=[origin_coords[0]],
             marker={'size': 12, 'color': UNB_THEME['UNB_GREEN']},
-            name=f"Origem: {origin_name}"
+            name=f"{translate('Origem', lang)}: {origin_name}"
         ))
 
         # Add Destination Marker
@@ -2993,7 +2995,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             lon=[dest_coords[1]],
             lat=[dest_coords[0]],
             marker={'size': 12, 'color': 'red'},
-            name=f"Destino: {dest_label}"
+            name=f"{translate('Destino', lang)}: {dest_label}"
         ))
 
         # Center map on route
