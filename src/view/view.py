@@ -1392,7 +1392,7 @@ def update_table_view(stored_data, active_tab, lang='pt'):
     Input('stored-data', 'data'),
     State('store-lang', 'data')
 )
-def update_metrics(stored_data):
+def update_metrics(stored_data, lang='pt'):
     if stored_data is None:
         return {'weight': 0, 'count': 0}
 
@@ -1420,7 +1420,7 @@ def update_metrics(stored_data):
     Input('stored-data', 'data'),
     State('store-lang', 'data')
 )
-def update_product_suggestions(stored_data):
+def update_product_suggestions(stored_data, lang='pt'):
     if stored_data is None:
         return []
 
