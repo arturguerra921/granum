@@ -59,7 +59,7 @@ def get_tab_model_config_layout(lang='pt'):
                                     html.Div([
                                         dbc.Label(translate("Recepção mínima diária (ton)", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("A soma de todas as rotas chegando em um armazém deve ser pelo menos este valor diariamente.", lang), target="help-carga-min")
+                                        dbc.Tooltip(translate("A soma de todas as rotas chegando em um armazém deve ser pelo menos este valor diariamente. Essa regra só se aplica se o armazém for utilizado.", lang), target="help-carga-min")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-carga-min", type="number", min=0, placeholder=translate("Ex: 10", lang), className="mb-4")
                                 ], width=6)
@@ -123,7 +123,7 @@ def get_tab_model_config_layout(lang='pt'):
                                     html.Div([
                                         dbc.Label(translate("Carga mínima de frete (ton)", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
                                         html.I(className="bi bi-question-circle-fill text-muted", id="help-frete-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("Valor mínimo que uma rota individual deve transportar. Nenhuma rota terá carga menor que esta.", lang), target="help-frete-min")
+                                        dbc.Tooltip(translate("Valor mínimo que uma rota individual deve transportar. Nenhuma rota terá carga menor que esta. Essa regra se aplica apenas caso a rota seja utilizada. Rotas não escolhidas continuam com carga zero.", lang), target="help-frete-min")
                                     ], className="d-flex align-items-center mb-1"),
                                     dbc.Input(id="input-frete-min", type="number", min=0, placeholder=translate("Ex: 15", lang), className="mb-4")
                                 ], width=6),
