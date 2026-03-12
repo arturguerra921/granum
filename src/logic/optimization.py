@@ -378,7 +378,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # Big M da Capacidade: ordens de grandeza maior que o custo de transportar e armazenar
         val_big_m_cap = (max_freight * max_dist + max_storage) * 1000
         if val_big_m_cap == 0:
-            val_big_m_cap = 1000000
+            val_big_m_cap = 10000
 
         # Big M de Não Alocação: deve ser ainda mais alto que a falta de capacidade, forçando a alocação sempre que possível
         val_big_m_unalloc = val_big_m_cap * 10
@@ -726,9 +726,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         max_dist = max(distance.values()) if distance else 0.0
         max_storage = max(storage_cost.values()) if storage_cost else 0.0
 
-        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000000
+        val_big_m_cap = (max_freight * max_dist + max_storage) * 1000
         if val_big_m_cap == 0:
-            val_big_m_cap = 1000000
+            val_big_m_cap = 10000
 
         val_big_m_unalloc = val_big_m_cap * 10
 
@@ -816,8 +816,16 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         elif carga_max is not None:
             print(f"Carga máxima diária de recepção ativada: {carga_max} ton/dia (Total: {carga_max * days} ton)")
 
-        # Big M dinâmico para limite superior lógico de fluxo
-        big_m_flow = sum(supply.values()) if supply else 999999.0
+        # Big M dynamic
+        max_supply = max(supply.values()) if supply else 0.0
+        max_capacity = max(demand_total_capacity.values()) if demand_total_capacity else 0.0
+
+        # The Big M only needs to be as big as the largest single node in the network
+        big_m_flow = max(max_supply, max_capacity)
+
+        # Fallback only if the data is completely empty/zero
+        if big_m_flow <= 0:
+            big_m_flow = 10000.0
 
         def route_active_max_rule(model, o, d, p):
             max_val = frete_max if frete_max is not None else big_m_flow
