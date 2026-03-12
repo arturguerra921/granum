@@ -18,4 +18,5 @@ EXPOSE 8050
 
 # Command to run the application directly from source
 # This ensures it uses the files in /app/src, not site-packages
-CMD ["python", "-m", "src.__main__"]
+# In production, we use gunicorn and bind to the port expected by Render
+CMD gunicorn wsgi:server --bind 0.0.0.0:${PORT:-8050}
