@@ -141,5 +141,6 @@
     "Origem": "Origem",
     "Rota (OSRM)": "Rota (OSRM)",
     "Rota Estimada (Linha Reta x 1.3)": "Rota Estimada (Linha Reta x 1.3)",
-    "Dest": "Dest"
+    "Dest": "Dest",
+    "Matriz de Distâncias": "Matriz de Distâncias"
 }
