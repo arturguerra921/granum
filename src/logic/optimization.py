@@ -343,6 +343,21 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # =========================================================================
         # Valores fixos conhecidos fornecidos como dados de entrada para o modelo.
 
+        # --- Parâmetros de Constantes e Limites Logísticos ---
+        model.days = pyo.Param(initialize=days, within=pyo.Any, doc="Dias de alocação")
+        model.freight_min = pyo.Param(initialize=frete_min, within=pyo.Any, doc="Carga mínima de frete por rota")
+        model.freight_max = pyo.Param(initialize=frete_max, within=pyo.Any, doc="Carga máxima de frete por rota")
+        model.reception_min = pyo.Param(initialize=carga_min, within=pyo.Any, doc="Carga mínima diária de recepção")
+
+        def reception_max_init(model, d):
+            if toggle_use_recepcao:
+                return demand_reception_capacity.get(d, 0.0)
+            elif carga_max is not None:
+                return carga_max
+            return None
+
+        model.reception_max = pyo.Param(model.Destinations, initialize=reception_max_init, within=pyo.Any, doc="Carga máxima diária de recepção ou capacidade do banco")
+
         # --- Parâmetros de Oferta e Demanda ---
         def supply_init(model, o, p):
             return supply.get((o, p), 0.0)
@@ -736,6 +751,19 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.BigMCapacity = pyo.Param(initialize=val_big_m_cap, doc="Custo de penalização por tonelada de capacidade artificial")
         model.BigMUnallocated = pyo.Param(initialize=val_big_m_unalloc, doc="Custo de penalização por tonelada de oferta não alocada")
 
+        # Big M dynamic for logistics bounds
+        max_supply = max(supply.values()) if supply else 0.0
+        max_capacity = max(demand_total_capacity.values()) if demand_total_capacity else 0.0
+
+        # The Big M only needs to be as big as the largest single node in the network
+        big_m_flow_val = max(max_supply, max_capacity)
+
+        # Fallback only if the data is completely empty/zero
+        if big_m_flow_val <= 0:
+            big_m_flow_val = 10000.0
+
+        model.big_m_flow = pyo.Param(initialize=big_m_flow_val, within=pyo.Any, doc="Big M de fluxo")
+
         # =========================================================================
         # 3.3 VARIÁVEIS DE DECISÃO (VARIABLES)
         # =========================================================================
@@ -804,38 +832,27 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         # 3.6 RESTRIÇÕES MILP (LIMITES LOGÍSTICOS ADICIONAIS)
         # =========================================================================
         print("\n--- CONFIGURAÇÕES DE LIMITES LOGÍSTICOS (MILP) ---")
-        print(f"Dias de alocação considerados: {days}")
-        if frete_min is not None:
-            print(f"Carga mínima de frete por rota ativada: {frete_min} ton")
-        if frete_max is not None:
-            print(f"Carga máxima de frete por rota ativada: {frete_max} ton")
-        if carga_min is not None:
-            print(f"Carga mínima diária de recepção ativada: {carga_min} ton/dia (Total: {carga_min * days} ton)")
+        print(f"Dias de alocação considerados: {pyo.value(model.days)}")
+        if pyo.value(model.freight_min) is not None:
+            print(f"Carga mínima de frete por rota ativada: {pyo.value(model.freight_min)} ton")
+        if pyo.value(model.freight_max) is not None:
+            print(f"Carga máxima de frete por rota ativada: {pyo.value(model.freight_max)} ton")
+        if pyo.value(model.reception_min) is not None:
+            print(f"Carga mínima diária de recepção ativada: {pyo.value(model.reception_min)} ton/dia (Total: {pyo.value(model.reception_min) * pyo.value(model.days)} ton)")
         if toggle_use_recepcao:
             print(f"Capacidade máxima de recepção do banco de dados ativada.")
-        elif carga_max is not None:
-            print(f"Carga máxima diária de recepção ativada: {carga_max} ton/dia (Total: {carga_max * days} ton)")
-
-        # Big M dynamic
-        max_supply = max(supply.values()) if supply else 0.0
-        max_capacity = max(demand_total_capacity.values()) if demand_total_capacity else 0.0
-
-        # The Big M only needs to be as big as the largest single node in the network
-        big_m_flow = max(max_supply, max_capacity)
-
-        # Fallback only if the data is completely empty/zero
-        if big_m_flow <= 0:
-            big_m_flow = 10000.0
+        elif pyo.value(model.reception_max[list(model.Destinations)[0]]) is not None: # Note: this assumes same for all if not toggle
+            print(f"Carga máxima diária de recepção ativada: {pyo.value(model.reception_max[list(model.Destinations)[0]])} ton/dia")
 
         def route_active_max_rule(model, o, d, p):
-            max_val = frete_max if frete_max is not None else big_m_flow
+            max_val = pyo.value(model.freight_max) if pyo.value(model.freight_max) is not None else pyo.value(model.big_m_flow)
             return model.Flow[o, d, p] <= model.RouteActive[o, d, p] * max_val
         model.RouteActiveMaxRule = pyo.Constraint(model.ValidRoutes, rule=route_active_max_rule, doc="Limite máximo de frete na rota ou ligação Big M se não estipulado")
 
         # Limite mínimo de Frete (opcional)
-        if frete_min is not None:
+        if pyo.value(model.freight_min) is not None:
             def route_active_min_rule(model, o, d, p):
-                return model.Flow[o, d, p] >= model.RouteActive[o, d, p] * frete_min
+                return model.Flow[o, d, p] >= model.RouteActive[o, d, p] * pyo.value(model.freight_min)
             model.RouteActiveMinRule = pyo.Constraint(model.ValidRoutes, rule=route_active_min_rule, doc="Limite mínimo de frete na rota caso ela seja usada")
 
         # Variável binária de ativação do armazém:
@@ -849,17 +866,17 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return model.WarehouseActive[d] == 0
 
             flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
-            return flow_sum <= model.WarehouseActive[d] * big_m_flow
+            return flow_sum <= model.WarehouseActive[d] * pyo.value(model.big_m_flow)
         model.LinkWarehouseActive = pyo.Constraint(model.Destinations, rule=link_warehouse_active_rule, doc="Vincula o armazém a rotas ativas")
 
         # Limite mínimo de recepção de carga no armazém (opcional)
-        if carga_min is not None:
+        if pyo.value(model.reception_min) is not None:
             def min_reception_rule(model, d):
                 valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
                 if not valid_ops:
                     return pyo.Constraint.Skip
                 flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
-                return flow_sum >= model.WarehouseActive[d] * (carga_min * days)
+                return flow_sum >= model.WarehouseActive[d] * (pyo.value(model.reception_min) * pyo.value(model.days))
             model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule, doc="Recepção Mínima do Armazém se for ativado")
 
         # Limite máximo de recepção de carga no armazém (opcional ou pela Cap. Recepção do Banco)
@@ -871,15 +888,10 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return pyo.Constraint.Skip
 
             flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
-            limit = None
 
-            if toggle_use_recepcao:
-                cap_banco = demand_reception_capacity.get(d, 0.0)
-                limit = cap_banco * days
-            elif carga_max is not None:
-                limit = carga_max * days
-
-            if limit is not None:
+            reception_max_val = pyo.value(model.reception_max[d])
+            if reception_max_val is not None:
+                limit = reception_max_val * pyo.value(model.days)
                 # Flow can use dummy reception se o limite for ultrapassado
                 return flow_sum <= limit + model.DummyReception[d]
             return pyo.Constraint.Skip
