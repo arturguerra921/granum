@@ -191,7 +191,7 @@ def serve_layout(lang="pt"):
     # Modal de Ajuda
     help_modal = dbc.Modal(
         [
-            dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), "Guia de Uso do Granum"]), close_button=True),
+            dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), translate("Guia de Uso do Granum", lang)]), close_button=True),
             dbc.ModalBody(
                 [
                     html.P(translate("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", lang), className="mb-4 text-muted"),
@@ -1005,7 +1005,7 @@ def serve_layout(lang="pt"):
     error_modal = dbc.Modal(
         [
             dbc.ModalHeader(dbc.ModalTitle(translate("Atenção", lang)), close_button=True),
-            dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
+            dbc.ModalBody(id="modal-body-content", children=translate("Ocorreu um erro.", lang)),
             dbc.ModalFooter(
                 dbc.Button(translate("Fechar", lang), id="close-modal", className="btn-primary-custom ms-auto", n_clicks=0)
             ),
@@ -1263,11 +1263,12 @@ def toggle_manual_edit(n_clicks):
      State('input-lat', 'value'),
      State('input-lon', 'value'),
      State('error-modal', 'is_open'),
-     State('editable-table', 'data')]
+     State('editable-table', 'data'),
+     State('store-lang', 'data')]
 )
 def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                  prod_val, peso_val, cidade_val, lat_val, lon_val,
-                 is_open, table_data):
+                 is_open, table_data, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update, no_update
@@ -1310,7 +1311,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             return df.to_json(date_format='iso', orient='split'), False, no_update, None
         except Exception as e:
             print(f"Error processing file: {e}")
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo válido.", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo válido.", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-row':
@@ -1339,7 +1340,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             return df.to_json(date_format='iso', orient='split'), False, no_update, no_update
         except Exception as e:
             print(f"Error adding row: {e}")
-            return no_update, True, f"Erro ao adicionar linha: {str(e)}", no_update
+            return no_update, True, translate("Erro ao adicionar linha:", lang) + f" {str(e)}", no_update
 
     # Table Edited (Manual Data Entry)
     if trigger_id == 'editable-table':
@@ -1371,7 +1372,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
      Input('main-tabs', 'active_tab')],
     State('store-lang', 'data')
 )
-def update_table_view(stored_data, active_tab, lang='pt'):
+def update_table_view(stored_data, active_tab):
     if active_tab != 'tab-input':
         return no_update, no_update
 
@@ -1392,7 +1393,7 @@ def update_table_view(stored_data, active_tab, lang='pt'):
     Input('stored-data', 'data'),
     State('store-lang', 'data')
 )
-def update_metrics(stored_data, lang='pt'):
+def update_metrics(stored_data):
     if stored_data is None:
         return {'weight': 0, 'count': 0}
 
@@ -1420,7 +1421,7 @@ def update_metrics(stored_data, lang='pt'):
     Input('stored-data', 'data'),
     State('store-lang', 'data')
 )
-def update_product_suggestions(stored_data, lang='pt'):
+def update_product_suggestions(stored_data):
     if stored_data is None:
         return []
 
@@ -1608,7 +1609,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
         try:
             df_conab = get_conab_txt_data()
             if df_conab.empty:
-                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update, None
+                return no_update, True, translate("Erro ao buscar dados do Conab.", lang), no_update, False, no_update, None
 
             # Map the columns
             # identificacao_armazem to CDA
@@ -1671,7 +1672,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
         except Exception as e:
             print(f"Error fetching and processing cadastrados: {e}")
-            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update, None
+            return no_update, True, translate("Erro ao processar dados do Conab:", lang) + f" {e}", no_update, False, no_update, None
 
     elif trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
@@ -1742,7 +1743,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     missing_cols = [c for c in expected_cols if c not in df.columns]
                     if missing_cols:
                         error_msg = html.Div([
-                            html.Span(f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}."),
+                            html.Span(translate("Erro: A base personalizada deve conter as colunas:", lang) + f" {', '.join(expected_cols)}."),
                             html.Br(),
                             html.Br(),
                                 html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold"),
@@ -1854,7 +1855,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update, None
+            return no_update, True, translate("Erro ao processar arquivo:", lang) + f" {e}", no_update, False, no_update, None
 
     # Table Edits (Auto-save)
     if trigger_id == 'table-armazens':
@@ -1888,7 +1889,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     Input('store-armazens', 'data'),
     State('store-lang', 'data')
 )
-def update_armazens_table_view(stored_data, lang='pt'):
+def update_armazens_table_view(stored_data):
     if not stored_data:
         return [], [], "0", "0.00", "0", "0", False
 
@@ -1975,7 +1976,8 @@ def close_lentidao_modal(n_clicks, is_open):
      Input("cancel-save", "n_clicks")],
     [State("modal-confirm-save", "is_open"),
      State('store-armazens', 'data'),
-     State('dropdown-base-armazens', 'value')]
+     State('dropdown-base-armazens', 'value'),
+     State('store-lang', 'data')]
 )
 def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data, dropdown_value):
     ctx = dash.callback_context
@@ -2045,7 +2047,7 @@ def close_missing_cdas_modal(n_clicks, is_open):
     [State("modal-tutorial", "is_open"),
      State('store-lang', 'data')]
 )
-def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt'):
+def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
     ctx = dash.callback_context
     if not ctx.triggered:
         return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, "", "", no_update, no_update
@@ -2163,7 +2165,7 @@ def download_example_file(n_clicks):
      State('store-armazens', 'data'),
      State('store-lang', 'data')]
 )
-def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens, lang='pt'):
+def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
     if active_tab != 'tab-prod-armazens':
         return False, no_update
 
@@ -2248,7 +2250,7 @@ def redirect_missing_data(n_clicks, stored_data, stored_armazens):
     State('store-prod-armazens', 'data'),
     State('store-lang', 'data')
 )
-def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix, lang='pt'):
+def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix):
     if active_tab != 'tab-prod-armazens':
         return no_update, no_update, no_update
 
@@ -2328,7 +2330,7 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
      State('upload-storage-csv', 'filename')],
     prevent_initial_call=True
 )
-def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename):
+def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update, no_update
@@ -2343,7 +2345,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading storage costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Tarifas de Armazenagem.", no_update
+                return no_update, True, translate("Erro ao carregar a tabela de Tarifas de Armazenagem.", lang), no_update
         return no_update, no_update, no_update, no_update
 
     # Upload
@@ -2394,7 +2396,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-storage-row':
@@ -2448,7 +2450,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
     Input('store-costs-storage', 'data'),
     Input('store-lang', 'data')
 )
-def update_storage_table(stored_data, lang='pt'):
+def update_storage_table(stored_data):
     columns = [
         {'name': translate('Produto', lang), 'id': 'Produto'},
         {'name': translate('Armazenar Público', lang), 'id': 'Armazenar_Publico'},
@@ -2487,7 +2489,7 @@ def download_storage(n_clicks, stored_data):
      State('upload-freight-csv', 'filename')],
     prevent_initial_call=True
 )
-def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename):
+def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_data, table_data, upload_filename, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update, no_update
@@ -2502,7 +2504,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading freight costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Valor do Frete.", no_update
+                return no_update, True, translate("Erro ao carregar a tabela de Valor do Frete.", lang), no_update
         return no_update, no_update, no_update, no_update
 
     # Upload
@@ -2534,7 +2536,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-freight-row':
@@ -2565,7 +2567,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
     Input('store-costs-freight', 'data'),
     Input('store-lang', 'data')
 )
-def update_freight_table(stored_data, lang='pt'):
+def update_freight_table(stored_data):
     columns = [
         {'name': translate('Estado', lang), 'id': 'Estado'},
         {'name': translate('Frete (R$/ton.km)', lang), 'id': 'Frete Tonelada Km'}
@@ -2647,7 +2649,7 @@ def toggle_checkbox(active_cell, viewport_data, table_data):
      State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt'):
+def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
     if not n_clicks:
         return no_update, no_update, no_update, no_update, True
 
@@ -2835,7 +2837,7 @@ def download_matrix(n_clicks, stored_matrix):
      State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def update_route_map(active_cell, stored_data, stored_armazens, table_data, lang='pt'):
+def update_route_map(active_cell, stored_data, stored_armazens, table_data):
     # Default map centered on Brazil
     default_fig = go.Figure(go.Scattermapbox())
     default_fig.update_layout(
@@ -3073,7 +3075,8 @@ def toggle_carga_max_input(use_recepcao):
         State('toggle-use-recepcao', 'value'),
         State('input-dias-alocacao', 'value'),
         State('input-frete-min', 'value'),
-        State('input-frete-max', 'value')
+        State('input-frete-max', 'value'),
+        State('store-lang', 'data')
     ],
     background=True,
     running=[
@@ -3089,7 +3092,7 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
+        return translate("Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", lang), "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
 
     try:
         # Load DataFrames
@@ -3134,9 +3137,9 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
 
         # Obter tempo de execução
         exec_time = results_dict.get('kpis', {}).get('execution_time', 0.0)
-        time_str = f" (Tempo de execução: {exec_time:.2f} segundos)" if exec_time else ""
+        time_str = f" (" + translate("Tempo de execução:", lang) + f" {exec_time:.2f} " + translate("segundos", lang) + ")" if exec_time else ""
 
-        status_msg = f"Modelo executado com sucesso!{time_str}" if results_dict.get("status") == "optimal" else f"Falha ao encontrar solução ótima.{time_str}"
+        status_msg = translate("Modelo executado com sucesso!", lang) + time_str if results_dict.get("status") == "optimal" else translate("Falha ao encontrar solução ótima.", lang) + time_str
         status_class = "text-success mt-3 fw-bold" if results_dict.get("status") == "optimal" else "text-warning mt-3 fw-bold"
 
         # Redirecionar para aba de resultados se sucesso
@@ -3147,7 +3150,7 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
 
     except Exception as e:
         import traceback
-        err_msg = f"Erro fatal ao executar o modelo:\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        err_msg = translate("Erro fatal ao executar o modelo:", lang) + f"\n{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
         return err_msg, "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
 
 
@@ -3166,7 +3169,7 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
     State("store-lang", "data"),
     prevent_initial_call=True
 )
-def update_results_kpis_and_table(results_data, lang='pt'):
+def update_results_kpis_and_table(results_data):
     if not results_data or results_data.get("status") != "optimal":
         return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update, dash.no_update
 
@@ -3379,7 +3382,7 @@ def manage_all_routes_modal(n_show, n_cancel, n_confirm, results_data, is_open):
      State("store-lang", "data")],
     prevent_initial_call=True
 )
-def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_armazens, lang='pt'):
+def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_armazens):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
