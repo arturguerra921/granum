@@ -2103,7 +2103,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
             html.P(translate("Siga os passos abaixo para atualizar a base de armazéns:", lang)),
             html.Ol([
                 html.Li([
-                    "Acesse o link: ",
+                    translate("Acesse o link: ", lang),
                     html.A(translate("Consulta Conab", lang), href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
                 ]),
                 html.Li(translate("Marque apenas a opção 'Armazéns Credenciados'.", lang)),

@@ -81,6 +81,7 @@
     "Endereço": "Address",
     "Estoque Inicial": "Initial Stock",
     "Município": "Municipality",
+    "Municí­pio": "Municipality",
     "No final da página de resultados, exporte ou salve a tabela como arquivo CSV.": "At the bottom of the results page, export or save the table as a CSV file.",
     "O arquivo deve conter as seguintes colunas (a ordem não importa e letras maiúsculas/minúsculas ou acentos são tolerados):": "The file must contain the following columns (order does not matter, and casing/accents are tolerated):",
     "O sistema buscará automaticamente as informações mais recentes do site oficial da Conab e substituirá a base atual.": "The system will automatically fetch the latest information from the official Conab website and replace the current base.",
