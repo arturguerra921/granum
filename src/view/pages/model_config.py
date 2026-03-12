@@ -48,7 +48,7 @@ def get_tab_model_config_layout(lang='pt'):
 
                             html.P([
                                 html.I(className="bi bi-info-circle me-1"),
-                                "Campos deixados em branco (sem valor numérico) não serão considerados no limite. Você não precisa preencher todos."
+                                translate("Campos deixados em branco (sem valor numérico) não serão considerados no limite. Você não precisa preencher todos.", lang)
                             ], className="text-muted small mb-3 fst-italic", style={"fontSize": "0.8rem"}),
 
                             html.H6(translate("Limites de Recepção do Armazém", lang), className="fw-bold small text-primary-custom mb-3"),
