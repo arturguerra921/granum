@@ -347,7 +347,10 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         model.days = pyo.Param(initialize=days, within=pyo.Any, doc="Dias de alocação")
         model.freight_min = pyo.Param(initialize=frete_min, within=pyo.Any, doc="Carga mínima de frete por rota")
         model.freight_max = pyo.Param(initialize=frete_max, within=pyo.Any, doc="Carga máxima de frete por rota")
-        model.reception_min = pyo.Param(initialize=carga_min, within=pyo.Any, doc="Carga mínima diária de recepção")
+
+        def reception_min_init(model, d):
+            return carga_min
+        model.reception_min = pyo.Param(model.Destinations, initialize=reception_min_init, within=pyo.Any, doc="Carga mínima diária de recepção")
 
         def reception_max_init(model, d):
             if toggle_use_recepcao:
@@ -837,8 +840,8 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             print(f"Carga mínima de frete por rota ativada: {pyo.value(model.freight_min)} ton")
         if pyo.value(model.freight_max) is not None:
             print(f"Carga máxima de frete por rota ativada: {pyo.value(model.freight_max)} ton")
-        if pyo.value(model.reception_min) is not None:
-            print(f"Carga mínima diária de recepção ativada: {pyo.value(model.reception_min)} ton/dia (Total: {pyo.value(model.reception_min) * pyo.value(model.days)} ton)")
+        if pyo.value(model.reception_min[list(model.Destinations)[0]]) is not None:
+            print(f"Carga mínima diária de recepção ativada: {pyo.value(model.reception_min[list(model.Destinations)[0]])} ton/dia (Total: {pyo.value(model.reception_min[list(model.Destinations)[0]]) * pyo.value(model.days)} ton)")
         if toggle_use_recepcao:
             print(f"Capacidade máxima de recepção do banco de dados ativada.")
         elif pyo.value(model.reception_max[list(model.Destinations)[0]]) is not None: # Note: this assumes same for all if not toggle
@@ -870,14 +873,17 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.LinkWarehouseActive = pyo.Constraint(model.Destinations, rule=link_warehouse_active_rule, doc="Vincula o armazém a rotas ativas")
 
         # Limite mínimo de recepção de carga no armazém (opcional)
-        if pyo.value(model.reception_min) is not None:
-            def min_reception_rule(model, d):
-                valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
-                if not valid_ops:
-                    return pyo.Constraint.Skip
-                flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
-                return flow_sum >= model.WarehouseActive[d] * (pyo.value(model.reception_min) * pyo.value(model.days))
-            model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule, doc="Recepção Mínima do Armazém se for ativado")
+        def min_reception_rule(model, d):
+            reception_min_val = pyo.value(model.reception_min[d])
+            if reception_min_val is None:
+                return pyo.Constraint.Skip
+
+            valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
+            if not valid_ops:
+                return pyo.Constraint.Skip
+            flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
+            return flow_sum >= model.WarehouseActive[d] * (reception_min_val * pyo.value(model.days))
+        model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule, doc="Recepção Mínima do Armazém se for ativado")
 
         # Limite máximo de recepção de carga no armazém (opcional ou pela Cap. Recepção do Banco)
         # Observação: toggle_use_recepcao e carga_max são mutuamente exclusivos na lógica da UI,
