@@ -980,7 +980,7 @@ def serve_layout(lang="pt"):
         missing_data_modal = dbc.Modal(
             [
                 dbc.ModalHeader(dbc.ModalTitle(translate("Atenção", lang)), close_button=False),
-                dbc.ModalBody(id="modal-missing-data-body", children="Faltam dados."),
+                dbc.ModalBody(id="modal-missing-data-body", children=translate("Faltam dados.", lang)),
                 dbc.ModalFooter(
                     dbc.Button(translate("Confirmar", lang), id="btn-confirm-missing-data", color="none", className="btn-primary-custom ms-auto", n_clicks=0)
                 ),
@@ -2160,9 +2160,10 @@ def download_example_file(n_clicks):
     Output("modal-missing-data-body", "children"),
     Input("main-tabs", "active_tab"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data')]
+     State('store-armazens', 'data'),
+     State('store-lang', 'data')]
 )
-def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
+def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens, lang='pt'):
     if active_tab != 'tab-prod-armazens':
         return False, no_update
 
@@ -2187,11 +2188,11 @@ def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
             pass
 
     if not has_prod and not has_armazens:
-        return True, "Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir."
+        return True, translate("Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir.", lang)
     elif not has_prod:
-        return True, "Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir."
+        return True, translate("Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir.", lang)
     elif not has_armazens:
-        return True, "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir."
+        return True, translate("Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir.", lang)
 
     return False, no_update
 
@@ -2303,7 +2304,7 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
 
     # 5. Prepare Output
     columns = [
-        {'name': 'Produto', 'id': 'Produto', 'editable': False}
+        {'name': translate('Produto', lang), 'id': 'Produto', 'editable': False}
     ] + [
         {'name': t, 'id': t, 'editable': False} for t in types
     ]
