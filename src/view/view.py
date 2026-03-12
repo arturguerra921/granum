@@ -2066,7 +2066,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
 
     # Set modal content based on selected base
     if dropdown_value == 'cadastrados':
-        title = "Como Atualizar a Base (Armazéns Cadastrados)"
+        title = translate("Como Atualizar a Base (Armazéns Cadastrados)", lang)
         body = [
             html.P(translate("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este pop-up e clicar no botão 'Baixar Dados da Conab'.", lang)),
             html.P(translate("O sistema buscará automaticamente as informações mais recentes do site oficial da Conab e substituirá a base atual.", lang)),
@@ -2076,7 +2076,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
             ])
         ]
     elif dropdown_value == 'personalizada':
-        title = "Como Enviar uma Base Personalizada"
+        title = translate("Como Enviar uma Base Personalizada", lang)
         body = [
             html.P(translate("Você pode enviar a sua própria base de armazéns enviando um arquivo .csv ou .xlsx.", lang)),
             html.P(translate("Você também pode baixar um arquivo de exemplo com o formato esperado e editá-lo antes do envio.", lang)),
@@ -2098,7 +2098,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
             html.P(translate("Carregue o arquivo na área que aparecerá após fechar esta janela.", lang))
         ]
     else: # credenciados
-        title = "Como Atualizar a Base (Armazéns Credenciados)"
+        title = translate("Como Atualizar a Base (Armazéns Credenciados)", lang)
         body = [
             html.P(translate("Siga os passos abaixo para atualizar a base de armazéns:", lang)),
             html.Ol([
