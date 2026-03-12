@@ -3681,35 +3681,36 @@ app.clientside_callback(
     prevent_initial_call=True
 )
 
-def view():
-    # Use environment variable to determine if we are in Docker or dev
-    # '0.0.0.0' allows external access (from host to docker container)
-    host = os.environ.get("HOST", "127.0.0.1")
-    app.run(debug=False, host=host)
-
-@app.callback(
-    Output("modal-model-running", "is_open"),
-    [Input("btn-run-model", "n_clicks"),
-     Input("store-model-results", "data"),
-     Input("btn-cancel-model", "n_clicks"),
-     Input("model-output-text", "children")],
+app.clientside_callback(
+    """
+    function(n_clicks, d1, d2, d3, d4) {
+        if (n_clicks && d1 && d2 && d3 && d4) {
+            return true;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("modal-model-running", "is_open", allow_duplicate=True),
+    Input("btn-run-model", "n_clicks"),
     [State("stored-data", "data"),
      State("store-armazens", "data"),
      State("store-prod-armazens", "data"),
      State("store-distance-matrix", "data")],
     prevent_initial_call=True
 )
-def toggle_model_modal(run_clicks, results, cancel_clicks, error_text, d1, d2, d3, d4):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        return dash.no_update
 
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+@app.callback(
+    Output("modal-model-running", "is_open", allow_duplicate=True),
+    [Input("store-model-results", "data"),
+     Input("btn-cancel-model", "n_clicks"),
+     Input("model-output-text", "children")],
+    prevent_initial_call=True
+)
+def close_model_modal(results_data, cancel_clicks, error_text):
+    return False
 
-    if trigger_id == "btn-run-model":
-        if run_clicks and d1 and d2 and d3 and d4:
-            return True
-        return False
-    else:
-        # For results update, cancel, or error message update, close modal
-        return False
+def view():
+    # Use environment variable to determine if we are in Docker or dev
+    # '0.0.0.0' allows external access (from host to docker container)
+    host = os.environ.get("HOST", "127.0.0.1")
+    app.run(debug=False, host=host)
