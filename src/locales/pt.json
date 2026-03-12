@@ -98,5 +98,14 @@
     "Armazéns": "Armazéns",
     "Preencha o código de segurança e clique em 'Consultar'.": "Preencha o código de segurança e clique em 'Consultar'.",
     "O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'.": "O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'.",
-    "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:": "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:"
+    "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:": "Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:",
+    "Produto e Armazéns": "Produto e Armazéns",
+    "Relação Produto x Tipo de Armazém": "Relação Produto x Tipo de Armazém",
+    "Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).": "Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).",
+    "Atenção": "Atenção",
+    "Faltam dados.": "Faltam dados.",
+    "Confirmar": "Confirmar",
+    "Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir.": "Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir.",
+    "Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir.": "Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir.",
+    "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir.": "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir."
 }
