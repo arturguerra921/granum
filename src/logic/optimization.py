@@ -761,16 +761,19 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             if f_max is not None:
                 return f_max
             else:
-                # O limite mais justo: o menor entre a oferta e a capacidade local
-                local_max = min(pyo.value(model.Supply[o, p]), pyo.value(model.TotalCapacity[d]))
+                # O teto real da rota é APENAS a oferta daquela origem (já que a capacidade pode expandir com dummy)
+                local_max = pyo.value(model.Supply[o, p])
                 return local_max if local_max > 0 else 999999.0
                 
         model.big_m_flow = pyo.Param(model.ValidRoutes, initialize=big_m_flow_init, doc="Big M Dinâmico e Local por Rota")
 
-        # Big M para os Armazéns (Indexado por Destinations)
+        # 2. Big M para os Armazéns (Indexado por Destinations)
         def big_m_warehouse_init(model, d):
-            max_cap = pyo.value(model.TotalCapacity[d])
-            return max_cap if max_cap > 0 else 999999.0
+            # O máximo absoluto que um armazém pode receber é a soma de toda a oferta apontada para ele
+            valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
+            max_possible_arrival = sum(pyo.value(model.Supply[o, p]) for (o, p) in valid_ops)
+            
+            return max_possible_arrival if max_possible_arrival > 0 else 999999.0
             
         model.big_m_warehouse = pyo.Param(model.Destinations, initialize=big_m_warehouse_init, doc="Big M Dinâmico por Armazém")
 
@@ -803,7 +806,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 for (o, d, p) in model.ValidRoutes
             )
             dummy_capacity_costs = sum(model.DummyCapacity[d] * model.BigMCapacity for d in model.Destinations)
-            dummy_reception_costs = sum(model.DummyReception[d] * model.BigMCapacity for d in model.Destinations)
+            dummy_reception_costs = sum(model.DummyReception[d] * (model.BigMCapacity * 0.1) for d in model.Destinations)
             dummy_unallocated_costs = sum(model.DummyUnallocated[o, p] * model.BigMUnallocated for o in model.Origins for p in model.Products)
             return normal_costs + dummy_capacity_costs + dummy_reception_costs + dummy_unallocated_costs
 
