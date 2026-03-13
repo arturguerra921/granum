@@ -286,5 +286,6 @@
     "Ver Todas as Rotas": "Ver Todas as Rotas",
     "Selecione uma rota na tabela ao lado para ver os detalhes e indicadores aqui.": "Selecione uma rota na tabela ao lado para ver os detalhes e indicadores aqui.",
     "Qtd. de Viagens": "Qtd. de Viagens",
-    "Detalhes da Rota Selecionada": "Detalhes da Rota Selecionada"
+    "Detalhes da Rota Selecionada": "Detalhes da Rota Selecionada",
+    "O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.": "O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela."
 }

@@ -1068,7 +1068,7 @@ def serve_layout(lang="pt"):
 initial_df = pd.DataFrame(columns=['Produto', 'Peso (ton)', 'Cidade', 'Latitude', 'Longitude'])
 
 app.layout = html.Div([
-    dcc.Store(id='store-lang', storage_type='local', data='pt'),
+    dcc.Store(id='store-lang', storage_type='memory', data='pt'),
     dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
     dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
     dcc.Store(id='store-armazens'), # New Store for Armazéns
