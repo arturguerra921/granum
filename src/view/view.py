@@ -191,7 +191,7 @@ def serve_layout(lang="pt"):
     # Modal de Ajuda
     help_modal = dbc.Modal(
         [
-            dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), "Guia de Uso do Granum"]), close_button=True),
+            dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), translate("Guia de Uso do Granum", lang)]), close_button=True),
             dbc.ModalBody(
                 [
                     html.P(translate("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", lang), className="mb-4 text-muted"),
@@ -1263,11 +1263,12 @@ def toggle_manual_edit(n_clicks):
      State('input-lat', 'value'),
      State('input-lon', 'value'),
      State('error-modal', 'is_open'),
-     State('editable-table', 'data')]
+     State('editable-table', 'data'),
+     State('store-lang', 'data')]
 )
 def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                  prod_val, peso_val, cidade_val, lat_val, lon_val,
-                 is_open, table_data):
+                 is_open, table_data, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update, no_update
@@ -1292,13 +1293,13 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                 file_bytes = io.BytesIO(decoded)
                 df = flex_read_csv(file_bytes)
             else:
-                return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv).", None
+                return no_update, True, translate("O arquivo deve ser Excel (.xlsx) ou CSV (.csv).", lang), None
 
             # Validar colunas esperadas
             expected_cols = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
             # Checar se todas as colunas esperadas existem
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"Aviso: O arquivo carregado deve conter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, translate("Aviso: O arquivo carregado deve conter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
             # Garantir que apenas as colunas esperadas (na ordem correta) sejam mantidas, caso o usuário tenha colunas extras
             df = df[expected_cols]
@@ -1310,7 +1311,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             return df.to_json(date_format='iso', orient='split'), False, no_update, None
         except Exception as e:
             print(f"Error processing file: {e}")
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo válido.", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo válido.", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-row':
@@ -1320,7 +1321,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
              df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
         if not prod_val or not peso_val or not cidade_val:
-             return no_update, True, "Preencha Produto, Peso e Cidade para adicionar.", no_update
+             return no_update, True, translate("Preencha Produto, Peso e Cidade para adicionar.", lang), no_update
 
         try:
             # Normalize Product Name (Title Case)
@@ -1339,7 +1340,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             return df.to_json(date_format='iso', orient='split'), False, no_update, no_update
         except Exception as e:
             print(f"Error adding row: {e}")
-            return no_update, True, f"Erro ao adicionar linha: {str(e)}", no_update
+            return no_update, True, translate("Erro ao adicionar linha:", lang) + f" {str(e)}", no_update
 
     # Table Edited (Manual Data Entry)
     if trigger_id == 'editable-table':
@@ -1608,7 +1609,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
         try:
             df_conab = get_conab_txt_data()
             if df_conab.empty:
-                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update, None
+                return no_update, True, translate("Erro ao buscar dados do Conab.", lang), no_update, False, no_update, None
 
             # Map the columns
             # identificacao_armazem to CDA
@@ -1671,7 +1672,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
         except Exception as e:
             print(f"Error fetching and processing cadastrados: {e}")
-            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update, None
+            return no_update, True, translate("Erro ao processar dados do Conab:", lang) + f" {e}", no_update, False, no_update, None
 
     elif trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
@@ -1742,12 +1743,12 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     missing_cols = [c for c in expected_cols if c not in df.columns]
                     if missing_cols:
                         error_msg = html.Div([
-                            html.Span(f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}."),
+                            html.Span(translate("Erro: A base personalizada deve conter as colunas:", lang) + f" {', '.join(expected_cols)}."),
                             html.Br(),
                             html.Br(),
-                                html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold"),
+                                html.Span(translate("Faltam:", lang) + f" {', '.join(missing_cols)}", className="text-danger fw-bold"),
                                 html.Br(),
-                                html.Span(f"As colunas lidas no seu arquivo foram: {', '.join([str(c) for c in rename_mapping.keys()])}", className="text-muted small")
+                                html.Span(translate("As colunas lidas no seu arquivo foram:", lang) + f" {', '.join([str(c) for c in rename_mapping.keys()])}", className="text-muted small")
                         ])
                         return no_update, True, error_msg, no_update, False, no_update, None
 
@@ -1850,11 +1851,11 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children, None
             else:
-                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update, None
+                return no_update, True, translate("Arquivo vazio ou inválido.", lang), no_update, False, no_update, None
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update, None
+            return no_update, True, translate("Erro ao processar arquivo:", lang) + f" {e}", no_update, False, no_update, None
 
     # Table Edits (Auto-save)
     if trigger_id == 'table-armazens':
@@ -2343,7 +2344,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading storage costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Tarifas de Armazenagem.", no_update
+                return no_update, True, translate("Erro ao carregar a tabela de Tarifas de Armazenagem.", lang), no_update
         return no_update, no_update, no_update, no_update
 
     # Upload
@@ -2366,7 +2367,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O arquivo de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, translate("O arquivo de Tarifas de Armazenagem deve ter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2394,7 +2395,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-storage-row':
@@ -2502,7 +2503,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading freight costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Valor do Frete.", no_update
+                return no_update, True, translate("Erro ao carregar a tabela de Valor do Frete.", lang), no_update
         return no_update, no_update, no_update, no_update
 
     # Upload
@@ -2525,7 +2526,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Estado', 'Frete Tonelada Km']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O arquivo de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, translate("O arquivo de Valor do Frete deve ter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2534,7 +2535,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-freight-row':
@@ -3073,7 +3074,8 @@ def toggle_carga_max_input(use_recepcao):
         State('toggle-use-recepcao', 'value'),
         State('input-dias-alocacao', 'value'),
         State('input-frete-min', 'value'),
-        State('input-frete-max', 'value')
+        State('input-frete-max', 'value'),
+        State('store-lang', 'data')
     ],
     background=True,
     running=[
@@ -3084,12 +3086,12 @@ def toggle_carga_max_input(use_recepcao):
     prevent_initial_call=True
 )
 def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log,
-                  toggle_min_max_capacity, input_carga_min, input_carga_max, toggle_use_recepcao, input_dias_alocacao, input_frete_min, input_frete_max):
+                  toggle_min_max_capacity, input_carga_min, input_carga_max, toggle_use_recepcao, input_dias_alocacao, input_frete_min, input_frete_max, lang='pt'):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
     if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
+        return translate("Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", lang), "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
 
     try:
         # Load DataFrames
@@ -3134,9 +3136,9 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
 
         # Obter tempo de execução
         exec_time = results_dict.get('kpis', {}).get('execution_time', 0.0)
-        time_str = f" (Tempo de execução: {exec_time:.2f} segundos)" if exec_time else ""
+        time_str = translate(" (Tempo de execução:", lang) + f" {exec_time:.2f} " + translate("segundos)", lang) if exec_time else ""
 
-        status_msg = f"Modelo executado com sucesso!{time_str}" if results_dict.get("status") == "optimal" else f"Falha ao encontrar solução ótima.{time_str}"
+        status_msg = translate("Modelo executado com sucesso!", lang) + time_str if results_dict.get("status") == "optimal" else translate("Falha ao encontrar solução ótima.", lang) + time_str
         status_class = "text-success mt-3 fw-bold" if results_dict.get("status") == "optimal" else "text-warning mt-3 fw-bold"
 
         # Redirecionar para aba de resultados se sucesso
@@ -3661,7 +3663,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
             fig = default_fig
 
         details_html = html.Div([
-            html.P(f"Exibindo malha logística com {len(routes)} rotas realizadas.", className="text-muted mb-2"),
+            html.P(translate("Exibindo malha logística com", lang) + f" {len(routes)} " + translate("rotas realizadas.", lang), className="text-muted mb-2"),
             html.P(translate("Selecione uma rota na tabela para ver os detalhes individuais.", lang), className="text-muted small")
         ])
 
