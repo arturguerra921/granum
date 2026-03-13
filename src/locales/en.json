@@ -287,5 +287,6 @@
     "Ver Todas as Rotas": "View All Routes",
     "Selecione uma rota na tabela ao lado para ver os detalhes e indicadores aqui.": "Select a route in the table beside to see the details and indicators here.",
     "Qtd. de Viagens": "Qty. of Trips",
-    "Detalhes da Rota Selecionada": "Selected Route Details"
+    "Detalhes da Rota Selecionada": "Selected Route Details",
+    "O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.": "The system calculates all possible routes between the origin cities and the available warehouses. Click 'Calculate Distance Matrix' to begin and wait for completion. Subsequently, you may also visualize any route directly on the interactive map below the table."
 }
