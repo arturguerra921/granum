@@ -755,18 +755,24 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.BigMCapacity = pyo.Param(initialize=val_big_m_cap, doc="Custo de penalização por tonelada de capacidade artificial")
         model.BigMUnallocated = pyo.Param(initialize=val_big_m_unalloc, doc="Custo de penalização por tonelada de oferta não alocada")
 
-        # Big M dynamic for logistics bounds
-        max_supply = max(supply.values()) if supply else 0.0
-        max_capacity = max(demand_total_capacity.values()) if demand_total_capacity else 0.0
+        # Big M para as Rotas (Indexado por ValidRoutes)
+        def big_m_flow_init(model, o, d, p):
+            f_max = pyo.value(model.freight_max, exception=False)
+            if f_max is not None:
+                return f_max
+            else:
+                # O limite mais justo: o menor entre a oferta e a capacidade local
+                local_max = min(pyo.value(model.Supply[o, p]), pyo.value(model.TotalCapacity[d]))
+                return local_max if local_max > 0 else 999999.0
+                
+        model.big_m_flow = pyo.Param(model.ValidRoutes, initialize=big_m_flow_init, doc="Big M Dinâmico e Local por Rota")
 
-        # The Big M only needs to be as big as the largest single node in the network
-        big_m_flow_val = max(max_supply, max_capacity)
-
-        # Fallback only if the data is completely empty/zero
-        if big_m_flow_val <= 0:
-            big_m_flow_val = 10000.0
-
-        model.big_m_flow = pyo.Param(initialize=big_m_flow_val, within=pyo.Any, doc="Big M de fluxo")
+        # Big M para os Armazéns (Indexado por Destinations)
+        def big_m_warehouse_init(model, d):
+            max_cap = pyo.value(model.TotalCapacity[d])
+            return max_cap if max_cap > 0 else 999999.0
+            
+        model.big_m_warehouse = pyo.Param(model.Destinations, initialize=big_m_warehouse_init, doc="Big M Dinâmico por Armazém")
 
         # =========================================================================
         # 3.3 VARIÁVEIS DE DECISÃO (VARIABLES)
@@ -851,9 +857,9 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 print(f"Carga máxima diária de recepção ativada: {pyo.value(model.reception_max[list(model.Destinations)[0]], exception=False)} ton/dia")
 
         def route_active_max_rule(model, o, d, p):
-            max_val = pyo.value(model.freight_max, exception=False) if pyo.value(model.freight_max, exception=False) is not None else pyo.value(model.big_m_flow, exception=False)
-            return model.Flow[o, d, p] <= model.RouteActive[o, d, p] * max_val
-        model.RouteActiveMaxRule = pyo.Constraint(model.ValidRoutes, rule=route_active_max_rule, doc="Limite máximo de frete na rota ou ligação Big M se não estipulado")
+            return model.Flow[o, d, p] <= model.RouteActive[o, d, p] * model.big_m_flow[o, d, p]
+            
+        model.RouteActiveMaxRule = pyo.Constraint(model.ValidRoutes, rule=route_active_max_rule, doc="Limite máximo de frete ou local")
 
         # Limite mínimo de Frete (opcional)
         if pyo.value(model.freight_min, exception=False) is not None:
@@ -872,7 +878,10 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 return model.WarehouseActive[d] == 0
 
             flow_sum = sum(model.Flow[o, d, p] for (o, p) in valid_ops)
-            return flow_sum <= model.WarehouseActive[d] * pyo.value(model.big_m_flow, exception=False)
+            
+            # Utilizando o parâmetro limpo
+            return flow_sum <= model.WarehouseActive[d] * model.big_m_warehouse[d]
+            
         model.LinkWarehouseActive = pyo.Constraint(model.Destinations, rule=link_warehouse_active_rule, doc="Vincula o armazém a rotas ativas")
 
         # Limite mínimo de recepção de carga no armazém (opcional)
@@ -906,6 +915,8 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             return pyo.Constraint.Skip
 
         model.MaxReceptionRule = pyo.Constraint(model.Destinations, rule=max_reception_rule, doc="Recepção Máxima no Armazém com tolerância de folga DummyReception")
+
+        
 
 
         if detailed_log:
