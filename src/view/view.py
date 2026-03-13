@@ -1370,9 +1370,9 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
     Output('editable-table', 'columns'),
     [Input('stored-data', 'data'),
      Input('main-tabs', 'active_tab')],
-    State('store-lang', 'data')
+     State('store-lang', 'data')
 )
-def update_table_view(stored_data, active_tab):
+def update_table_view(stored_data, active_tab, lang='pt'):
     if active_tab != 'tab-input':
         return no_update, no_update
 
@@ -1393,7 +1393,7 @@ def update_table_view(stored_data, active_tab):
     Input('stored-data', 'data'),
     State('store-lang', 'data')
 )
-def update_metrics(stored_data):
+def update_metrics(stored_data, lang='pt'):
     if stored_data is None:
         return {'weight': 0, 'count': 0}
 
@@ -1421,7 +1421,7 @@ def update_metrics(stored_data):
     Input('stored-data', 'data'),
     State('store-lang', 'data')
 )
-def update_product_suggestions(stored_data):
+def update_product_suggestions(stored_data, lang='pt'):
     if stored_data is None:
         return []
 
@@ -1889,7 +1889,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     Input('store-armazens', 'data'),
     State('store-lang', 'data')
 )
-def update_armazens_table_view(stored_data):
+def update_armazens_table_view(stored_data, lang='pt'):
     if not stored_data:
         return [], [], "0", "0.00", "0", "0", False
 
@@ -2047,7 +2047,7 @@ def close_missing_cdas_modal(n_clicks, is_open):
     [State("modal-tutorial", "is_open"),
      State('store-lang', 'data')]
 )
-def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
+def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, "", "", no_update, no_update
@@ -2165,7 +2165,7 @@ def download_example_file(n_clicks):
      State('store-armazens', 'data'),
      State('store-lang', 'data')]
 )
-def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
+def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens, lang='pt'):
     if active_tab != 'tab-prod-armazens':
         return False, no_update
 
@@ -2250,7 +2250,7 @@ def redirect_missing_data(n_clicks, stored_data, stored_armazens):
     State('store-prod-armazens', 'data'),
     State('store-lang', 'data')
 )
-def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix):
+def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix, lang='pt'):
     if active_tab != 'tab-prod-armazens':
         return no_update, no_update, no_update
 
