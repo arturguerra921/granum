@@ -3198,14 +3198,14 @@ def update_results_kpis_and_table(results_data, lang='pt'):
         table_data.append(row_data)
 
     columns = [
-        {'name': 'Origem', 'id': 'Origem'},
-        {'name': 'Destino', 'id': 'Destino'},
-        {'name': 'Produto', 'id': 'Produto'},
-        {'name': 'Qtd (ton)', 'id': 'Quantidade (ton)'}
+        {'name': translate('Origem', lang), 'id': 'Origem'},
+        {'name': translate('Destino', lang), 'id': 'Destino'},
+        {'name': translate('Produto', lang), 'id': 'Produto'},
+        {'name': translate('Qtd (ton)', lang), 'id': 'Quantidade (ton)'}
     ]
 
     if has_viagens:
-        columns.append({'name': 'Qtd. de Viagens', 'id': 'Qtd. de Viagens'})
+        columns.append({'name': translate('Qtd. de Viagens', lang), 'id': 'Qtd. de Viagens'})
 
     # Render warnings
     warnings_html = []
@@ -3571,7 +3571,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
         fmt_dist = f"{route_detail['Distancia (km)']:,.2f} km".replace(",", "X").replace(".", ",").replace("X", ".")
 
         details_html = dbc.Card([
-            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), className="bg-primary-custom"),
+            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), translate("Detalhes da Rota Selecionada", lang)], className="mb-0 text-white"), className="bg-primary-custom"),
             dbc.ListGroup([
                 dbc.ListGroupItem([
                     html.Div([html.I(className="bi bi-geo-alt-fill text-success-custom me-2"), html.Strong(translate("Origem: ", lang))]),

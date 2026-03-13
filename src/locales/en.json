@@ -285,5 +285,7 @@
     "Selecione uma rota para visualizá-la no mapa abaixo e ver suas métricas específicas.": "Select a route to view it on the map below and see its specific metrics.",
     "Mapa exibindo a rota selecionada ou todas as rotas (malha).": "Map showing the selected route or all routes (mesh).",
     "Ver Todas as Rotas": "View All Routes",
-    "Selecione uma rota na tabela ao lado para ver os detalhes e indicadores aqui.": "Select a route in the table beside to see the details and indicators here."
+    "Selecione uma rota na tabela ao lado para ver os detalhes e indicadores aqui.": "Select a route in the table beside to see the details and indicators here.",
+    "Qtd. de Viagens": "Qty. of Trips",
+    "Detalhes da Rota Selecionada": "Selected Route Details"
 }
