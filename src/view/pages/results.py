@@ -105,10 +105,10 @@ def get_tab_results_layout(lang='pt'):
                                 id='table-results-routes',
                                 data=[],
                                 columns=[
-                                    {'name': 'Origem', 'id': 'Origem'},
-                                    {'name': 'Destino', 'id': 'Destino'},
-                                    {'name': 'Produto', 'id': 'Produto'},
-                                    {'name': 'Qtd (ton)', 'id': 'Quantidade (ton)'}
+                                    {'name': translate('Origem', lang), 'id': 'Origem'},
+                                    {'name': translate('Destino', lang), 'id': 'Destino'},
+                                    {'name': translate('Produto', lang), 'id': 'Produto'},
+                                    {'name': translate('Qtd (ton)', lang), 'id': 'Quantidade (ton)'}
                                 ],
                                 filter_action='native',
                                 page_size=10,
@@ -144,7 +144,7 @@ def get_tab_results_layout(lang='pt'):
                     ),
                     html.Div(className="d-flex justify-content-end mt-3", children=[
                         dbc.Button(
-                            [html.I(className="bi bi-download me-2"), "Baixar Relatório Completo (.xlsx)"],
+                            [html.I(className="bi bi-download me-2"), translate("Baixar Relatório Completo (.xlsx)", lang)],
                             id='btn-download-results',
                             color="none", className="btn-success-custom"
                         ),
