@@ -1886,10 +1886,14 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     Output('metric-armazens-public', 'children'),
     Output('metric-armazens-private', 'children'),
     Output('modal-lentidao-armazens', 'is_open'),
+    Input('main-tabs', 'active_tab'),
     Input('store-armazens', 'data'),
-    State('store-lang', 'data')
+    Input('store-lang', 'data')
 )
-def update_armazens_table_view(stored_data, lang='pt'):
+def update_armazens_table_view(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-armazens':
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update
+
     if not stored_data:
         return [], [], "0", "0.00", "0", "0", False
 
@@ -2246,10 +2250,10 @@ def redirect_missing_data(n_clicks, stored_data, stored_armazens):
     Input('main-tabs', 'active_tab'),
     Input('stored-data', 'data'),
     Input('store-armazens', 'data'),
-    State('store-prod-armazens', 'data'),
-    State('store-lang', 'data')
+    Input('store-lang', 'data'),
+    State('store-prod-armazens', 'data')
 )
-def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix, lang='pt'):
+def update_prod_armazens_table(active_tab, stored_data, stored_armazens, lang, stored_matrix):
     if active_tab != 'tab-prod-armazens':
         return no_update, no_update, no_update
 
@@ -2446,10 +2450,14 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 @app.callback(
     Output('table-costs-storage', 'data'),
     Output('table-costs-storage', 'columns'),
+    Input('main-tabs', 'active_tab'),
     Input('store-costs-storage', 'data'),
     Input('store-lang', 'data')
 )
-def update_storage_table(stored_data, lang='pt'):
+def update_storage_table(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-costs':
+        return no_update, no_update
+
     columns = [
         {'name': translate('Produto', lang), 'id': 'Produto'},
         {'name': translate('Armazenar Público', lang), 'id': 'Armazenar_Publico'},
@@ -2563,10 +2571,14 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 @app.callback(
     Output('table-costs-freight', 'data'),
     Output('table-costs-freight', 'columns'),
+    Input('main-tabs', 'active_tab'),
     Input('store-costs-freight', 'data'),
     Input('store-lang', 'data')
 )
-def update_freight_table(stored_data, lang='pt'):
+def update_freight_table(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-costs':
+        return no_update, no_update
+
     columns = [
         {'name': translate('Estado', lang), 'id': 'Estado'},
         {'name': translate('Frete (R$/ton.km)', lang), 'id': 'Frete Tonelada Km'}
