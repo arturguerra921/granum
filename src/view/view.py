@@ -3138,12 +3138,13 @@ def execute_model(n_clicks, stored_data, stored_warehouses, stored_prod_warehous
             df_storage=df_storage,
             detailed_log=detailed_log,
             toggle_min_max_capacity=toggle_min_max_capacity,
-            input_carga_min=input_min_load,
-            input_carga_max=input_max_load,
-            toggle_use_recepcao=toggle_use_reception,
-            input_dias_alocacao=input_allocation_days,
-            input_frete_min=input_min_freight,
-            input_frete_max=input_max_freight
+            input_min_load=input_min_load,
+            input_max_load=input_max_load,
+            toggle_use_reception=toggle_use_reception,
+            input_allocation_days=input_allocation_days,
+            input_min_freight=input_min_freight,
+            input_max_freight=input_max_freight,
+            lang=lang
         )
 
         # Get execution time

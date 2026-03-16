@@ -10,8 +10,8 @@ import os
 import time
 
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False,
-                           toggle_min_max_capacity=False, input_carga_min=None, input_carga_max=None,
-                           toggle_use_recepcao=False, input_dias_alocacao=None, input_frete_min=None, input_frete_max=None, lang="pt"):
+                           toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
+                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, lang="pt"):
     """
     Runs the linear optimization mathematical model for product allocation.
     """
@@ -244,11 +244,11 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     use_milp = False
     if toggle_min_max_capacity:
-        if (input_carga_min is not None and str(input_carga_min).strip() != "") or \
-           (input_carga_max is not None and str(input_carga_max).strip() != "") or \
-           (input_frete_min is not None and str(input_frete_min).strip() != "") or \
-           (input_frete_max is not None and str(input_frete_max).strip() != "") or \
-           toggle_use_recepcao:
+        if (input_min_load is not None and str(input_min_load).strip() != "") or \
+           (input_max_load is not None and str(input_max_load).strip() != "") or \
+           (input_min_freight is not None and str(input_min_freight).strip() != "") or \
+           (input_max_freight is not None and str(input_max_freight).strip() != "") or \
+           toggle_use_reception:
             use_milp = True
 
     if use_milp:
@@ -262,9 +262,10 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             freight_cost=freight_cost, storage_cost=storage_cost, avg_freight=avg_freight,
             all_products=all_products, origins_list=df_supply['Cidade'].unique().tolist(),
             detailed_log=detailed_log,
-            input_carga_min=input_carga_min, input_carga_max=input_carga_max,
-            toggle_use_recepcao=toggle_use_recepcao, input_dias_alocacao=input_dias_alocacao,
-            input_frete_min=input_frete_min, input_frete_max=input_frete_max
+            input_min_load=input_min_load, input_max_load=input_max_load,
+            toggle_use_reception=toggle_use_reception, input_allocation_days=input_allocation_days,
+            input_min_freight=input_min_freight, input_max_freight=input_max_freight,
+            lang=lang
         )
 
     # 2. Pyomo Model Construction (Original LP)
@@ -606,15 +607,15 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                                  demand_reception_capacity, is_public, cda_to_name,
                                  prod_dest_compat, distance, freight_cost, storage_cost, avg_freight,
                                  all_products, origins_list, detailed_log,
-                                 input_carga_min, input_carga_max, toggle_use_recepcao,
-                                 input_dias_alocacao, input_frete_min, input_frete_max, lang="pt"):
+                                 input_min_load, input_max_load, toggle_use_reception,
+                                 input_allocation_days, input_min_freight, input_max_freight, lang="pt"):
     """
     Versão MILP do modelo, inclui restrições extras e variáveis binárias (RouteActive).
     """
 
     # Calculate days multiplier
     try:
-        days = float(input_dias_alocacao) if input_dias_alocacao else 1.0
+        days = float(input_allocation_days) if input_allocation_days else 1.0
     except:
         days = 1.0
 
@@ -627,10 +628,10 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         except:
             return None
 
-    carga_min = parse_float(input_carga_min)
-    carga_max = parse_float(input_carga_max)
-    frete_min = parse_float(input_frete_min)
-    frete_max = parse_float(input_frete_max)
+    carga_min = parse_float(input_min_load)
+    carga_max = parse_float(input_max_load)
+    frete_min = parse_float(input_min_freight)
+    frete_max = parse_float(input_max_freight)
 
     # Redirecionar output
     old_stdout = sys.stdout
@@ -707,7 +708,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.reception_min = pyo.Param(model.Destinations, initialize=reception_min_init, within=pyo.Any, doc=translate("Carga mínima diária de recepção", lang))
 
         def reception_max_init(model, d):
-            if toggle_use_recepcao:
+            if toggle_use_reception:
                 return demand_reception_capacity.get(d, 0.0)
             elif carga_max is not None:
                 return carga_max
@@ -855,7 +856,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         if list(model.Destinations):
             if pyo.value(model.reception_min[list(model.Destinations)[0]], exception=False) is not None:
                 print(translate("Carga mínima diária de recepção ativada: {val1} ton/dia (Total: {val2} ton)", lang).format(val1=pyo.value(model.reception_min[list(model.Destinations)[0]], exception=False), val2=pyo.value(model.reception_min[list(model.Destinations)[0]], exception=False) * pyo.value(model.days, exception=False)))
-            if toggle_use_recepcao:
+            if toggle_use_reception:
                 print(translate("Capacidade máxima de recepção do banco de dados ativada.", lang))
             elif pyo.value(model.reception_max[list(model.Destinations)[0]], exception=False) is not None: # Note: this assumes same for all if not toggle
                 print(translate("Carga máxima diária de recepção ativada: {val} ton/dia", lang).format(val=pyo.value(model.reception_max[list(model.Destinations)[0]], exception=False)))
@@ -902,7 +903,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         model.MinReceptionRule = pyo.Constraint(model.Destinations, rule=min_reception_rule, doc=translate("Recepção Mínima do Armazém se for ativado", lang))
 
         # Maximum cargo reception limit in warehouse (optional or by Database Reception Cap.)
-        # Note: toggle_use_recepcao and carga_max are mutually exclusive in UI logic,
+        # Note: toggle_use_reception and carga_max are mutually exclusive in UI logic,
         # but here we explicitly state priority: database capacity overrides if activated.
         def max_reception_rule(model, d):
             valid_ops = [(o, p) for o in model.Origins for p in model.Products if (o, d, p) in model.ValidRoutes]
