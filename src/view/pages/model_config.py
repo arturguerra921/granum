@@ -58,10 +58,10 @@ def get_tab_model_config_layout(lang='pt'):
                                 dbc.Col([
                                     html.Div([
                                         dbc.Label(translate("Recepção mínima diária (ton)", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("A soma de todas as rotas chegando em um armazém deve ser pelo menos este valor diariamente. Essa regra só se aplica se o armazém for utilizado.", lang), target="help-carga-min")
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-min-load", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("A soma de todas as rotas chegando em um armazém deve ser pelo menos este valor diariamente. Essa regra só se aplica se o armazém for utilizado.", lang), target="help-min-load")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-carga-min", type="number", min=0, placeholder=translate("Ex: 10", lang), className="mb-4")
+                                    dbc.Input(id="input-min-load", type="number", min=0, placeholder=translate("Ex: 10", lang), className="mb-4")
                                 ], width=6)
                             ]),
 
@@ -70,10 +70,10 @@ def get_tab_model_config_layout(lang='pt'):
                                 dbc.Col([
                                     html.Div([
                                         dbc.Label(translate("Recepção máxima diária (ton)", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-carga-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("A soma de todas as rotas chegando em um armazém não pode ultrapassar este valor diariamente.", lang), target="help-carga-max")
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-max-load", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("A soma de todas as rotas chegando em um armazém não pode ultrapassar este valor diariamente.", lang), target="help-max-load")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-carga-max", type="number", min=0, placeholder=translate("Ex: 100", lang), className="mb-4")
+                                    dbc.Input(id="input-max-load", type="number", min=0, placeholder=translate("Ex: 100", lang), className="mb-4")
                                 ], width=6),
                                 dbc.Col([
                                     # Para o alinhamento perfeito
@@ -83,18 +83,18 @@ def get_tab_model_config_layout(lang='pt'):
                                     ], className="d-flex align-items-center mb-1"),
                                     html.Div([
                                         dbc.Switch(
-                                            id="toggle-use-recepcao",
+                                            id="toggle-use-reception",
                                             value=False,
                                             className="custom-switch mb-0 small"
                                         ),
                                         html.Label(translate("Utilizar Cap. de Recepção", lang),
-                                            htmlFor="toggle-use-recepcao",
+                                            htmlFor="toggle-use-reception",
                                             className="mb-0 mx-2 text-muted cursor-pointer small",
                                             style={"whiteSpace": "nowrap"}
                                         ),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-use-recepcao", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-use-reception", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip(translate("Se ativado, utiliza a capacidade de recepção (t) dos armazéns cadastrados no banco de dados como recepção máxima diária.", lang),
-                                            target="help-use-recepcao",
+                                            target="help-use-reception",
                                             placement="top"
                                         )
                                     ], className="d-flex align-items-center mb-4", style={"height": "38px"})
@@ -106,10 +106,10 @@ def get_tab_model_config_layout(lang='pt'):
                                 dbc.Col([
                                     html.Div([
                                         dbc.Label(translate("Dias para alocação", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-dias", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("Quantidade de dias que multiplica as recepções (mínima e máxima) do armazém, simulando mais de um dia de operação.", lang), target="help-dias")
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-days", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Quantidade de dias que multiplica as recepções (mínima e máxima) do armazém, simulando mais de um dia de operação.", lang), target="help-days")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-dias-alocacao", type="number", min=1, placeholder=translate("Ex: 5", lang), className="mb-4")
+                                    dbc.Input(id="input-allocation-days", type="number", min=1, placeholder=translate("Ex: 5", lang), className="mb-4")
                                 ], width=6)
                             ]),
 
@@ -122,18 +122,18 @@ def get_tab_model_config_layout(lang='pt'):
                                 dbc.Col([
                                     html.Div([
                                         dbc.Label(translate("Carga mínima de frete (ton)", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-frete-min", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("Valor mínimo que uma rota individual deve transportar. Nenhuma rota terá carga menor que esta. Essa regra se aplica apenas caso a rota seja utilizada. Rotas não escolhidas continuam com carga zero.", lang), target="help-frete-min")
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-min-freight", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Valor mínimo que uma rota individual deve transportar. Nenhuma rota terá carga menor que esta. Essa regra se aplica apenas caso a rota seja utilizada. Rotas não escolhidas continuam com carga zero.", lang), target="help-min-freight")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-frete-min", type="number", min=0, placeholder=translate("Ex: 15", lang), className="mb-4")
+                                    dbc.Input(id="input-min-freight", type="number", min=0, placeholder=translate("Ex: 15", lang), className="mb-4")
                                 ], width=6),
                                 dbc.Col([
                                     html.Div([
                                         dbc.Label(translate("Carga máxima de frete (ton)", lang), className="fw-bold small me-2 mb-0", style={"color": "#9ca3af"}),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-frete-max", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                        dbc.Tooltip(translate("Valor máximo que uma rota individual pode transportar. Nenhuma rota terá carga maior que esta.", lang), target="help-frete-max")
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-max-freight", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Valor máximo que uma rota individual pode transportar. Nenhuma rota terá carga maior que esta.", lang), target="help-max-freight")
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-frete-max", type="number", min=0, placeholder=translate("Ex: 50", lang), className="mb-4")
+                                    dbc.Input(id="input-max-freight", type="number", min=0, placeholder=translate("Ex: 50", lang), className="mb-4")
                                 ], width=6)
                             ]),
 

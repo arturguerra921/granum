@@ -33,11 +33,11 @@ try:
     STORAGE_COSTS_PATH = os.path.join(DATA_DIR, 'Tarifa_de_Armazenagem.csv')
     FREIGHT_COSTS_PATH = os.path.join(DATA_DIR, 'Valor_Tonelada_km.csv')
 
-    df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
-    df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
+    df_municipalities = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
+    df_states = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
 
     # Merge to get UF
-    df_merged = pd.merge(df_municipios, df_estados[['codigo_uf', 'uf']], on='codigo_uf', how='left')
+    df_merged = pd.merge(df_municipalities, df_states[['codigo_uf', 'uf']], on='codigo_uf', how='left')
 
     # Create "Cidade - UF" column
     df_merged['cidade_uf'] = df_merged['nome'] + ' - ' + df_merged['uf']
@@ -75,8 +75,8 @@ def flex_read_csv(file_bytes, **kwargs):
                 # using on_bad_lines='skip' to avoid throwing exception on a single malformed line
                 df = pd.read_csv(file_bytes, sep=sep, encoding=enc, on_bad_lines='skip', **kwargs)
 
-                # Se o arquivo for parseado como 1 única coluna, verifique se a coluna inteira
-                # parece ser o texto de um CSV não lido (ex: col_name = "A;B;C").
+                # If the file is parsed as 1 single column, check if the entire column
+                # seems to be unread CSV text (e.g., col_name = "A;B;C").
                 if len(df.columns) == 1 and sep != delimiters[-1]:
                     col_name = str(df.columns[0])
                     other_delims = [d for d in delimiters if d != sep]
@@ -188,7 +188,7 @@ def serve_layout(lang="pt"):
         className="navbar-custom mb-32 py-3 shadow-sm"
     )
 
-    # Modal de Ajuda
+    # Help Modal
     help_modal = dbc.Modal(
         [
             dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), translate("Guia de Uso do Granum", lang)]), close_button=True),
@@ -244,8 +244,8 @@ def serve_layout(lang="pt"):
     tabs = dbc.Tabs(
         [
             dbc.Tab(label=translate("Oferta", lang), tab_id="tab-input", label_class_name="px-4"),
-            dbc.Tab(label=translate("Armazéns", lang), tab_id="tab-armazens", label_class_name="px-4"),
-            dbc.Tab(label=translate("Produto e Armazéns", lang), tab_id="tab-prod-armazens", label_class_name="px-4"),
+            dbc.Tab(label=translate("Armazéns", lang), tab_id="tab-warehouses", label_class_name="px-4"),
+            dbc.Tab(label=translate("Produto e Armazéns", lang), tab_id="tab-prod-warehouses", label_class_name="px-4"),
             dbc.Tab(label=translate("Custos", lang), tab_id="tab-costs", label_class_name="px-4"),
             dbc.Tab(label=translate("Matriz de Distâncias", lang), tab_id="tab-distance-matrix", label_class_name="px-4"),
             dbc.Tab(label=translate("Configuração do Modelo", lang), tab_id="tab-config", label_class_name="px-4"),
@@ -315,12 +315,12 @@ def serve_layout(lang="pt"):
                                 [
                                     html.Div([
                                         dbc.Label(translate("Produto", lang), className="fw-bold small me-2 mb-0"),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-produto", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-product", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip(translate("Nome do produto (ex: Soja, Milho). O sistema ajustará maiúsculas/minúsculas automaticamente e sugerirá produtos já cadastrados.", lang),
-                                            target="help-produto",
+                                            target="help-product",
                                         ),
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-produto", type="text", placeholder=translate("Ex: Arroz", lang), list="list-suggested-products", className="mb-16"),
+                                    dbc.Input(id="input-product", type="text", placeholder=translate("Ex: Arroz", lang), list="list-suggested-products", className="mb-16"),
                                     html.Datalist(id="list-suggested-products", children=[])
                                 ],
                                 width=6
@@ -329,12 +329,12 @@ def serve_layout(lang="pt"):
                                 [
                                     html.Div([
                                         dbc.Label(translate("Peso (ton)", lang), className="fw-bold small me-2 mb-0"),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-weight", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip(translate("Peso total da carga em quilogramas.", lang),
-                                            target="help-peso",
+                                            target="help-weight",
                                         ),
                                     ], className="d-flex align-items-center mb-1"),
-                                    dbc.Input(id="input-peso", type="number", placeholder=translate("Ex: 100", lang), className="mb-16")
+                                    dbc.Input(id="input-weight", type="number", placeholder=translate("Ex: 100", lang), className="mb-16")
                                 ],
                                 width=6
                             ),
@@ -342,13 +342,13 @@ def serve_layout(lang="pt"):
                                 [
                                     html.Div([
                                         dbc.Label(translate("Cidade", lang), className="fw-bold small me-2 mb-0"),
-                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-cidade", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-city", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                                         dbc.Tooltip(translate("Selecione a cidade de origem/destino. Digite para filtrar as opções.", lang),
-                                            target="help-cidade",
+                                            target="help-city",
                                         ),
                                     ], className="d-flex align-items-center mb-1"),
                                     dcc.Dropdown(
-                                        id="input-cidade",
+                                        id="input-city",
                                         options=[],
                                         placeholder=translate("Selecione a cidade...", lang),
                                         className="mb-16",
@@ -564,8 +564,8 @@ def serve_layout(lang="pt"):
             ),
         ])
 
-    # 4. Tab Armazéns Content
-    def get_tab_armazens_layout():
+    # 4. Tab Warehouses Content
+    def get_tab_warehouses_layout():
         # Card 1: Select Base
         card_select_base = dbc.Card(
             [
@@ -583,7 +583,7 @@ def serve_layout(lang="pt"):
                 dbc.CardBody(
                     [
                         dcc.Dropdown(
-                            id="dropdown-base-armazens",
+                            id="dropdown-base-warehouses",
                             options=[
                                 {"label": translate("Armazéns Credenciados (Conab)", lang), "value": "credenciados"},
                                 {"label": translate("Armazéns Cadastrados (SICARM)", lang), "value": "cadastrados"},
@@ -651,9 +651,9 @@ def serve_layout(lang="pt"):
                                 ),
                                 # Fetch Button (for Cadastrados)
                                 html.Div(
-                                    id="fetch-cadastrados-container",
+                                    id="fetch-registered-container",
                                     children=[
-                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-cadastrados", color="none", className="btn-primary-custom w-100 mt-2")
+                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-registered", color="none", className="btn-primary-custom w-100 mt-2")
                                     ],
                                     style={"display": "none"}
                                 )
@@ -661,7 +661,7 @@ def serve_layout(lang="pt"):
                             style={"display": "none"}
                         ),
 
-                        # Salvar na base (Initially Hidden)
+                        # Save to base (Initially Hidden)
                         dbc.Button(translate("Salvar na Base", lang), id="btn-save-base", color="none", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
                     ],
                     className="card-body-custom"
@@ -671,7 +671,7 @@ def serve_layout(lang="pt"):
         )
 
         # Metrics Section for Armazéns
-        armazens_metrics_section = dbc.Row(
+        warehouses_metrics_section = dbc.Row(
             [
                 dbc.Col(
                     dbc.Card(
@@ -683,7 +683,7 @@ def serve_layout(lang="pt"):
                                         html.Div(
                                             [
                                                 html.H6(translate("Unidades Armazenadoras", lang), className="text-muted small text-uppercase fw-bold mb-1"),
-                                                html.H3(id="metric-armazens-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                                html.H3(id="metric-warehouses-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
                                             ]
                                         )
                                     ],
@@ -707,7 +707,7 @@ def serve_layout(lang="pt"):
                                         html.Div(
                                             [
                                                 html.H6(translate("Unidades Armazenadoras Públicas", lang), className="text-muted small text-uppercase fw-bold mb-1"),
-                                                html.H3(id="metric-armazens-public", children="0", className="mb-0", style={"color": "#FFC107"})
+                                                html.H3(id="metric-warehouses-public", children="0", className="mb-0", style={"color": "#FFC107"})
                                             ]
                                         )
                                     ],
@@ -731,7 +731,7 @@ def serve_layout(lang="pt"):
                                         html.Div(
                                             [
                                                 html.H6(translate("Unidades Armazenadoras Privadas", lang), className="text-muted small text-uppercase fw-bold mb-1"),
-                                                html.H3(id="metric-armazens-private", children="0", className="mb-0", style={"color": "#6C757D"})
+                                                html.H3(id="metric-warehouses-private", children="0", className="mb-0", style={"color": "#6C757D"})
                                             ]
                                         )
                                     ],
@@ -755,7 +755,7 @@ def serve_layout(lang="pt"):
                                         html.Div(
                                             [
                                                 html.H6(translate("Capacidade Estática (t)", lang), className="text-muted small text-uppercase fw-bold mb-1"),
-                                                html.H3(id="metric-armazens-capacity", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                                html.H3(id="metric-warehouses-capacity", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
                                             ]
                                         )
                                     ],
@@ -773,8 +773,8 @@ def serve_layout(lang="pt"):
             className="mt-auto pt-3 g-3"
         )
 
-        # Armazens Table Card
-        armazens_table_card = dbc.Card(
+        # Warehouses Table Card
+        warehouses_table_card = dbc.Card(
             [
                 dbc.CardHeader(translate("Tabela de Armazéns", lang),
                     className="card-header-custom"
@@ -782,9 +782,9 @@ def serve_layout(lang="pt"):
                 dbc.CardBody(
                     [
                          dbc.Spinner(
-                            html.Div(id='table-armazens-container', children=[
+                            html.Div(id='table-warehouses-container', children=[
                                 dash_table.DataTable(
-                                    id='table-armazens',
+                                    id='table-warehouses',
                                     data=[],
                                     columns=[],
                                     editable=True,
@@ -820,7 +820,7 @@ def serve_layout(lang="pt"):
                             ], className="h-100"),
                             spinner_class_name="text-primary-custom"
                         ),
-                        armazens_metrics_section
+                        warehouses_metrics_section
                     ],
                     className="card-body-custom d-flex flex-column"
                 ),
@@ -870,15 +870,15 @@ def serve_layout(lang="pt"):
             is_open=False,
         )
 
-        lentidao_modal = dbc.Modal(
+        slowness_modal = dbc.Modal(
             [
                 dbc.ModalHeader(dbc.ModalTitle(translate("Aviso de Desempenho", lang)), close_button=True),
                 dbc.ModalBody(translate("Esta base possui mais de 1000 armazéns e isso pode causar lentidões na sua utilização.", lang)),
                 dbc.ModalFooter(
-                    dbc.Button(translate("Entendi", lang), id="close-lentidao-modal", className="btn-primary-custom ms-auto", n_clicks=0)
+                    dbc.Button(translate("Entendi", lang), id="close-slowness-modal", className="btn-primary-custom ms-auto", n_clicks=0)
                 ),
             ],
-            id="modal-lentidao-armazens",
+            id="modal-slowness-warehouses",
             is_open=False,
         )
 
@@ -889,26 +889,26 @@ def serve_layout(lang="pt"):
                         card_select_base,
                         html.Div(card_update_save, className="flex-grow-1 h-100")
                     ], width=12, lg=3, className="mb-24 d-flex flex-column h-100"),
-                    dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
+                    dbc.Col(warehouses_table_card, width=12, lg=9, className="mb-24"),
                 ]
             ),
             tutorial_modal,
             confirm_save_modal,
             missing_cdas_modal,
-            lentidao_modal
+            slowness_modal
         ])
 
-    # 5. Tab Produto e Armazéns Content
-    def get_tab_prod_armazens_layout():
+    # 5. Tab Product and Warehouses Content
+    def get_tab_prod_warehouses_layout():
         # Table Card
         table_card = dbc.Card(
             [
                 dbc.CardHeader(
                     html.Div([
                         html.Span(translate("Relação Produto x Tipo de Armazém", lang), className="me-2"),
-                        html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-armazens", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-warehouses", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
                         dbc.Tooltip(translate("Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).", lang),
-                            target="help-prod-armazens",
+                            target="help-prod-warehouses",
                             placement="right"
                         ),
                     ], className="d-flex align-items-center"),
@@ -1018,8 +1018,8 @@ def serve_layout(lang="pt"):
 
     # Pre-render all tab layouts to ensure IDs exist for callbacks
     tab1_layout = get_tab1_layout()
-    tab2_layout = get_tab_armazens_layout()
-    tab_prod_armazens_layout = get_tab_prod_armazens_layout()
+    tab2_layout = get_tab_warehouses_layout()
+    tab_prod_warehouses_layout = get_tab_prod_warehouses_layout()
     tab_costs_layout = get_tab_costs_layout(lang)
     tab_distance_matrix_layout = get_tab_distance_matrix_layout(lang)
     tab_config_layout = get_tab_model_config_layout(lang)
@@ -1028,8 +1028,8 @@ def serve_layout(lang="pt"):
     content_container = html.Div(
         [
             html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
-            html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
-            html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
+            html.Div(id="tab-warehouses-container", children=tab2_layout, style={"display": "none"}),
+            html.Div(id="tab-prod-warehouses-container", children=tab_prod_warehouses_layout, style={"display": "none"}),
             html.Div(id="tab-costs-container", children=tab_costs_layout, style={"display": "none"}),
             html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
             html.Div(id="tab-config-container", children=tab_config_layout, style={"display": "none"}),
@@ -1071,8 +1071,8 @@ app.layout = html.Div([
     dcc.Store(id='store-lang', storage_type='memory', data='pt'),
     dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
     dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
-    dcc.Store(id='store-armazens'), # New Store for Armazéns
-    dcc.Store(id='store-prod-armazens'), # New Store for Prod x Armazens
+    dcc.Store(id='store-warehouses'), # New Store for Armazéns
+    dcc.Store(id='store-prod-warehouses'), # New Store for Prod x Armazens
     dcc.Store(id='store-costs-storage'), # New Store for Storage Costs
     dcc.Store(id='store-costs-freight'), # New Store for Freight Costs
     dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
@@ -1159,8 +1159,8 @@ def toggle_help_modal(n_open, n_close, active_tab, is_open, help_seen):
 
 @app.callback(
     [Output("tab-input-container", "style"),
-     Output("tab-armazens-container", "style"),
-     Output("tab-prod-armazens-container", "style"),
+     Output("tab-warehouses-container", "style"),
+     Output("tab-prod-warehouses-container", "style"),
      Output("tab-costs-container", "style"),
      Output("tab-distance-matrix-container", "style"),
      Output("tab-config-container", "style"),
@@ -1172,9 +1172,9 @@ def render_content(active_tab):
 
     if active_tab == 'tab-input':
         base_styles[0] = {"display": "block"}
-    elif active_tab == 'tab-armazens':
+    elif active_tab == 'tab-warehouses':
         base_styles[1] = {"display": "block"}
-    elif active_tab == 'tab-prod-armazens':
+    elif active_tab == 'tab-prod-warehouses':
         base_styles[2] = {"display": "block"}
     elif active_tab == 'tab-costs':
         base_styles[3] = {"display": "block"}
@@ -1189,9 +1189,9 @@ def render_content(active_tab):
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
-    Output("input-cidade", "options"),
-    Input("input-cidade", "search_value"),
-    State("input-cidade", "value")
+    Output("input-city", "options"),
+    Input("input-city", "search_value"),
+    State("input-city", "value")
 )
 def update_city_options(search_value, value):
     if not search_value:
@@ -1222,7 +1222,7 @@ def update_city_options(search_value, value):
 @app.callback(
     [Output('input-lat', 'value'),
      Output('input-lon', 'value')],
-    Input('input-cidade', 'value'),
+    Input('input-city', 'value'),
     prevent_initial_call=True
 )
 def update_lat_lon(city_value):
@@ -1257,9 +1257,9 @@ def toggle_manual_edit(n_clicks):
      Input('close-modal', 'n_clicks')],
     [State('upload-data', 'filename'),
      State('stored-data', 'data'),
-     State('input-produto', 'value'),
-     State('input-peso', 'value'),
-     State('input-cidade', 'value'),
+     State('input-product', 'value'),
+     State('input-weight', 'value'),
+     State('input-city', 'value'),
      State('input-lat', 'value'),
      State('input-lon', 'value'),
      State('error-modal', 'is_open'),
@@ -1267,7 +1267,7 @@ def toggle_manual_edit(n_clicks):
      State('store-lang', 'data')]
 )
 def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
-                 prod_val, peso_val, cidade_val, lat_val, lon_val,
+                 prod_val, weight_val, city_val, lat_val, lon_val,
                  is_open, table_data, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
@@ -1295,13 +1295,13 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             else:
                 return no_update, True, translate("O arquivo deve ser Excel (.xlsx) ou CSV (.csv).", lang), None
 
-            # Validar colunas esperadas
+            # Validate expected columns
             expected_cols = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
-            # Checar se todas as colunas esperadas existem
+            # Check if all expected columns exist
             if not all(col in df.columns for col in expected_cols):
                 return no_update, True, translate("Aviso: O arquivo carregado deve conter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
-            # Garantir que apenas as colunas esperadas (na ordem correta) sejam mantidas, caso o usuário tenha colunas extras
+            # Ensure that only expected columns (in correct order) are kept, in case the user has extra columns
             df = df[expected_cols]
 
             # Normalize "Produto" column se existir (vai existir devido a verificação anterior)
@@ -1320,7 +1320,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
         else:
              df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
-        if not prod_val or not peso_val or not cidade_val:
+        if not prod_val or not weight_val or not city_val:
              return no_update, True, translate("Preencha Produto, Peso e Cidade para adicionar.", lang), no_update
 
         try:
@@ -1330,8 +1330,8 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             new_row_data = {
                 'Produto': prod_val_normalized,
-                'Peso (ton)': peso_val,
-                'Cidade': cidade_val,
+                'Peso (ton)': weight_val,
+                'Cidade': city_val,
                 'Latitude': lat_val,
                 'Longitude': lon_val
             }
@@ -1512,14 +1512,14 @@ def download_data(n_clicks, stored_data):
         return no_update
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Oferta_Editada.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "Edited_Supply.xlsx", index=False)
 
 
 # --- Armazéns Callbacks ---
 
 # 4. Load Data to Store (and Handle Restore)
 @app.callback(
-    Output('store-armazens', 'data'),
+    Output('store-warehouses', 'data'),
     Output('error-modal', 'is_open', allow_duplicate=True),
     Output('modal-body-content', 'children', allow_duplicate=True),
     Output('btn-save-base', 'style'), # New output for Save button visibility
@@ -1527,17 +1527,17 @@ def download_data(n_clicks, stored_data):
     Output('modal-missing-cdas-body', 'children'),
     Output('upload-update-base', 'contents'),
     [Input('main-tabs', 'active_tab'),
-     Input('dropdown-base-armazens', 'value'),
+     Input('dropdown-base-warehouses', 'value'),
      Input('upload-update-base', 'contents'),
-     Input('btn-fetch-cadastrados', 'n_clicks'),
-     Input('table-armazens', 'data_timestamp')],
-    [State('store-armazens', 'data'),
-     State('table-armazens', 'data'),
+     Input('btn-fetch-registered', 'n_clicks'),
+     Input('table-warehouses', 'data_timestamp')],
+    [State('store-warehouses', 'data'),
+     State('table-warehouses', 'data'),
      State('upload-update-base', 'filename'),
      State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, timestamp,
+def manage_warehouses_data(active_tab, dropdown_value, upload_contents, n_fetch, timestamp,
                          stored_data, table_data, upload_filename, lang='pt'):
     ctx = dash.callback_context
 
@@ -1553,7 +1553,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
     if not ctx.triggered:
          # Initial Load if tab is active
-        if active_tab == 'tab-armazens' and not stored_data:
+        if active_tab == 'tab-warehouses' and not stored_data:
              try:
                 # Load CSV
                 df = pd.read_csv(current_path, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
@@ -1570,7 +1570,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Load from Base
-    if trigger_id == 'main-tabs' and active_tab == 'tab-armazens':
+    if trigger_id == 'main-tabs' and active_tab == 'tab-warehouses':
         if not stored_data:
             try:
                 # Load CSV
@@ -1586,14 +1586,14 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
         return no_update, no_update, no_update, no_update, False, no_update, None # Keep current state
 
     # Dropdown Base Changed
-    if trigger_id == 'dropdown-base-armazens':
+    if trigger_id == 'dropdown-base-warehouses':
         try:
-            # Ao trocar de base, retornamos dados vazios primeiro se preferível, mas o store-armazens já sobrescreve.
-            # O problema principal de lentidão é manter os dados antigos no layout da tabela enquanto novos dados carregam,
-            # ou renderizar muitos nós repetidas vezes.
-            # O retorno no callback 'update_armazens_table_view' reconstrói a UI. Para evitar que os dados da
-            # aba 3 (Matrizes) acumulem, não precisamos mexer neles até que seja acionada a atualização.
-            # Apenas garantimos que o Store será resetado com a nova base.
+            # When switching bases, we return empty data first if preferred, but store-warehouses already overwrites.
+            # The main slowness issue is keeping old data in the table layout while new data loads,
+            # or rendering many nodes repeatedly.
+            # The return in the 'update_warehouses_table_view' callback rebuilds the UI. To prevent the data from
+            # tab 3 (Matrices) from accumulating, we don't need to touch them until the update is triggered.
+            # We just ensure the Store will be reset with the new base.
             df = pd.read_csv(current_path, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
 
             # Drop trailing empty column if exists
@@ -1605,7 +1605,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             return no_update, no_update, no_update, no_update, False, no_update, None
 
     # Update from Upload (CSV) or fetch
-    if trigger_id == 'btn-fetch-cadastrados' and dropdown_value == 'cadastrados':
+    if trigger_id == 'btn-fetch-registered' and dropdown_value == 'cadastrados':
         try:
             df_conab = get_conab_txt_data()
             if df_conab.empty:
@@ -1716,7 +1716,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                          df = df.iloc[:, :-1]
 
             if df is not None:
-                # Se for Base Personalizada, verificar as colunas esperadas
+                # If it is a Custom Base, check the expected columns
                 if dropdown_value == 'personalizada':
                     import unicodedata
 
@@ -1858,13 +1858,13 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             return no_update, True, translate("Erro ao processar arquivo:", lang) + f" {e}", no_update, False, no_update, None
 
     # Table Edits (Auto-save)
-    if trigger_id == 'table-armazens':
+    if trigger_id == 'table-warehouses':
         if table_data:
              df = pd.DataFrame(table_data)
              if "Estoque Inicial" not in df.columns:
                  df["Estoque Inicial"] = 0
 
-             # Salvar na base (Auto-save)
+             # Save to base (Auto-save)
              try:
                  with open(current_path, 'w', encoding='iso-8859-1') as f:
                      f.write(current_title + "\n")
@@ -1879,19 +1879,19 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
 # 5. Render Armazéns Table and Metrics
 @app.callback(
-    Output('table-armazens', 'data'),
-    Output('table-armazens', 'columns'),
-    Output('metric-armazens-count', 'children'),
-    Output('metric-armazens-capacity', 'children'),
-    Output('metric-armazens-public', 'children'),
-    Output('metric-armazens-private', 'children'),
-    Output('modal-lentidao-armazens', 'is_open'),
+    Output('table-warehouses', 'data'),
+    Output('table-warehouses', 'columns'),
+    Output('metric-warehouses-count', 'children'),
+    Output('metric-warehouses-capacity', 'children'),
+    Output('metric-warehouses-public', 'children'),
+    Output('metric-warehouses-private', 'children'),
+    Output('modal-slowness-warehouses', 'is_open'),
     Input('main-tabs', 'active_tab'),
-    Input('store-armazens', 'data'),
+    Input('store-warehouses', 'data'),
     Input('store-lang', 'data')
 )
-def update_armazens_table_view(active_tab, stored_data, lang='pt'):
-    if active_tab != 'tab-armazens':
+def update_warehouses_table_view(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-warehouses':
         return no_update, no_update, no_update, no_update, no_update, no_update, no_update
 
     if not stored_data:
@@ -1952,21 +1952,21 @@ def update_armazens_table_view(active_tab, stored_data, lang='pt'):
         # But ensure it's not the first load since we only want to warn when switching or loading large dataset
         # To avoid overlaps with the tutorial modal, we'll only trigger lentidao
         # when actually displaying a new base from the store.
-        is_lentidao = count > 1000
+        is_slowness = count > 1000
 
-        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str, is_lentidao
+        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str, is_slowness
     except Exception as e:
-        print(f"Error in update_armazens_table_view: {e}")
+        print(f"Error in update_warehouses_table_view: {e}")
         return [], [], "0", "0.00", "0", "0", False
 
-# 5.1. Fechar modal de lentidão
+# 5.1. Close slowness modal
 @app.callback(
-    Output("modal-lentidao-armazens", "is_open", allow_duplicate=True),
-    Input("close-lentidao-modal", "n_clicks"),
-    State("modal-lentidao-armazens", "is_open"),
+    Output("modal-slowness-warehouses", "is_open", allow_duplicate=True),
+    Input("close-slowness-modal", "n_clicks"),
+    State("modal-slowness-warehouses", "is_open"),
     prevent_initial_call=True
 )
-def close_lentidao_modal(n_clicks, is_open):
+def close_slowness_modal(n_clicks, is_open):
     if n_clicks:
         return False
     return is_open
@@ -1979,8 +1979,8 @@ def close_lentidao_modal(n_clicks, is_open):
      Input("confirm-save", "n_clicks"),
      Input("cancel-save", "n_clicks")],
     [State("modal-confirm-save", "is_open"),
-     State('store-armazens', 'data'),
-     State('dropdown-base-armazens', 'value')]
+     State('store-warehouses', 'data'),
+     State('dropdown-base-warehouses', 'value')]
 )
 def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data, dropdown_value):
     ctx = dash.callback_context
@@ -2038,7 +2038,7 @@ def close_missing_cdas_modal(n_clicks, is_open):
     Output("modal-tutorial", "is_open"),
     Output("manage-base-container", "style"),
     Output("upload-update-container", "style"),
-    Output("fetch-cadastrados-container", "style"),
+    Output("fetch-registered-container", "style"),
     Output("download-example-container", "style"),
     Output("modal-tutorial-title", "children"),
     Output("modal-tutorial-body", "children"),
@@ -2046,7 +2046,7 @@ def close_missing_cdas_modal(n_clicks, is_open):
     Output("upload-format-hint", "children"),
     [Input("btn-update-base", "n_clicks"),
      Input("close-modal-tutorial", "n_clicks"),
-     Input("dropdown-base-armazens", "value")],
+     Input("dropdown-base-warehouses", "value")],
     [State("modal-tutorial", "is_open"),
      State('store-lang', 'data')]
 )
@@ -2058,7 +2058,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Hide everything if we just changed the dropdown
-    if trigger_id == "dropdown-base-armazens":
+    if trigger_id == "dropdown-base-warehouses":
         return False, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, no_update, no_update, no_update, no_update
 
     manage_style = {"display": "block"}
@@ -2157,7 +2157,7 @@ def download_example_file(n_clicks):
     }
     df = pd.DataFrame(data)
 
-    return dcc.send_data_frame(df.to_excel, "Base_Personalizada_Exemplo.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "Custom_Base_Example.xlsx", index=False)
 
 # 9. Validation for Tab Prod x Armazens
 @app.callback(
@@ -2165,11 +2165,11 @@ def download_example_file(n_clicks):
     Output("modal-missing-data-body", "children"),
     Input("main-tabs", "active_tab"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data'),
+     State('store-warehouses', 'data'),
      State('store-lang', 'data')]
 )
-def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens, lang='pt'):
-    if active_tab != 'tab-prod-armazens':
+def validate_tab_prod_warehouses(active_tab, stored_data, stored_warehouses, lang='pt'):
+    if active_tab != 'tab-prod-warehouses':
         return False, no_update
 
     # Check Products
@@ -2183,20 +2183,20 @@ def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens, lang='p
             pass
 
     # Check Armazens
-    has_armazens = False
-    if stored_armazens:
+    has_warehouses = False
+    if stored_warehouses:
         try:
-            df = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            df = pd.read_json(io.StringIO(stored_warehouses), orient='split')
             if not df.empty:
-                has_armazens = True
+                has_warehouses = True
         except:
             pass
 
-    if not has_prod and not has_armazens:
+    if not has_prod and not has_warehouses:
         return True, translate("Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir.", lang)
     elif not has_prod:
         return True, translate("Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir.", lang)
-    elif not has_armazens:
+    elif not has_warehouses:
         return True, translate("Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir.", lang)
 
     return False, no_update
@@ -2207,10 +2207,10 @@ def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens, lang='p
     Output("modal-missing-data", "is_open", allow_duplicate=True),
     Input("btn-confirm-missing-data", "n_clicks"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data')],
+     State('store-warehouses', 'data')],
     prevent_initial_call=True
 )
-def redirect_missing_data(n_clicks, stored_data, stored_armazens):
+def redirect_missing_data(n_clicks, stored_data, stored_warehouses):
     if not n_clicks:
         return no_update, no_update
 
@@ -2225,36 +2225,36 @@ def redirect_missing_data(n_clicks, stored_data, stored_armazens):
             pass
 
     # Check Armazens
-    has_armazens = False
-    if stored_armazens:
+    has_warehouses = False
+    if stored_warehouses:
         try:
-            df = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            df = pd.read_json(io.StringIO(stored_warehouses), orient='split')
             if not df.empty:
-                has_armazens = True
+                has_warehouses = True
         except:
             pass
 
     if not has_prod:
         return 'tab-input', False
-    elif not has_armazens:
-        return 'tab-armazens', False
+    elif not has_warehouses:
+        return 'tab-warehouses', False
 
     return no_update, False
 
 
 # 11. Populate Product x Armazens Table and Sync Store
 @app.callback(
-    Output('store-prod-armazens', 'data'),
+    Output('store-prod-warehouses', 'data'),
     Output('table-prod-armazens', 'data'),
     Output('table-prod-armazens', 'columns'),
     Input('main-tabs', 'active_tab'),
     Input('stored-data', 'data'),
-    Input('store-armazens', 'data'),
+    Input('store-warehouses', 'data'),
     Input('store-lang', 'data'),
-    State('store-prod-armazens', 'data')
+    State('store-prod-warehouses', 'data')
 )
-def update_prod_armazens_table(active_tab, stored_data, stored_armazens, lang, stored_matrix):
-    if active_tab != 'tab-prod-armazens':
+def update_prod_warehouses_table(active_tab, stored_data, stored_warehouses, lang, stored_matrix):
+    if active_tab != 'tab-prod-warehouses':
         return no_update, no_update, no_update
 
     # 1. Get Unique Products
@@ -2269,9 +2269,9 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, lang, s
 
     # 2. Get Unique Warehouse Types
     types = []
-    if stored_armazens:
+    if stored_warehouses:
         try:
-            df_arm = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            df_arm = pd.read_json(io.StringIO(stored_warehouses), orient='split')
             if not df_arm.empty and "Tipo" in df_arm.columns:
                 types = sorted(df_arm["Tipo"].dropna().unique().astype(str).tolist())
         except Exception as e:
@@ -2478,7 +2478,7 @@ def download_storage(n_clicks, stored_data):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Tarifa_de_Armazenagem.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "Storage_Rate.xlsx", index=False)
 
 
 # Freight Cost Data Logic
@@ -2598,12 +2598,12 @@ def download_freight(n_clicks, stored_data):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Valor_Tonelada_km.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "Freight_Cost_Ton_km.xlsx", index=False)
 
 
 # 12. Handle Checkbox Toggles
 @app.callback(
-    Output('store-prod-armazens', 'data', allow_duplicate=True),
+    Output('store-prod-warehouses', 'data', allow_duplicate=True),
     Output('table-prod-armazens', 'data', allow_duplicate=True),
     Output('table-prod-armazens', 'active_cell'),
     Input('table-prod-armazens', 'active_cell'),
@@ -2656,25 +2656,25 @@ def toggle_checkbox(active_cell, viewport_data, table_data):
     Output('btn-download-matrix', 'disabled'),
     Input('btn-calc-matrix', 'n_clicks'),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data'),
+     State('store-warehouses', 'data'),
      State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt'):
+def calculate_distance_matrix(n_clicks, stored_data, stored_warehouses, lang='pt'):
     if not n_clicks:
         return no_update, no_update, no_update, no_update, True
 
     start_time = time.time()
 
-    if not stored_data or not stored_armazens:
+    if not stored_data or not stored_warehouses:
         return no_update, [], [], translate("Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", lang), True
 
     try:
         # Load Data
         df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-        df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+        df_warehouses = pd.read_json(io.StringIO(stored_warehouses), orient='split')
 
-        if df_input.empty or df_armazens.empty:
+        if df_input.empty or df_warehouses.empty:
             return no_update, [], [], translate("As tabelas de entrada ou armazéns estão vazias.", lang), True
 
         # Prepare Coordinates
@@ -2709,8 +2709,8 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt')
         # Let's check if we have Lat/Lon in armazens.
 
         # Checking columns...
-        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+        lat_col = next((c for c in df_warehouses.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_warehouses.columns if 'lon' in str(c).lower()), None)
 
         # If no Lat/Lon in warehouses, we need to geocode them based on City/UF?
         # The user said "Lembre-se que todos tem latitude e longitude." so I assume they are in the data or derived.
@@ -2719,12 +2719,12 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt')
         if not lat_col or not lon_col:
             # Attempt to look up by City - UF
             # Warehouse CSV usually has "Municipio" and "UF".
-            mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-            uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+            mun_col = next((c for c in df_warehouses.columns if 'munic' in str(c).lower()), None)
+            uf_col = next((c for c in df_warehouses.columns if 'uf' in str(c).lower()), None)
 
             if mun_col and uf_col:
                 # Create a temporary key
-                df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+                df_warehouses['lookup_key'] = df_warehouses[mun_col].astype(str) + ' - ' + df_warehouses[uf_col].astype(str)
 
                 # We need to map this key to our CITY_LOOKUP
                 # CITY_LOOKUP keys are "City - UF"
@@ -2734,16 +2734,16 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt')
                         return CITY_LOOKUP[key]
                     return {'latitude': None, 'longitude': None}
 
-                coords = df_armazens['lookup_key'].apply(get_coords)
-                df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
-                df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
+                coords = df_warehouses['lookup_key'].apply(get_coords)
+                df_warehouses['Latitude'] = coords.apply(lambda x: x['latitude'])
+                df_warehouses['Longitude'] = coords.apply(lambda x: x['longitude'])
 
                 # Filter out those without coords
-                dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+                dests_df = df_warehouses.dropna(subset=['Latitude', 'Longitude'])
             else:
                 return no_update, [], [], translate("Não foi possível identificar coordenadas ou colunas de Município/UF nos armazéns.", lang), True
         else:
-            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            dests_df = df_warehouses.dropna(subset=[lat_col, lon_col])
             # Rename for consistency
             dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
@@ -2760,7 +2760,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens, lang='pt')
 
         dest_labels = []
         for idx, row in dests_df.iterrows():
-            # Construir o rótulo base
+            # Build the base label
             parts = []
             if cda_col and pd.notna(row[cda_col]):
                 parts.append(str(row[cda_col]).strip())
@@ -2836,19 +2836,19 @@ def download_matrix(n_clicks, stored_matrix):
         return no_update
 
     df = pd.read_json(io.StringIO(stored_matrix), orient='split')
-    return dcc.send_data_frame(df.to_excel, "matriz_distancias.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "distance_matrix.xlsx", index=False)
 
 # 15. Route Visualization
 @app.callback(
     Output("graph-route-map", "figure"),
     Input("table-distance-matrix", "active_cell"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data'),
+     State('store-warehouses', 'data'),
      State('table-distance-matrix', 'derived_viewport_data'),
      State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def update_route_map(active_cell, stored_data, stored_armazens, table_data, lang='pt'):
+def update_route_map(active_cell, stored_data, stored_warehouses, table_data, lang='pt'):
     # Default map centered on Brazil
     default_fig = go.Figure(go.Scattermapbox())
     default_fig.update_layout(
@@ -2858,7 +2858,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data, lang
         margin={"r": 0, "t": 0, "l": 0, "b": 0}
     )
 
-    if not active_cell or not stored_data or not stored_armazens or not table_data:
+    if not active_cell or not stored_data or not stored_warehouses or not table_data:
         return default_fig
 
     try:
@@ -2878,7 +2878,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data, lang
 
         # Retrieve Coordinates
         df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-        df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+        df_warehouses = pd.read_json(io.StringIO(stored_warehouses), orient='split')
 
         # Origin Coords
         # We need to find the lat/lon for the origin_name (City)
@@ -2909,23 +2909,23 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data, lang
         # Re-running logic for now (could be optimized by storing mapping)
 
         # Re-resolve warehouses logic
-        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+        lat_col = next((c for c in df_warehouses.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_warehouses.columns if 'lon' in str(c).lower()), None)
 
         if not lat_col or not lon_col:
              # Using lookup logic
-             mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-             uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
-             df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+             mun_col = next((c for c in df_warehouses.columns if 'munic' in str(c).lower()), None)
+             uf_col = next((c for c in df_warehouses.columns if 'uf' in str(c).lower()), None)
+             df_warehouses['lookup_key'] = df_warehouses[mun_col].astype(str) + ' - ' + df_warehouses[uf_col].astype(str)
              def get_coords(key):
                  if key in CITY_LOOKUP: return CITY_LOOKUP[key]
                  return {'latitude': None, 'longitude': None}
-             coords = df_armazens['lookup_key'].apply(get_coords)
-             df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
-             df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
-             dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+             coords = df_warehouses['lookup_key'].apply(get_coords)
+             df_warehouses['Latitude'] = coords.apply(lambda x: x['latitude'])
+             df_warehouses['Longitude'] = coords.apply(lambda x: x['longitude'])
+             dests_df = df_warehouses.dropna(subset=['Latitude', 'Longitude'])
         else:
-            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            dests_df = df_warehouses.dropna(subset=[lat_col, lon_col])
             dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
         # Match label
@@ -3058,11 +3058,11 @@ def toggle_min_max_container(is_active):
     return {"display": "none"}
 
 @app.callback(
-    Output("input-carga-max", "disabled"),
-    Input("toggle-use-recepcao", "value")
+    Output("input-max-load", "disabled"),
+    Input("toggle-use-reception", "value")
 )
-def toggle_carga_max_input(use_recepcao):
-    return use_recepcao
+def toggle_carga_max_input(use_reception):
+    return use_reception
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
@@ -3076,17 +3076,17 @@ def toggle_carga_max_input(use_recepcao):
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
-        State('store-armazens', 'data'),
-        State('store-prod-armazens', 'data'),
+        State('store-warehouses', 'data'),
+        State('store-prod-warehouses', 'data'),
         State('store-distance-matrix', 'data'),
         State('toggle-detailed-log', 'value'),
         State('toggle-min-max-capacity', 'value'),
-        State('input-carga-min', 'value'),
-        State('input-carga-max', 'value'),
-        State('toggle-use-recepcao', 'value'),
-        State('input-dias-alocacao', 'value'),
-        State('input-frete-min', 'value'),
-        State('input-frete-max', 'value'),
+        State('input-min-load', 'value'),
+        State('input-max-load', 'value'),
+        State('toggle-use-reception', 'value'),
+        State('input-allocation-days', 'value'),
+        State('input-min-freight', 'value'),
+        State('input-max-freight', 'value'),
         State('store-lang', 'data')
     ],
     background=True,
@@ -3097,19 +3097,19 @@ def toggle_carga_max_input(use_recepcao):
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
 )
-def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log,
-                  toggle_min_max_capacity, input_carga_min, input_carga_max, toggle_use_recepcao, input_dias_alocacao, input_frete_min, input_frete_max, lang='pt'):
+def execute_model(n_clicks, stored_data, stored_warehouses, stored_prod_warehouses, stored_matrix, detailed_log,
+                  toggle_min_max_capacity, input_min_load, input_max_load, toggle_use_reception, input_allocation_days, input_min_freight, input_max_freight, lang='pt'):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
+    if not stored_data or not stored_warehouses or not stored_prod_warehouses or not stored_matrix:
         return translate("Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", lang), "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
 
     try:
         # Load DataFrames
         df_supply = pd.read_json(io.StringIO(stored_data), orient='split')
-        df_demand = pd.read_json(io.StringIO(stored_armazens), orient='split')
-        df_compat = pd.read_json(io.StringIO(stored_prod_armazens), orient='split')
+        df_demand = pd.read_json(io.StringIO(stored_warehouses), orient='split')
+        df_compat = pd.read_json(io.StringIO(stored_prod_warehouses), orient='split')
         df_dist = pd.read_json(io.StringIO(stored_matrix), orient='split')
 
         # Load local CSVs for Freight and Storage
@@ -3138,25 +3138,25 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_storage=df_storage,
             detailed_log=detailed_log,
             toggle_min_max_capacity=toggle_min_max_capacity,
-            input_carga_min=input_carga_min,
-            input_carga_max=input_carga_max,
-            toggle_use_recepcao=toggle_use_recepcao,
-            input_dias_alocacao=input_dias_alocacao,
-            input_frete_min=input_frete_min,
-            input_frete_max=input_frete_max
+            input_carga_min=input_min_load,
+            input_carga_max=input_max_load,
+            toggle_use_recepcao=toggle_use_reception,
+            input_dias_alocacao=input_allocation_days,
+            input_frete_min=input_min_freight,
+            input_frete_max=input_max_freight
         )
 
-        # Obter tempo de execução
+        # Get execution time
         exec_time = results_dict.get('kpis', {}).get('execution_time', 0.0)
         time_str = translate(" (Tempo de execução:", lang) + f" {exec_time:.2f} " + translate("segundos)", lang) if exec_time else ""
 
         status_msg = translate("Modelo executado com sucesso!", lang) + time_str if results_dict.get("status") == "optimal" else translate("Falha ao encontrar solução ótima.", lang) + time_str
         status_class = "text-success mt-3 fw-bold" if results_dict.get("status") == "optimal" else "text-warning mt-3 fw-bold"
 
-        # Redirecionar para aba de resultados se sucesso
+        # Redirect to results tab on success
         next_tab = "tab-results" if results_dict.get("status") == "optimal" else dash.no_update
 
-        # O log_filename é apenas uma string (nome do arquivo) e será armazenada em store-model-log
+        # The log_filename is just a string (filename) and will be stored in store-model-log
         return status_msg, status_class, results_dict, log_filename, next_tab
 
     except Exception as e:
@@ -3357,7 +3357,7 @@ def download_results(n_clicks, results_data):
     if "Qtd. de Viagens" in df.columns and df["Qtd. de Viagens"].isnull().all():
         df = df.drop(columns=["Qtd. de Viagens"])
 
-    return dcc.send_data_frame(df.to_excel, "Resultados_Otimizacao.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, "Optimization_Results.xlsx", index=False)
 
 @app.callback(
     Output("modal-confirm-all-routes", "is_open"),
@@ -3395,11 +3395,11 @@ def manage_all_routes_modal(n_show, n_cancel, n_confirm, results_data, is_open):
     [State("table-results-routes", "derived_viewport_data"),
      State("store-model-results", "data"),
      State("stored-data", "data"),
-     State("store-armazens", "data"),
+     State("store-warehouses", "data"),
      State("store-lang", "data")],
     prevent_initial_call=True
 )
-def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_armazens, lang='pt'):
+def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_warehouses, lang='pt'):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
@@ -3422,11 +3422,11 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     if not results_data or results_data.get("status") != "optimal":
         return default_fig, html.P(translate("Resultados indisponíveis.", lang), className="text-muted small")
 
-    if not stored_data or not stored_armazens:
+    if not stored_data or not stored_warehouses:
         return default_fig, html.P(translate("Faltam dados base para renderizar o mapa.", lang), className="text-muted small")
 
     df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-    df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+    df_warehouses = pd.read_json(io.StringIO(stored_warehouses), orient='split')
 
     # Pre-calculate coordinate mappings for performance
     # 1. Origin Mappings
@@ -3442,26 +3442,26 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     origin_mapping = origins_df_map.set_index('Cidade_Display')[['Latitude', 'Longitude']].to_dict('index')
 
     # 2. Destination Mappings
-    lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-    lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+    lat_col = next((c for c in df_warehouses.columns if 'lat' in str(c).lower()), None)
+    lon_col = next((c for c in df_warehouses.columns if 'lon' in str(c).lower()), None)
 
     if not lat_col or not lon_col:
-        mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-        uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+        mun_col = next((c for c in df_warehouses.columns if 'munic' in str(c).lower()), None)
+        uf_col = next((c for c in df_warehouses.columns if 'uf' in str(c).lower()), None)
         if mun_col and uf_col:
-            df_armazens_map = df_armazens.copy()
-            df_armazens_map['lookup_key'] = df_armazens_map[mun_col].astype(str) + ' - ' + df_armazens_map[uf_col].astype(str)
+            df_warehouses_map = df_warehouses.copy()
+            df_warehouses_map['lookup_key'] = df_warehouses_map[mun_col].astype(str) + ' - ' + df_warehouses_map[uf_col].astype(str)
             def get_c(key):
                 if key in CITY_LOOKUP: return CITY_LOOKUP[key]
                 return {'latitude': None, 'longitude': None}
-            coords = df_armazens_map['lookup_key'].apply(get_c)
-            df_armazens_map['Latitude'] = coords.apply(lambda x: x['latitude'])
-            df_armazens_map['Longitude'] = coords.apply(lambda x: x['longitude'])
-            dests_df = df_armazens_map.dropna(subset=['Latitude', 'Longitude'])
+            coords = df_warehouses_map['lookup_key'].apply(get_c)
+            df_warehouses_map['Latitude'] = coords.apply(lambda x: x['latitude'])
+            df_warehouses_map['Longitude'] = coords.apply(lambda x: x['longitude'])
+            dests_df = df_warehouses_map.dropna(subset=['Latitude', 'Longitude'])
         else:
             dests_df = pd.DataFrame()
     else:
-        dests_df = df_armazens.dropna(subset=[lat_col, lon_col]).copy()
+        dests_df = df_warehouses.dropna(subset=[lat_col, lon_col]).copy()
         dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
     dest_mapping = {}
@@ -3704,7 +3704,7 @@ def download_log_route(filename):
     filename = os.path.basename(filename)
     log_dir = os.path.join(tempfile.gettempdir(), 'granum_logs')
     # Use standard flask send_from_directory for secure file serving
-    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name='log_execucao_modelo.txt')
+    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name='model_execution_log.txt')
 
 app.clientside_callback(
     """
@@ -3733,8 +3733,8 @@ app.clientside_callback(
     Output("modal-model-running", "is_open", allow_duplicate=True),
     Input("btn-run-model", "n_clicks"),
     [State("stored-data", "data"),
-     State("store-armazens", "data"),
-     State("store-prod-armazens", "data"),
+     State("store-warehouses", "data"),
+     State("store-prod-warehouses", "data"),
      State("store-distance-matrix", "data")],
     prevent_initial_call=True
 )
