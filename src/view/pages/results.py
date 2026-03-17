@@ -148,8 +148,7 @@ def get_tab_results_layout(lang='pt'):
                             id='btn-download-results',
                             n_clicks=0,
                             color="none", className="btn-success-custom"
-                        ),
-                        dcc.Download(id="download-results-xlsx")
+                        )
                     ])
                 ],
                 className="card-body-custom"
