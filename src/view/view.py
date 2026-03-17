@@ -1509,6 +1509,10 @@ def download_data(n_clicks, stored_data, lang='pt'):
     if not n_clicks:
         return no_update
 
+    ctx = dash.callback_context
+    if not ctx.triggered or "btn-download.n_clicks" not in ctx.triggered[0]["prop_id"]:
+        return no_update
+
     if not stored_data:
         return no_update
 
@@ -2143,6 +2147,10 @@ def download_example_file(n_clicks, lang='pt'):
     if not n_clicks:
         return no_update
 
+    ctx = dash.callback_context
+    if not ctx.triggered or "btn-download-example.n_clicks" not in ctx.triggered[0]["prop_id"]:
+        return no_update
+
     # Create example dataframe
     data = {
         'CDA': ['EXEMPLO-123'],
@@ -2482,6 +2490,9 @@ def update_storage_table(active_tab, stored_data, lang='pt'):
 def download_storage(n_clicks, stored_data, lang='pt'):
     if not n_clicks or not stored_data:
         return no_update
+    ctx = dash.callback_context
+    if not ctx.triggered or "btn-download-storage.n_clicks" not in ctx.triggered[0]["prop_id"]:
+        return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
     filename = translate("Tarifa_de_Armazenagem.xlsx", lang)
     return dcc.send_data_frame(df.to_excel, filename, index=False)
@@ -2603,6 +2614,9 @@ def update_freight_table(active_tab, stored_data, lang='pt'):
 )
 def download_freight(n_clicks, stored_data, lang='pt'):
     if not n_clicks or not stored_data:
+        return no_update
+    ctx = dash.callback_context
+    if not ctx.triggered or "btn-download-freight.n_clicks" not in ctx.triggered[0]["prop_id"]:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
     filename = translate("Valor_Tonelada_km.xlsx", lang)
@@ -2842,6 +2856,10 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_warehouses, lang='pt
 )
 def download_matrix(n_clicks, stored_matrix, lang='pt'):
     if not n_clicks or not stored_matrix:
+        return no_update
+
+    ctx = dash.callback_context
+    if not ctx.triggered or "btn-download-matrix.n_clicks" not in ctx.triggered[0]["prop_id"]:
         return no_update
 
     df = pd.read_json(io.StringIO(stored_matrix), orient='split')
@@ -3357,6 +3375,10 @@ def navigate_to_distance_matrix(n_clicks):
 )
 def download_results(n_clicks, results_data, lang='pt'):
     if not n_clicks or not results_data or results_data.get("status") != "optimal":
+        return dash.no_update
+
+    ctx = dash.callback_context
+    if not ctx.triggered or "btn-download-results.n_clicks" not in ctx.triggered[0]["prop_id"]:
         return dash.no_update
 
     routes = results_data.get("routes", [])
