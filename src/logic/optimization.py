@@ -474,14 +474,14 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             model.pprint()
 
         # 3. Solucionar o modelo
-        print(translate("\nChamando solver CBC...", lang))
+        print("\n" + translate("Chamando solver CBC...", lang))
         solver = SolverFactory('cbc')
         # Time limit to prevent infinite locking
         solver.options['sec'] = 600
 
         results = solver.solve(model, tee=True)
 
-        print(translate("\n=== STATUS DA OTIMIZAÇÃO ===", lang))
+        print("\n" + translate("=== STATUS DA OTIMIZAÇÃO ===", lang))
         print(translate("Status do Solver: {status}", lang).format(status=results.solver.status))
         print(translate("Condição de Término: {condition}", lang).format(condition=results.solver.termination_condition))
 
@@ -494,7 +494,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             results_dict["status"] = "optimal"
             results_dict["objective"] = objective_value
 
-            print(translate("\n--- DETALHES DO FLUXO (Alocação) ---", lang))
+            print("\n" + translate("--- DETALHES DO FLUXO (Alocação) ---", lang))
             total_transported = 0
             total_km = 0.0
             total_freight_cost = 0.0
@@ -532,7 +532,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                     total_freight_cost += route_freight
                     total_storage_cost += route_storage
 
-            print(translate("\nTotal de produtos alocados: {val:.2f} toneladas", lang).format(val=total_transported))
+            print("\n" + translate("Total de produtos alocados: {val:.2f} toneladas", lang).format(val=total_transported))
 
             results_dict["kpis"]["total_tons"] = total_transported
             results_dict["kpis"]["total_km"] = total_km
@@ -541,7 +541,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
             # Check usage of Dummy variables
             dummy_cap_used = False
-            print(translate("\n--- AVISOS: CAPACIDADE ARTIFICIAL (DUMMIES) ---", lang))
+            print("\n" + translate("--- AVISOS: CAPACIDADE ARTIFICIAL (DUMMIES) ---", lang))
             for d in model.Destinations:
                 d_val = pyo.value(model.DummyCapacity[d])
                 if d_val > 0.001:
@@ -555,7 +555,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 print(translate("Nenhuma capacidade artificial foi necessária. O modelo encontrou solução com as capacidades reais.", lang))
 
             dummy_unalloc_used = False
-            print(translate("\n--- AVISOS: OFERTA SEM ROTAS / NÃO ALOCADA (DUMMIES) ---", lang))
+            print("\n" + translate("--- AVISOS: OFERTA SEM ROTAS / NÃO ALOCADA (DUMMIES) ---", lang))
             for o in model.Origins:
                 for p in model.Products:
                     u_val = pyo.value(model.DummyUnallocated[o, p])
@@ -569,7 +569,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 print(translate("Toda a oferta conseguiu ser escoada em rotas válidas para algum destino.", lang))
 
             if dummy_cap_used or dummy_unalloc_used:
-                print(translate("\nNota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.", lang))
+                print("\n" + translate("Nota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.", lang))
                 print(translate("Custo de Capacidade Artificial (Big M) = {val:.2e}", lang).format(val=pyo.value(model.BigMCapacity)))
                 print(translate("Custo de Oferta Não Alocada (Big M) = {val:.2e}", lang).format(val=pyo.value(model.BigMUnallocated)))
 
@@ -579,7 +579,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução ótima.", lang))
 
     except Exception as e:
-        print(translate("\nERRO DURANTE A OTIMIZAÇÃO: {err}", lang).format(err=str(e)))
+        print("\n" + translate("ERRO DURANTE A OTIMIZAÇÃO: {err}", lang).format(err=str(e)))
         results_dict["status"] = "error"
         results_dict["warnings"]["general"].append(translate("Erro: {err}", lang).format(err=str(e)))
         import traceback
@@ -591,7 +591,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # Registrar tempo total e imprimir no log
         end_time = time.time()
         total_time_seconds = end_time - start_time
-        print(translate("\nTempo de execução: {val:.2f} segundos.", lang).format(val=total_time_seconds))
+        print("\n" + translate("Tempo de execução: {val:.2f} segundos.", lang).format(val=total_time_seconds))
 
         # Adds time to the results dictionary
         results_dict["kpis"]["execution_time"] = total_time_seconds
@@ -846,7 +846,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 # =========================================================================
         # 3.6 MILP CONSTRAINTS (ADDITIONAL LOGISTICS LIMITS)
         # =========================================================================
-        print(translate("\n--- CONFIGURAÇÕES DE LIMITES LOGÍSTICOS (MILP) ---", lang))
+        print("\n" + translate("--- CONFIGURAÇÕES DE LIMITES LOGÍSTICOS (MILP) ---", lang))
         print(translate("Dias de alocação considerados: {val}", lang).format(val=pyo.value(model.days, exception=False)))
         if pyo.value(model.freight_min, exception=False) is not None:
             print(translate("Carga mínima de frete por rota ativada: {val} ton", lang).format(val=pyo.value(model.freight_min, exception=False)))
@@ -927,13 +927,13 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         if detailed_log:
             model.pprint()
 
-        print(translate("\nChamando solver CBC (MILP)...", lang))
+        print("\n" + translate("Chamando solver CBC (MILP)...", lang))
         solver = SolverFactory('cbc')
         solver.options['sec'] = 600
 
         results = solver.solve(model, tee=True)
 
-        print(translate("\n=== STATUS DA OTIMIZAÇÃO ===", lang))
+        print("\n" + translate("=== STATUS DA OTIMIZAÇÃO ===", lang))
         print(translate("Status do Solver: {status}", lang).format(status=results.solver.status))
         print(translate("Condição de Término: {condition}", lang).format(condition=results.solver.termination_condition))
 
@@ -945,7 +945,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             results_dict["status"] = "optimal"
             results_dict["objective"] = objective_value
 
-            print(translate("\n--- DETALHES DO FLUXO (Alocação) ---", lang))
+            print("\n" + translate("--- DETALHES DO FLUXO (Alocação) ---", lang))
             total_transported = 0
             total_km = 0.0
             total_freight_cost = 0.0
@@ -987,7 +987,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                     total_freight_cost += route_freight
                     total_storage_cost += route_storage
 
-            print(translate("\nTotal de produtos alocados: {val:.2f} toneladas", lang).format(val=total_transported))
+            print("\n" + translate("Total de produtos alocados: {val:.2f} toneladas", lang).format(val=total_transported))
 
             results_dict["kpis"]["total_tons"] = total_transported
             results_dict["kpis"]["total_km"] = total_km
@@ -996,7 +996,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
             # Check usage of Dummy variables
             dummy_cap_used = False
-            print(translate("\n--- AVISOS: CAPACIDADE ARTIFICIAL (DUMMIES) ---", lang))
+            print("\n" + translate("--- AVISOS: CAPACIDADE ARTIFICIAL (DUMMIES) ---", lang))
             for d in model.Destinations:
                 d_val = pyo.value(model.DummyCapacity[d])
                 if d_val > 0.001:
@@ -1013,7 +1013,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 results_dict["warnings"]["reception"] = []
 
             dummy_reception_used = False
-            print(translate("\n--- AVISOS: RECEPÇÃO DIÁRIA ARTIFICIAL (DUMMIES) ---", lang))
+            print("\n" + translate("--- AVISOS: RECEPÇÃO DIÁRIA ARTIFICIAL (DUMMIES) ---", lang))
             for d in model.Destinations:
                 d_val = pyo.value(model.DummyReception[d])
                 if d_val > 0.001:
@@ -1030,7 +1030,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 results_dict["warnings"]["freight"] = []
 
             dummy_unalloc_used = False
-            print(translate("\n--- AVISOS: OFERTA SEM ROTAS / NÃO ALOCADA (DUMMIES) ---", lang))
+            print("\n" + translate("--- AVISOS: OFERTA SEM ROTAS / NÃO ALOCADA (DUMMIES) ---", lang))
             for o in model.Origins:
                 for p in model.Products:
                     u_val = pyo.value(model.DummyUnallocated[o, p])
@@ -1051,7 +1051,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 print(translate("Toda a oferta conseguiu ser escoada em rotas válidas.", lang))
 
             if dummy_cap_used or dummy_reception_used or dummy_unalloc_used:
-                print(translate("\nNota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.", lang))
+                print("\n" + translate("Nota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.", lang))
 
         else:
             print(translate("Não foi possível encontrar uma solução ótima.", lang))
@@ -1059,7 +1059,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
             results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução ótima.", lang))
 
     except Exception as e:
-        print(translate("\nERRO DURANTE A OTIMIZAÇÃO: {err}", lang).format(err=str(e)))
+        print("\n" + translate("ERRO DURANTE A OTIMIZAÇÃO: {err}", lang).format(err=str(e)))
         results_dict["status"] = "error"
         results_dict["warnings"]["general"].append(translate("Erro: {err}", lang).format(err=str(e)))
         import traceback
@@ -1068,7 +1068,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
     finally:
         end_time = time.time()
         total_time_seconds = end_time - start_time
-        print(translate("\nTempo de execução: {val:.2f} segundos.", lang).format(val=total_time_seconds))
+        print("\n" + translate("Tempo de execução: {val:.2f} segundos.", lang).format(val=total_time_seconds))
         results_dict["kpis"]["execution_time"] = total_time_seconds
 
         new_stdout.close()
