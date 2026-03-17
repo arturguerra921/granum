@@ -1079,6 +1079,12 @@ app.layout = html.Div([
     dcc.Store(id='store-model-results'), # New Store for Model Results
     dcc.Store(id='store-model-log'), # New Store for optimization logs
     dcc.Store(id='store-help-seen', storage_type='local'),
+    dcc.Store(id='store-clicks-btn-download', data=0),
+    dcc.Store(id='store-clicks-btn-download-example', data=0),
+    dcc.Store(id='store-clicks-btn-download-storage', data=0),
+    dcc.Store(id='store-clicks-btn-download-freight', data=0),
+    dcc.Store(id='store-clicks-btn-download-matrix', data=0),
+    dcc.Store(id='store-clicks-btn-download-results', data=0),
     html.Div(id='page-content', children=serve_layout('pt'))
 ])
 
@@ -1500,25 +1506,26 @@ app.clientside_callback(
 # 3. Download
 @app.callback(
     Output("download-dataframe-xlsx", "data"),
+    Output("store-clicks-btn-download", "data"),
     Input("btn-download", "n_clicks"),
     State('stored-data', 'data'),
     State('store-lang', 'data'),
+    State("store-clicks-btn-download", "data"),
     prevent_initial_call=True,
 )
-def download_data(n_clicks, stored_data, lang='pt'):
+def download_data(n_clicks, stored_data, lang, prev_clicks):
     if not n_clicks:
-        return no_update
+        return no_update, prev_clicks
 
-    ctx = dash.callback_context
-    if not ctx.triggered or "btn-download.n_clicks" not in ctx.triggered[0]["prop_id"]:
-        return no_update
+    if n_clicks <= (prev_clicks or 0):
+        return no_update, prev_clicks
 
     if not stored_data:
-        return no_update
+        return no_update, n_clicks
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    filename = translate("Oferta_Editada.xlsx", lang)
-    return dcc.send_data_frame(df.to_excel, filename, index=False)
+    filename = translate("Oferta_Editada.xlsx", lang or 'pt')
+    return dcc.send_data_frame(df.to_excel, filename, index=False), n_clicks
 
 
 # --- Armazéns Callbacks ---
@@ -2139,17 +2146,18 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
 
 @app.callback(
     Output("download-example-personalizada", "data"),
+    Output("store-clicks-btn-download-example", "data"),
     Input("btn-download-example", "n_clicks"),
     State('store-lang', 'data'),
+    State("store-clicks-btn-download-example", "data"),
     prevent_initial_call=True
 )
-def download_example_file(n_clicks, lang='pt'):
+def download_example_file(n_clicks, lang, prev_clicks):
     if not n_clicks:
-        return no_update
+        return no_update, prev_clicks
 
-    ctx = dash.callback_context
-    if not ctx.triggered or "btn-download-example.n_clicks" not in ctx.triggered[0]["prop_id"]:
-        return no_update
+    if n_clicks <= (prev_clicks or 0):
+        return no_update, prev_clicks
 
     # Create example dataframe
     data = {
@@ -2168,8 +2176,8 @@ def download_example_file(n_clicks, lang='pt'):
     }
     df = pd.DataFrame(data)
 
-    filename = translate("Exemplo_Base_Personalizada.xlsx", lang)
-    return dcc.send_data_frame(df.to_excel, filename, index=False)
+    filename = translate("Exemplo_Base_Personalizada.xlsx", lang or 'pt')
+    return dcc.send_data_frame(df.to_excel, filename, index=False), n_clicks
 
 # 9. Validation for Tab Prod x Armazens
 @app.callback(
@@ -2482,20 +2490,22 @@ def update_storage_table(active_tab, stored_data, lang='pt'):
 
 @app.callback(
     Output("download-storage-csv", "data"),
+    Output("store-clicks-btn-download-storage", "data"),
     Input("btn-download-storage", "n_clicks"),
     State('store-costs-storage', 'data'),
     State('store-lang', 'data'),
+    State("store-clicks-btn-download-storage", "data"),
     prevent_initial_call=True,
 )
-def download_storage(n_clicks, stored_data, lang='pt'):
+def download_storage(n_clicks, stored_data, lang, prev_clicks):
     if not n_clicks or not stored_data:
-        return no_update
-    ctx = dash.callback_context
-    if not ctx.triggered or "btn-download-storage.n_clicks" not in ctx.triggered[0]["prop_id"]:
-        return no_update
+        return no_update, prev_clicks
+    if n_clicks <= (prev_clicks or 0):
+        return no_update, prev_clicks
+
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    filename = translate("Tarifa_de_Armazenagem.xlsx", lang)
-    return dcc.send_data_frame(df.to_excel, filename, index=False)
+    filename = translate("Tarifa_de_Armazenagem.xlsx", lang or 'pt')
+    return dcc.send_data_frame(df.to_excel, filename, index=False), n_clicks
 
 
 # Freight Cost Data Logic
@@ -2607,20 +2617,22 @@ def update_freight_table(active_tab, stored_data, lang='pt'):
 
 @app.callback(
     Output("download-freight-csv", "data"),
+    Output("store-clicks-btn-download-freight", "data"),
     Input("btn-download-freight", "n_clicks"),
     State('store-costs-freight', 'data'),
     State('store-lang', 'data'),
+    State("store-clicks-btn-download-freight", "data"),
     prevent_initial_call=True,
 )
-def download_freight(n_clicks, stored_data, lang='pt'):
+def download_freight(n_clicks, stored_data, lang, prev_clicks):
     if not n_clicks or not stored_data:
-        return no_update
-    ctx = dash.callback_context
-    if not ctx.triggered or "btn-download-freight.n_clicks" not in ctx.triggered[0]["prop_id"]:
-        return no_update
+        return no_update, prev_clicks
+    if n_clicks <= (prev_clicks or 0):
+        return no_update, prev_clicks
+
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    filename = translate("Valor_Tonelada_km.xlsx", lang)
-    return dcc.send_data_frame(df.to_excel, filename, index=False)
+    filename = translate("Valor_Tonelada_km.xlsx", lang or 'pt')
+    return dcc.send_data_frame(df.to_excel, filename, index=False), n_clicks
 
 
 # 12. Handle Checkbox Toggles
@@ -2849,22 +2861,23 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_warehouses, lang='pt
 # 14. Download Matrix
 @app.callback(
     Output("download-matrix-xlsx", "data"),
+    Output("store-clicks-btn-download-matrix", "data"),
     Input("btn-download-matrix", "n_clicks"),
     State('store-distance-matrix', 'data'),
     State('store-lang', 'data'),
+    State("store-clicks-btn-download-matrix", "data"),
     prevent_initial_call=True,
 )
-def download_matrix(n_clicks, stored_matrix, lang='pt'):
+def download_matrix(n_clicks, stored_matrix, lang, prev_clicks):
     if not n_clicks or not stored_matrix:
-        return no_update
+        return no_update, prev_clicks
 
-    ctx = dash.callback_context
-    if not ctx.triggered or "btn-download-matrix.n_clicks" not in ctx.triggered[0]["prop_id"]:
-        return no_update
+    if n_clicks <= (prev_clicks or 0):
+        return no_update, prev_clicks
 
     df = pd.read_json(io.StringIO(stored_matrix), orient='split')
-    filename = translate("matriz_de_distancias.xlsx", lang)
-    return dcc.send_data_frame(df.to_excel, filename, index=False)
+    filename = translate("matriz_de_distancias.xlsx", lang or 'pt')
+    return dcc.send_data_frame(df.to_excel, filename, index=False), n_clicks
 
 # 15. Route Visualization
 @app.callback(
@@ -3368,22 +3381,23 @@ def navigate_to_distance_matrix(n_clicks):
 
 @app.callback(
     Output("download-results-xlsx", "data"),
+    Output("store-clicks-btn-download-results", "data"),
     Input("btn-download-results", "n_clicks"),
     State("store-model-results", "data"),
     State('store-lang', 'data'),
+    State("store-clicks-btn-download-results", "data"),
     prevent_initial_call=True
 )
-def download_results(n_clicks, results_data, lang='pt'):
+def download_results(n_clicks, results_data, lang, prev_clicks):
     if not n_clicks or not results_data or results_data.get("status") != "optimal":
-        return dash.no_update
+        return dash.no_update, prev_clicks
 
-    ctx = dash.callback_context
-    if not ctx.triggered or "btn-download-results.n_clicks" not in ctx.triggered[0]["prop_id"]:
-        return dash.no_update
+    if n_clicks <= (prev_clicks or 0):
+        return dash.no_update, prev_clicks
 
     routes = results_data.get("routes", [])
     if not routes:
-        return dash.no_update
+        return dash.no_update, prev_clicks
 
     df = pd.DataFrame(routes)
 
@@ -3391,8 +3405,8 @@ def download_results(n_clicks, results_data, lang='pt'):
     if "Qtd. de Viagens" in df.columns and df["Qtd. de Viagens"].isnull().all():
         df = df.drop(columns=["Qtd. de Viagens"])
 
-    filename = translate("Resultados_da_Otimizacao.xlsx", lang)
-    return dcc.send_data_frame(df.to_excel, filename, index=False)
+    filename = translate("Resultados_da_Otimizacao.xlsx", lang or 'pt')
+    return dcc.send_data_frame(df.to_excel, filename, index=False), n_clicks
 
 @app.callback(
     Output("modal-confirm-all-routes", "is_open"),
