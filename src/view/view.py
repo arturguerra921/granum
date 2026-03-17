@@ -2133,13 +2133,25 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
 
 
 @app.callback(
+    Output("btn-download-example", "children"),
+    Input('store-lang', 'data'),
+    prevent_initial_call=True
+)
+def update_btn_download_example_text(lang):
+    if not lang:
+        lang = 'pt'
+    return translate("Baixar Planilha Exemplo (.xlsx)", lang)
+
+
+@app.callback(
     Output("download-example-personalizada", "data"),
     Input("btn-download-example", "n_clicks"),
     State('store-lang', 'data'),
     prevent_initial_call=True
 )
 def download_example_file(n_clicks, lang='pt'):
-    if not n_clicks:
+    ctx = dash.callback_context
+    if not n_clicks or not ctx.triggered or ctx.triggered[0]['prop_id'] != 'btn-download-example.n_clicks':
         return no_update
 
     # Create example dataframe
