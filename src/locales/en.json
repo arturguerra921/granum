@@ -419,5 +419,12 @@
     "Capacidade de recepção diária extra artificial alocada (ton)": "Extra artificial daily reception capacity allocated (ton)",
     "Número de viagens na rota": "Number of trips on route",
     "Limite máximo de frete ou local": "Maximum freight or local limit",
-    "Limite mínimo de frete na rota caso ela seja usada": "Minimum freight limit on route if used"
+    "Limite mínimo de frete na rota caso ela seja usada": "Minimum freight limit on route if used",
+    "Edited_Supply.xlsx": "Edited_Supply.xlsx",
+    "Custom_Base_Example.xlsx": "Custom_Base_Example.xlsx",
+    "Storage_Rate.xlsx": "Storage_Rate.xlsx",
+    "Freight_Cost_Ton_km.xlsx": "Freight_Cost_Ton_km.xlsx",
+    "Distance_Matrix.xlsx": "Distance_Matrix.xlsx",
+    "Optimization_Results.xlsx": "Optimization_Results.xlsx",
+    "Model_Execution_Log.txt": "Model_Execution_Log.txt"
 }

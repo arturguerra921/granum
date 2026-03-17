@@ -419,5 +419,12 @@
     "Número de viagens na rota": "Número de viagens na rota",
     "Limite máximo de frete ou local": "Limite máximo de frete ou local",
     "Limite mínimo de frete na rota caso ela seja usada": "Limite mínimo de frete na rota caso ela seja usada",
-    "Municí­pio": "Municí­pio"
+    "Municí­pio": "Municí­pio",
+    "Edited_Supply.xlsx": "Oferta_Editada.xlsx",
+    "Custom_Base_Example.xlsx": "Exemplo_Base_Personalizada.xlsx",
+    "Storage_Rate.xlsx": "Tarifa_de_Armazenagem.xlsx",
+    "Freight_Cost_Ton_km.xlsx": "Valor_Tonelada_km.xlsx",
+    "Distance_Matrix.xlsx": "Matriz_de_Distancias.xlsx",
+    "Optimization_Results.xlsx": "Resultados_da_Otimizacao.xlsx",
+    "Model_Execution_Log.txt": "Log_Execucao_Modelo.txt"
 }

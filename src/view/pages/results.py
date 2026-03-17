@@ -146,9 +146,9 @@ def get_tab_results_layout(lang='pt'):
                         dbc.Button(
                             [html.I(className="bi bi-download me-2"), translate("Baixar Relatório Completo (.xlsx)", lang)],
                             id='btn-download-results',
+                            n_clicks=0,
                             color="none", className="btn-success-custom"
-                        ),
-                        dcc.Download(id="download-results-xlsx")
+                        )
                     ])
                 ],
                 className="card-body-custom"
