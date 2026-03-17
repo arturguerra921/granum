@@ -645,8 +645,7 @@ def serve_layout(lang="pt"):
                                 html.Div(
                                     id="download-example-container",
                                     children=[
-                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", n_clicks=0, color="none", className="btn-outline-secondary-custom w-100 mt-2"),
-                                        dcc.Download(id="download-example-personalizada")
+                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", key=f"btn-dl-ex-{lang}", n_clicks=0, color="none", className="btn-outline-secondary-custom w-100 mt-2")
                                     ],
                                     style={"display": "none"}
                                 ),
@@ -654,7 +653,7 @@ def serve_layout(lang="pt"):
                                 html.Div(
                                     id="fetch-registered-container",
                                     children=[
-                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-registered", color="none", className="btn-primary-custom w-100 mt-2")
+                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-registered", key=f"btn-fetch-reg-{lang}", color="none", className="btn-primary-custom w-100 mt-2")
                                     ],
                                     style={"display": "none"}
                                 )
@@ -1049,7 +1048,6 @@ def serve_layout(lang="pt"):
                     tabs,
                     content_container,
 
-                    dcc.Download(id='download-dataframe-xlsx'),
                     error_modal,
                     help_modal
                 ],
@@ -1080,6 +1078,16 @@ app.layout = html.Div([
     dcc.Store(id='store-model-results'), # New Store for Model Results
     dcc.Store(id='store-model-log'), # New Store for optimization logs
     dcc.Store(id='store-help-seen', storage_type='local'),
+
+    # Static Download Components (Prevents auto-download bug on language switch)
+    dcc.Download(id='download-example-personalizada'),
+    dcc.Download(id='download-dataframe-xlsx'),
+    dcc.Download(id='download-storage-csv'),
+    dcc.Download(id='download-freight-csv'),
+    dcc.Download(id='download-matrix-xlsx'),
+    dcc.Download(id='download-model-log'),
+    dcc.Download(id='download-results-xlsx'),
+
     html.Div(id='page-content', children=serve_layout('pt'))
 ])
 
