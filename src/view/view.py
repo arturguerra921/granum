@@ -1502,9 +1502,10 @@ app.clientside_callback(
     Output("download-dataframe-xlsx", "data"),
     Input("btn-download", "n_clicks"),
     State('stored-data', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_data(n_clicks, stored_data):
+def download_data(n_clicks, stored_data, lang='pt'):
     if not n_clicks:
         return no_update
 
@@ -1512,7 +1513,7 @@ def download_data(n_clicks, stored_data):
         return no_update
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Edited_Supply.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Edited_Supply.xlsx", lang), index=False)
 
 
 # --- Armazéns Callbacks ---
@@ -2134,9 +2135,10 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt')
 @app.callback(
     Output("download-example-personalizada", "data"),
     Input("btn-download-example", "n_clicks"),
+    State('store-lang', 'data'),
     prevent_initial_call=True
 )
-def download_example_file(n_clicks):
+def download_example_file(n_clicks, lang='pt'):
     if not n_clicks:
         return no_update
 
@@ -2157,7 +2159,7 @@ def download_example_file(n_clicks):
     }
     df = pd.DataFrame(data)
 
-    return dcc.send_data_frame(df.to_excel, "Custom_Base_Example.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Custom_Base_Example.xlsx", lang), index=False)
 
 # 9. Validation for Tab Prod x Armazens
 @app.callback(
@@ -2472,13 +2474,14 @@ def update_storage_table(active_tab, stored_data, lang='pt'):
     Output("download-storage-csv", "data"),
     Input("btn-download-storage", "n_clicks"),
     State('store-costs-storage', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_storage(n_clicks, stored_data):
+def download_storage(n_clicks, stored_data, lang='pt'):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Storage_Rate.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Storage_Rate.xlsx", lang), index=False)
 
 
 # Freight Cost Data Logic
@@ -2592,13 +2595,14 @@ def update_freight_table(active_tab, stored_data, lang='pt'):
     Output("download-freight-csv", "data"),
     Input("btn-download-freight", "n_clicks"),
     State('store-costs-freight', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_freight(n_clicks, stored_data):
+def download_freight(n_clicks, stored_data, lang='pt'):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Freight_Cost_Ton_km.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Freight_Cost_Ton_km.xlsx", lang), index=False)
 
 
 # 12. Handle Checkbox Toggles
@@ -2829,14 +2833,15 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_warehouses, lang='pt
     Output("download-matrix-xlsx", "data"),
     Input("btn-download-matrix", "n_clicks"),
     State('store-distance-matrix', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_matrix(n_clicks, stored_matrix):
+def download_matrix(n_clicks, stored_matrix, lang='pt'):
     if not n_clicks or not stored_matrix:
         return no_update
 
     df = pd.read_json(io.StringIO(stored_matrix), orient='split')
-    return dcc.send_data_frame(df.to_excel, "distance_matrix.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Distance_Matrix.xlsx", lang), index=False)
 
 # 15. Route Visualization
 @app.callback(
@@ -3342,9 +3347,10 @@ def navigate_to_distance_matrix(n_clicks):
     Output("download-results-xlsx", "data"),
     Input("btn-download-results", "n_clicks"),
     State("store-model-results", "data"),
+    State('store-lang', 'data'),
     prevent_initial_call=True
 )
-def download_results(n_clicks, results_data):
+def download_results(n_clicks, results_data, lang='pt'):
     if not n_clicks or not results_data or results_data.get("status") != "optimal":
         return dash.no_update
 
@@ -3358,7 +3364,7 @@ def download_results(n_clicks, results_data):
     if "Qtd. de Viagens" in df.columns and df["Qtd. de Viagens"].isnull().all():
         df = df.drop(columns=["Qtd. de Viagens"])
 
-    return dcc.send_data_frame(df.to_excel, "Optimization_Results.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Optimization_Results.xlsx", lang), index=False)
 
 @app.callback(
     Output("modal-confirm-all-routes", "is_open"),
@@ -3704,14 +3710,18 @@ def download_log_route(filename):
     # Security: Ensure filename is just a basename, no directory traversal
     filename = os.path.basename(filename)
     log_dir = os.path.join(tempfile.gettempdir(), 'granum_logs')
+    # Get lang from query params
+    lang = flask.request.args.get('lang', 'pt')
+    download_name = translate('Model_Execution_Log.txt', lang)
     # Use standard flask send_from_directory for secure file serving
-    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name='model_execution_log.txt')
+    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name=download_name)
 
 app.clientside_callback(
     """
-    function(n_clicks, log_filename) {
+    function(n_clicks, log_filename, lang) {
         if (n_clicks && log_filename) {
-            window.location.href = '/download_log/' + log_filename;
+            let userLang = lang || 'pt';
+            window.location.href = '/download_log/' + log_filename + '?lang=' + userLang;
         }
         return window.dash_clientside.no_update;
     }
@@ -3719,6 +3729,7 @@ app.clientside_callback(
     Output("download-model-log", "data"),
     Input("btn-download-log", "n_clicks"),
     State("store-model-log", "data"),
+    State("store-lang", "data"),
     prevent_initial_call=True
 )
 
