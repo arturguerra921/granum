@@ -426,5 +426,11 @@
     "Total de produtos alocados: {val:.2f} toneladas": "Total de produtos alocados: {val:.2f} toneladas",
     "Nota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.": "Nota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.",
     "ERRO DURANTE A OTIMIZAÇÃO: {err}": "ERRO DURANTE A OTIMIZAÇÃO: {err}",
-    "Tempo de execução: {val:.2f} segundos.": "Tempo de execução: {val:.2f} segundos."
+    "Tempo de execução: {val:.2f} segundos.": "Tempo de execução: {val:.2f} segundos.",
+    "Aumente a capacidade estática dos armazéns utilizados na aba 'Armazéns'.": "Aumente a capacidade estática dos armazéns utilizados na aba 'Armazéns'.",
+    "Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga.": "Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga.",
+    "Reduza a quantidade ofertada na aba 'Oferta'.": "Reduza a quantidade ofertada na aba 'Oferta'.",
+    "Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo unitário (multa) exorbitantemente alto para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.": "Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo unitário (multa) exorbitantemente alto para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.",
+    "Diminua as exigências de 'Carga mínima de frete' na configuração do modelo para permitir o envio de volumes menores.": "Diminua as exigências de 'Carga mínima de frete' na configuração do modelo para permitir o envio de volumes menores.",
+    "Aumente a 'Carga máxima de frete' para que o escoamento ocorra em menos viagens e se adeque à frota.": "Aumente a 'Carga máxima de frete' para que o escoamento ocorra em menos viagens e se adeque à frota."
 }
