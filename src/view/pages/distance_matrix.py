@@ -41,7 +41,7 @@ def get_tab_distance_matrix_layout(lang='pt'):
             ),
             dbc.CardBody(
                 [
-                     dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-matrix", color="none", className="btn-success-custom w-100", disabled=True),
+                     dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-matrix", n_clicks=0, color="none", className="btn-success-custom w-100", disabled=True),
                      dcc.Download(id="download-matrix-xlsx")
                 ],
                 className="card-body-custom"

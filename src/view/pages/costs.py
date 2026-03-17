@@ -42,7 +42,7 @@ def get_tab_costs_layout(lang='pt'):
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-storage", color="none", className="btn-success-custom w-100 mb-2"),
+                                    dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-storage", n_clicks=0, color="none", className="btn-success-custom w-100 mb-2"),
                                     dcc.Download(id="download-storage-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"
@@ -137,7 +137,7 @@ def get_tab_costs_layout(lang='pt'):
                                         multiple=False,
                                         accept='.csv, .xlsx'
                                     ),
-                                    dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-freight", color="none", className="btn-success-custom w-100 mb-2"),
+                                    dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-freight", n_clicks=0, color="none", className="btn-success-custom w-100 mb-2"),
                                     dcc.Download(id="download-freight-csv")
                                 ],
                                 width=12, lg=3, className="mb-3 mb-lg-0"

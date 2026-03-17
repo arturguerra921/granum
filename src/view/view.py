@@ -424,6 +424,7 @@ def serve_layout(lang="pt"):
                          html.Div(className="d-grid", children=[
                             dbc.Button(translate("Baixar Planilha (.xlsx)", lang),
                                 id='btn-download',
+                                n_clicks=0,
                                 color="none", className="btn-success-custom"
                             ),
                         ])
@@ -644,7 +645,7 @@ def serve_layout(lang="pt"):
                                 html.Div(
                                     id="download-example-container",
                                     children=[
-                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", color="none", className="btn-outline-secondary-custom w-100 mt-2"),
+                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", n_clicks=0, color="none", className="btn-outline-secondary-custom w-100 mt-2"),
                                         dcc.Download(id="download-example-personalizada")
                                     ],
                                     style={"display": "none"}
