@@ -22,6 +22,21 @@ import plotly.graph_objects as go
 import numpy as np
 import requests
 
+def parse_brazilian_number(val):
+    if pd.isna(val):
+        return 0
+    val_str = str(val).strip()
+    # Strip out any blank spaces (e.g., converting 1 000,00 to 1000,00)
+    val_str = val_str.replace(' ', '')
+    # If the string contains both '.' and ',', assume '.' is thousands and ',' is decimal
+    if '.' in val_str and ',' in val_str:
+        val_str = val_str.replace('.', '').replace(',', '.')
+    # If it only contains ',', it might be a decimal separator
+    elif ',' in val_str:
+        val_str = val_str.replace(',', '.')
+    # If it only contains '.', leave it alone (could be US format decimal)
+    return pd.to_numeric(val_str, errors='coerce')
+
 # --- Data Loading ---
 try:
     DATA_DIR = os.path.join(os.path.dirname(__file__), 'assets', 'data')
@@ -1414,7 +1429,14 @@ def update_metrics(stored_data, lang='pt'):
 
         if not df.empty:
             if "Peso (ton)" in df.columns:
-                total_weight = pd.to_numeric(df["Peso (ton)"], errors='coerce').fillna(0).sum()
+                try:
+                    if pd.api.types.is_numeric_dtype(df["Peso (ton)"]):
+                        total_weight = df["Peso (ton)"].sum()
+                    else:
+                        total_weight = df["Peso (ton)"].apply(parse_brazilian_number).sum()
+                except Exception as e:
+                    print(f"Error calculating weight: {e}")
+                    total_weight = 0
 
             if "Produto" in df.columns:
                 unique_products = df["Produto"].nunique()
@@ -1924,17 +1946,15 @@ def update_warehouses_table_view(active_tab, stored_data, lang='pt'):
         cap_col = next((c for c in df.columns if 'cap' in str(c).lower() or 'ton' in str(c).lower()), None)
 
         if cap_col:
-            # Clean and convert to numeric
             try:
-                # Force to string first to handle mixed types or already parsed floats
-                series_str = df[cap_col].astype(str)
-
-                # Check if it looks like Brazilian format (1.000,00)
-                # Remove thousands separator (.) and replace decimal separator (,) with (.)
-                series_clean = series_str.str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
-
-                capacity = pd.to_numeric(series_clean, errors='coerce').sum()
-            except:
+                if pd.api.types.is_numeric_dtype(df[cap_col]):
+                    # If pandas already parsed it as numbers, just sum it
+                    capacity = df[cap_col].sum()
+                else:
+                    # If it's a string/object, safely clean it
+                    capacity = df[cap_col].apply(parse_brazilian_number).sum()
+            except Exception as e:
+                print(f"Error calculating capacity: {e}")
                 capacity = 0
 
         # Calculate Public vs Private
