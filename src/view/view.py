@@ -645,7 +645,7 @@ def serve_layout(lang="pt"):
                                 html.Div(
                                     id="download-example-container",
                                     children=[
-                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", n_clicks=0, color="none", className="btn-outline-secondary-custom w-100 mt-2")
+                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", key=f"btn-dl-ex-{lang}", n_clicks=0, color="none", className="btn-outline-secondary-custom w-100 mt-2")
                                     ],
                                     style={"display": "none"}
                                 ),
@@ -653,7 +653,7 @@ def serve_layout(lang="pt"):
                                 html.Div(
                                     id="fetch-registered-container",
                                     children=[
-                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-registered", color="none", className="btn-primary-custom w-100 mt-2")
+                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-registered", key=f"btn-fetch-reg-{lang}", color="none", className="btn-primary-custom w-100 mt-2")
                                     ],
                                     style={"display": "none"}
                                 )
