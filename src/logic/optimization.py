@@ -10,6 +10,17 @@ import math
 
 import time
 
+def safe_parse_numeric(val):
+    if pd.isna(val):
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    # If it's a string, clean the Brazilian format
+    val_str = str(val).strip()
+    if not val_str:
+        return 0.0
+    return float(val_str.replace('.', '').replace(',', '.'))
+
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False,
                            toggle_pareto=False, toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
                            toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, lang="pt"):
@@ -84,25 +95,19 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
         # Parse capacity correctly (cleaning Brazilian number formats)
         try:
-            val_str = str(row[cap_col]).replace('.', '').replace(',', '.')
-            cap = float(val_str)
+            cap = safe_parse_numeric(row[cap_col]) if cap_col else 0.0
         except:
             cap = 0.0
 
         # Parse initial stock correctly
         try:
-            est_str = str(row[estoque_col]).replace('.', '').replace(',', '.')
-            estoque = float(est_str)
+            estoque = safe_parse_numeric(row[estoque_col]) if estoque_col else 0.0
         except:
             estoque = 0.0
 
         # Parse reception capacity correctly
         try:
-            if reception_col and pd.notna(row[reception_col]):
-                rec_str = str(row[reception_col]).replace('.', '').replace(',', '.')
-                recepcao = float(rec_str)
-            else:
-                recepcao = 0.0
+            recepcao = safe_parse_numeric(row[reception_col]) if reception_col else 0.0
         except:
             recepcao = 0.0
 
@@ -181,7 +186,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # Parse Brazilian numbers for freight
     try:
-        df_freight['Frete_Num'] = df_freight['Frete Tonelada Km'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False).astype(float)
+        df_freight['Frete_Num'] = df_freight['Frete Tonelada Km'].apply(safe_parse_numeric)
         freight_dict = df_freight.set_index('Estado')['Frete_Num'].to_dict()
         avg_freight = df_freight['Frete_Num'].mean()
     except:
@@ -210,8 +215,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             s_ascii = s_nfkd.encode('ASCII', 'ignore').decode('utf-8')
             return s_ascii.lower()
 
-        df_storage['Pub'] = df_storage['Armazenar_Publico'].astype(str).str.replace('.', '').str.replace(',', '.').astype(float)
-        df_storage['Priv'] = df_storage['Armazenar_Privado'].astype(str).str.replace('.', '').str.replace(',', '.').astype(float)
+        df_storage['Pub'] = df_storage['Armazenar_Publico'].apply(safe_parse_numeric)
+        df_storage['Priv'] = df_storage['Armazenar_Privado'].apply(safe_parse_numeric)
         df_storage['Prod_Norm'] = df_storage['Produto'].apply(normalize_str)
 
         # Build lookup dictionaries
