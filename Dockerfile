@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y coinor-cbc && rm -rf /var/lib/apt/lists/*
 
 # Copy project files
-COPY pyproject.toml README.md wsgi.py run_app.py ./
+COPY pyproject.toml README.md wsgi.py run_server.py ./
 COPY src/ src/
 
 # Install the application and dependencies
