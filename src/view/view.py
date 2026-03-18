@@ -150,7 +150,7 @@ app.config.suppress_callback_exceptions = True
 
 # 1. Navbar / Header
 
-def serve_layout(lang="pt"):
+def serve_layout(lang="pt", dropdown_base_warehouses_val="credenciados"):
     navbar = dbc.Navbar(
         dbc.Container(
             [
@@ -581,7 +581,7 @@ def serve_layout(lang="pt"):
         ])
 
     # 4. Tab Warehouses Content
-    def get_tab_warehouses_layout():
+    def get_tab_warehouses_layout(dropdown_base_warehouses_val="credenciados"):
         # Card 1: Select Base
         card_select_base = dbc.Card(
             [
@@ -605,7 +605,7 @@ def serve_layout(lang="pt"):
                                 {"label": translate("Armazéns Cadastrados (SICARM)", lang), "value": "cadastrados"},
                                 {"label": translate("Base Personalizada (Envio do usuário)", lang), "value": "personalizada"}
                             ],
-                            value="credenciados",
+                            value=dropdown_base_warehouses_val,
                             clearable=False,
                             className="mb-0"
                         )
@@ -1033,7 +1033,7 @@ def serve_layout(lang="pt"):
 
     # Pre-render all tab layouts to ensure IDs exist for callbacks
     tab1_layout = get_tab1_layout()
-    tab2_layout = get_tab_warehouses_layout()
+    tab2_layout = get_tab_warehouses_layout(dropdown_base_warehouses_val)
     tab_prod_warehouses_layout = get_tab_prod_warehouses_layout()
     tab_costs_layout = get_tab_costs_layout(lang)
     tab_distance_matrix_layout = get_tab_distance_matrix_layout(lang)
@@ -1130,12 +1130,15 @@ def update_language(pt_clicks, en_clicks, current_lang):
 @app.callback(
     Output('page-content', 'children'),
     [Input('store-lang', 'data')],
+    State('dropdown-base-warehouses', 'value'),
     prevent_initial_call=True
 )
-def render_page(lang):
+def render_page(lang, dropdown_base_warehouses_val):
     if not lang:
         lang = 'pt'
-    return serve_layout(lang)
+    if not dropdown_base_warehouses_val:
+        dropdown_base_warehouses_val = 'credenciados'
+    return serve_layout(lang, dropdown_base_warehouses_val)
 
 
 
