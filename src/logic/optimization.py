@@ -6,6 +6,7 @@ import sys
 import io
 import tempfile
 import os
+import math
 
 import time
 
@@ -335,26 +336,22 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         for o in model.Origins:
             for p in model.Products:
                 compatible_dests = []
-                # Gather all valid destinations for this origin and product
+                # Reúne todos os destinos válidos para esta origem e produto
                 for d in model.Destinations:
                     if (o, d) in distance and prod_dest_compat.get((p, d), False):
                         dist_val = distance[(o, d)]
-                        f_cost = freight_cost.get(o, avg_freight)
-                        s_cost = storage_cost.get((d, p), 50.0)
-
-                        # Calculate rough estimated unit cost
-                        est_unit_cost = (dist_val * f_cost) + s_cost
-                        compatible_dests.append((d, est_unit_cost))
+                        # Armazena apenas a distância para o Pareto
+                        compatible_dests.append((d, dist_val))
 
                 if compatible_dests:
                     if toggle_pareto:
-                        # Sort by lowest estimated cost
+                        # Ordena pela menor distância
                         compatible_dests.sort(key=lambda x: x[1])
-                        # Apply 80/20 rule, ensuring at least 1 route is always kept
-                        limit = max(1, int(len(compatible_dests) * 0.20))
+                        # Aplica a regra 80/20, arredondando sempre para cima
+                        limit = max(1, math.ceil(len(compatible_dests) * 0.20))
                         compatible_dests = compatible_dests[:limit]
 
-                    # Add the filtered destinations to valid_routes
+                    # Adiciona os destinos filtrados às rotas válidas
                     for d, _ in compatible_dests:
                         valid_routes.append((o, d, p))
 
@@ -708,26 +705,22 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         for o in model.Origins:
             for p in model.Products:
                 compatible_dests = []
-                # Gather all valid destinations for this origin and product
+                # Reúne todos os destinos válidos para esta origem e produto
                 for d in model.Destinations:
                     if (o, d) in distance and prod_dest_compat.get((p, d), False):
                         dist_val = distance[(o, d)]
-                        f_cost = freight_cost.get(o, avg_freight)
-                        s_cost = storage_cost.get((d, p), 50.0)
-
-                        # Calculate rough estimated unit cost
-                        est_unit_cost = (dist_val * f_cost) + s_cost
-                        compatible_dests.append((d, est_unit_cost))
+                        # Armazena apenas a distância para o Pareto
+                        compatible_dests.append((d, dist_val))
 
                 if compatible_dests:
                     if toggle_pareto:
-                        # Sort by lowest estimated cost
+                        # Ordena pela menor distância
                         compatible_dests.sort(key=lambda x: x[1])
-                        # Apply 80/20 rule, ensuring at least 1 route is always kept
-                        limit = max(1, int(len(compatible_dests) * 0.20))
+                        # Aplica a regra 80/20, arredondando sempre para cima
+                        limit = max(1, math.ceil(len(compatible_dests) * 0.20))
                         compatible_dests = compatible_dests[:limit]
 
-                    # Add the filtered destinations to valid_routes
+                    # Adiciona os destinos filtrados às rotas válidas
                     for d, _ in compatible_dests:
                         valid_routes.append((o, d, p))
 
