@@ -3799,5 +3799,6 @@ def close_model_modal(results_data, cancel_clicks, error_text):
 def view():
     # Use environment variable to determine if we are in Docker or dev
     # '0.0.0.0' allows external access (from host to docker container)
-    host = os.environ.get("HOST", "127.0.0.1")
-    app.run(debug=False, host=host)
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", 8050))
+    app.run(debug=False, host=host, port=port)
