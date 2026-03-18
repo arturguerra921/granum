@@ -1,17 +1,17 @@
+from src.logic.i18n import translate
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from src.view.theme import UNB_THEME
 
-def get_tab_distance_matrix_layout():
+def get_tab_distance_matrix_layout(lang='pt'):
     # Calculation Card
     calc_card = dbc.Card(
         [
             dbc.CardHeader(
                 html.Div([
-                    html.Span("Cálculo da Matriz de Distâncias", className="me-2"),
+                    html.Span(translate("Cálculo da Matriz de Distâncias", lang), className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-calc-matrix", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Calcula a distância rodoviária real entre cada cidade de origem (Oferta) e cada armazém (Armazéns).",
+                    dbc.Tooltip(translate("Calcula a distância rodoviária real entre cada cidade de origem (Oferta) e cada armazém (Armazéns).", lang),
                         target="help-calc-matrix",
                         placement="right"
                     ),
@@ -20,8 +20,8 @@ def get_tab_distance_matrix_layout():
             ),
             dbc.CardBody(
                 [
-                    html.P("Clique no botão abaixo para iniciar o cálculo. Isso pode levar alguns segundos dependendo da quantidade de dados.", className="text-muted small mb-3"),
-                    dbc.Button("Calcular Matriz", id="btn-calc-matrix", color="none", className="btn-primary-custom w-100 mb-2"),
+                    html.P(translate("Clique no botão abaixo para iniciar o cálculo. Isso pode levar alguns segundos dependendo da quantidade de dados.", lang), className="text-muted small mb-3"),
+                    dbc.Button(translate("Calcular Matriz", lang), id="btn-calc-matrix", color="none", className="btn-primary-custom w-100 mb-2"),
                     html.Div(id="calc-status-message", className="text-center small mt-2")
                 ],
                 className="card-body-custom"
@@ -35,14 +35,13 @@ def get_tab_distance_matrix_layout():
         [
             dbc.CardHeader(
                 html.Div([
-                    html.Span("Exportar Matriz", className="me-2"),
+                    html.Span(translate("Exportar Matriz", lang), className="me-2"),
                 ], className="d-flex align-items-center"),
                 className="card-header-custom"
             ),
             dbc.CardBody(
                 [
-                     dbc.Button("Baixar Planilha (.xlsx)", id="btn-download-matrix", color="none", className="btn-success-custom w-100", disabled=True),
-                     dcc.Download(id="download-matrix-xlsx")
+                     dbc.Button(translate("Baixar Planilha (.xlsx)", lang), id="btn-download-matrix", n_clicks=0, color="none", className="btn-success-custom w-100", disabled=True)
                 ],
                 className="card-body-custom"
             ),
@@ -53,8 +52,7 @@ def get_tab_distance_matrix_layout():
     # Matrix Table Card
     table_card = dbc.Card(
         [
-            dbc.CardHeader(
-                "Matriz de Distâncias (km)",
+            dbc.CardHeader(translate("Matriz de Distâncias (km)", lang),
                 className="card-header-custom"
             ),
             dbc.CardBody(
@@ -93,7 +91,7 @@ def get_tab_distance_matrix_layout():
                         ], className="h-100"),
                         spinner_class_name="text-primary-custom"
                     ),
-                    html.Div("Clique em uma célula da tabela para visualizar a rota no mapa abaixo.", className="text-muted small mt-2")
+                    html.Div(translate("Clique em uma célula da tabela para visualizar a rota no mapa abaixo.", lang), className="text-muted small mt-2")
                 ],
                 className="card-body-custom d-flex flex-column"
             ),
@@ -106,10 +104,9 @@ def get_tab_distance_matrix_layout():
         [
             dbc.CardHeader(
                 html.Div([
-                    html.Span("Visualização da Rota", className="me-2"),
+                    html.Span(translate("Visualização da Rota", lang), className="me-2"),
                     html.I(className="bi bi-question-circle-fill text-muted", id="help-route-map", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Clique na tabela acima para visualizar a rota desejada. Apenas é possível visualizar uma rota de cada vez. Nos casos em que a rota for exibida como uma linha reta vermelha, isso indica que a rota real não pôde ser calculada, possivelmente devido ao ponto estar fora do Brasil ou em área isolada sem estradas em um raio de 50 km. Nesses casos, a distância exibida na tabela é a distância geodésica (linha reta) entre os pontos, e não a distância rodoviária real.",
+                    dbc.Tooltip(translate("Clique na tabela acima para visualizar a rota desejada. Apenas é possível visualizar uma rota de cada vez. Nos casos em que a rota for exibida como uma linha reta vermelha, isso indica que a rota real não pôde ser calculada, possivelmente devido ao ponto estar fora do Brasil ou em área isolada sem estradas em um raio de 50 km. Nesses casos, a distância exibida na tabela é a distância geodésica (linha reta) entre os pontos, e não a distância rodoviária real.", lang),
                         target="help-route-map",
                         placement="right"
                     ),

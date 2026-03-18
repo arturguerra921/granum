@@ -12,6 +12,7 @@ from src.view.pages.costs import get_tab_costs_layout
 from src.view.pages.results import get_tab_results_layout
 from src.logic.osrm import OSRMClient
 from src.logic.optimization import run_optimization_model
+from src.logic.i18n import translate
 import dash
 import time
 from dash import DiskcacheManager
@@ -20,6 +21,21 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import requests
+
+def parse_brazilian_number(val):
+    if pd.isna(val):
+        return 0
+    val_str = str(val).strip()
+    # Strip out any blank spaces (e.g., converting 1 000,00 to 1000,00)
+    val_str = val_str.replace(' ', '')
+    # If the string contains both '.' and ',', assume '.' is thousands and ',' is decimal
+    if '.' in val_str and ',' in val_str:
+        val_str = val_str.replace('.', '').replace(',', '.')
+    # If it only contains ',', it might be a decimal separator
+    elif ',' in val_str:
+        val_str = val_str.replace(',', '.')
+    # If it only contains '.', leave it alone (could be US format decimal)
+    return pd.to_numeric(val_str, errors='coerce')
 
 # --- Data Loading ---
 try:
@@ -32,11 +48,11 @@ try:
     STORAGE_COSTS_PATH = os.path.join(DATA_DIR, 'Tarifa_de_Armazenagem.csv')
     FREIGHT_COSTS_PATH = os.path.join(DATA_DIR, 'Valor_Tonelada_km.csv')
 
-    df_municipios = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
-    df_estados = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
+    df_municipalities = pd.read_csv(MUNICIPIOS_PATH, encoding='utf-8-sig')
+    df_states = pd.read_csv(ESTADOS_PATH, encoding='utf-8-sig')
 
     # Merge to get UF
-    df_merged = pd.merge(df_municipios, df_estados[['codigo_uf', 'uf']], on='codigo_uf', how='left')
+    df_merged = pd.merge(df_municipalities, df_states[['codigo_uf', 'uf']], on='codigo_uf', how='left')
 
     # Create "Cidade - UF" column
     df_merged['cidade_uf'] = df_merged['nome'] + ' - ' + df_merged['uf']
@@ -74,8 +90,8 @@ def flex_read_csv(file_bytes, **kwargs):
                 # using on_bad_lines='skip' to avoid throwing exception on a single malformed line
                 df = pd.read_csv(file_bytes, sep=sep, encoding=enc, on_bad_lines='skip', **kwargs)
 
-                # Se o arquivo for parseado como 1 única coluna, verifique se a coluna inteira
-                # parece ser o texto de um CSV não lido (ex: col_name = "A;B;C").
+                # If the file is parsed as 1 single column, check if the entire column
+                # seems to be unread CSV text (e.g., col_name = "A;B;C").
                 if len(df.columns) == 1 and sep != delimiters[-1]:
                     col_name = str(df.columns[0])
                     other_delims = [d for d in delimiters if d != sep]
@@ -128,949 +144,1004 @@ app = Dash(
     background_callback_manager=background_callback_manager
 )
 app.title = "Granum"
+app.config.suppress_callback_exceptions = True
 
 # --- Layout Components ---
 
 # 1. Navbar / Header
-navbar = dbc.Navbar(
-    dbc.Container(
-        [
-            html.A(
-                dbc.Row(
-                    [
-                        dbc.Col(html.Img(src="/assets/logo.png", height="48px"), className="me-3"),
-                        dbc.Col(
-                            [
-                                html.H5("Granum", className="navbar-brand-text mb-0"),
-                                html.Small("Otimização de Alocação de Produtos", className="navbar-subtext", style={"whiteSpace": "nowrap"}),
-                                html.Br(),
-                                html.Small("Universidade de Brasília", className="navbar-subtext", style={"whiteSpace": "nowrap"})
-                            ],
-                        ),
-                    ],
-                    align="center",
-                    className="g-0",
-                ),
-                href="#",
-                style={"textDecoration": "none"},
-            ),
-            html.Div(
-                dbc.Button(
-                    [html.I(className="bi bi-question-circle me-2"), "Ajuda"],
-                    id="btn-help-modal",
-                    color="none", className="btn-light-custom fw-bold ms-auto",
-                    size="md",
-                    style={"borderRadius": "8px"}
-                ),
-                className="d-flex"
-            )
-        ],
-        fluid=True,
-        className="d-flex justify-content-between align-items-center"
-    ),
-    className="navbar-custom mb-32 py-3 shadow-sm"
-)
 
-# Modal de Ajuda
-help_modal = dbc.Modal(
-    [
-        dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), "Guia de Uso do Granum"]), close_button=True),
-        dbc.ModalBody(
-            [
-                html.P("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", className="mb-4 text-muted"),
-
-                dbc.ListGroup([
-                    dbc.ListGroupItem([
-                        html.H5([html.Span("1.", className="badge bg-info-custom rounded-pill me-2"), "Oferta"], className="mb-1 fw-bold d-flex align-items-center"),
-                        html.P("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", className="mb-0 text-muted")
-                    ], className="border-0 border-bottom py-3"),
-
-                    dbc.ListGroupItem([
-                        html.H5([html.Span("2.", className="badge bg-info-custom rounded-pill me-2"), "Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
-                        html.P("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", className="mb-0 text-muted")
-                    ], className="border-0 border-bottom py-3"),
-
-                    dbc.ListGroupItem([
-                        html.H5([html.Span("3.", className="badge bg-info-custom rounded-pill me-2"), "Produto e Armazéns"], className="mb-1 fw-bold d-flex align-items-center"),
-                        html.P("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", className="mb-0 text-muted")
-                    ], className="border-0 border-bottom py-3"),
-
-                    dbc.ListGroupItem([
-                        html.H5([html.Span("4.", className="badge bg-info-custom rounded-pill me-2"), "Custos"], className="mb-1 fw-bold d-flex align-items-center"),
-                        html.P("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", className="mb-0 text-muted")
-                    ], className="border-0 border-bottom py-3"),
-
-                    dbc.ListGroupItem([
-                        html.H5([html.Span("5.", className="badge bg-info-custom rounded-pill me-2"), "Matriz de Distâncias"], className="mb-1 fw-bold d-flex align-items-center"),
-                        html.P("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.", className="mb-0 text-muted")
-                    ], className="border-0 border-bottom py-3"),
-
-                    dbc.ListGroupItem([
-                        html.H5([html.Span("6.", className="badge bg-info-custom rounded-pill me-2"), "Configuração e Resultados"], className="mb-1 fw-bold d-flex align-items-center"),
-                        html.P("Na aba de Configuração, apenas rode o modelo de otimização matemática. Em seguida, na aba Resultados, você poderá visualizar as métricas globais, explorar as rotas sugeridas pelo mapa interativo e baixar o relatório final completo.", className="mb-0 text-muted")
-                    ], className="border-0 py-3"),
-                ], flush=True),
-            ]
-        ),
-        dbc.ModalFooter(
-            dbc.Button("Entendi, vamos começar!", id="close-help-modal", color="none", className="btn-info-custom", n_clicks=0)
-        ),
-    ],
-    id="modal-help",
-    size="lg",
-    is_open=False,
-    centered=True,
-    scrollable=True
-)
-
-# 2. Tabs
-tabs = dbc.Tabs(
-    [
-        dbc.Tab(label="Oferta", tab_id="tab-input", label_class_name="px-4"),
-        dbc.Tab(label="Armazéns", tab_id="tab-armazens", label_class_name="px-4"),
-        dbc.Tab(label="Produto e Armazéns", tab_id="tab-prod-armazens", label_class_name="px-4"),
-        dbc.Tab(label="Custos", tab_id="tab-costs", label_class_name="px-4"),
-        dbc.Tab(label="Matriz de Distâncias", tab_id="tab-distance-matrix", label_class_name="px-4"),
-        dbc.Tab(label="Configuração do Modelo", tab_id="tab-config", label_class_name="px-4"),
-        dbc.Tab(label="Resultados", tab_id="tab-results", label_class_name="px-4"),
-    ],
-    id="main-tabs",
-    active_tab="tab-input",
-    className="mb-32"
-)
-
-# 3. Tab 1 Content (Input)
-def get_tab1_layout():
-    # Upload Card
-    upload_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Carregar Arquivo", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-upload", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Caso já possua uma planilha pronta (Excel .xlsx ou CSV), carregue-a aqui. Se não tiver, você pode adicionar dados manualmente abaixo.",
-                        target="help-upload",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    dcc.Upload(
-                        id='upload-data',
-                        children=html.Div([
-                            html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
-                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
-                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                            html.Div("Formatos: .xlsx, .csv", className="text-muted small mt-2")
-                        ]),
-                        className="upload-box",
-                        multiple=False,
-                        accept='.xlsx, .csv'
-                    )
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom h-100"
-    )
-
-    # Add Data Card
-    add_data_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Adicionar Dados", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-add", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Inserção manual de dados. Cada inserção será adicionada como uma nova linha na tabela ao lado.",
-                        target="help-add",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    html.P("Adicione uma nova linha à planilha carregada.", className="text-muted small mb-16"),
-                    dbc.Row([
-                        dbc.Col(
-                            [
-                                html.Div([
-                                    dbc.Label("Produto", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-produto", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                    dbc.Tooltip(
-                                        "Nome do produto (ex: Soja, Milho). O sistema ajustará maiúsculas/minúsculas automaticamente e sugerirá produtos já cadastrados.",
-                                        target="help-produto",
-                                    ),
-                                ], className="d-flex align-items-center mb-1"),
-                                dbc.Input(id="input-produto", type="text", placeholder="Ex: Arroz", list="list-suggested-products", className="mb-16"),
-                                html.Datalist(id="list-suggested-products", children=[])
-                            ],
-                            width=6
-                        ),
-                        dbc.Col(
-                            [
-                                html.Div([
-                                    dbc.Label("Peso (ton)", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-peso", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                    dbc.Tooltip(
-                                        "Peso total da carga em quilogramas.",
-                                        target="help-peso",
-                                    ),
-                                ], className="d-flex align-items-center mb-1"),
-                                dbc.Input(id="input-peso", type="number", placeholder="Ex: 100", className="mb-16")
-                            ],
-                            width=6
-                        ),
-                        dbc.Col(
-                            [
-                                html.Div([
-                                    dbc.Label("Cidade", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-cidade", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                    dbc.Tooltip(
-                                        "Selecione a cidade de origem/destino. Digite para filtrar as opções.",
-                                        target="help-cidade",
-                                    ),
-                                ], className="d-flex align-items-center mb-1"),
-                                dcc.Dropdown(
-                                    id="input-cidade",
-                                    options=[],
-                                    placeholder="Selecione a cidade...",
-                                    className="mb-16",
-                                    searchable=True
-                                )
-                            ],
-                            width=12
-                        ),
-                        dbc.Col(
-                            [
-                                html.Div([
-                                    dbc.Label("Latitude", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lat", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                    dbc.Tooltip(
-                                        "Coordenada de latitude. Preenchida automaticamente ao selecionar a cidade.",
-                                        target="help-lat",
-                                    ),
-                                ], className="d-flex align-items-center mb-1"),
-                                dbc.Input(id="input-lat", type="number", placeholder="Lat", className="mb-16", disabled=True)
-                            ],
-                            width=5
-                        ),
-                        dbc.Col(
-                            [
-                                html.Div([
-                                    dbc.Label("Longitude", className="fw-bold small me-2 mb-0"),
-                                    html.I(className="bi bi-question-circle-fill text-muted", id="help-lon", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                                    dbc.Tooltip(
-                                        "Coordenada de longitude. Preenchida automaticamente ao selecionar a cidade.",
-                                        target="help-lon",
-                                    ),
-                                ], className="d-flex align-items-center mb-1"),
-                                dbc.Input(id="input-lon", type="number", placeholder="Lon", className="mb-16", disabled=True)
-                            ],
-                            width=5
-                        ),
-                        dbc.Col(
-                            [
-                                dbc.Button("🔒", id="btn-manual-edit", color="none", className="btn-secondary-custom d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title="Editar Lat/Long manualmente")
-                            ],
-                            width=2,
-                            className="d-flex align-items-end"
-                        ),
-                    ]),
-                    html.Div(className="d-grid", children=[
-                        dbc.Button(
-                            "Adicionar Linha",
-                            id='btn-add-row',
-                            color="none", className="btn-primary-custom"
-                        ),
-                    ])
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom h-100"
-    )
-
-    # Download Card
-    download_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Exportar", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-export", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Salvar a planilha para usos futuros. Não é necessário exportar para continuar usando as funcionalidades nesta sessão.",
-                        target="help-export",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    html.P("Baixe a planilha com os novos dados adicionados.", className="text-muted small mb-16"),
-                     html.Div(className="d-grid", children=[
-                        dbc.Button(
-                            "Baixar Planilha (.xlsx)",
-                            id='btn-download',
-                            color="none", className="btn-success-custom"
-                        ),
-                    ])
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom h-100"
-    )
-
-
-    # Data Table Card
-    # Initial Empty DataFrame
-    initial_df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
-
-    # Metrics Section
-    metrics_section = dbc.Row(
-        [
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
-                                    html.Div(
-                                        [
-                                            html.H6("Total Peso (ton)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-total-weight", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-tags-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
-                                    html.Div(
-                                        [
-                                            html.H6("Produtos Diferentes", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-        ],
-        className="mt-auto pt-3 g-3" # Push to bottom
-    )
-
-    data_table_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                "Visualização dos Dados",
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    dbc.Spinner(
-                        html.Div(id='table-container', children=[
-                            dash_table.DataTable(
-                                id='editable-table',
-                                data=initial_df.to_dict('records'), # Initially empty
-                                columns=[{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in initial_df.columns],
-                                editable=True,
-                                row_deletable=True,
-                                page_size=10,
-                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
-                                style_cell={
-                                    'textAlign': 'left',
-                                    'fontFamily': "'Roboto', sans-serif",
-                                    'padding': '12px',
-                                    'fontSize': 'var(--font-size-small)',
-                                    'color': UNB_THEME['UNB_GRAY_DARK']
-                                },
-                                style_header={
-                                    'backgroundColor': '#F8F9FA', # Standard light gray header background
-                                    'color': UNB_THEME['UNB_BLUE'],
-                                    'fontWeight': 'bold',
-                                    'border': 'none',
-                                    'padding': '12px',
-                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
-                                },
-                                style_data={
-                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
-                                },
-                                style_data_conditional=[
-                                    {
-                                        'if': {'row_index': 'odd'},
-                                        'backgroundColor': '#f8f9fa'
-                                    }
-                                ]
-                            )
-                        ], className="h-100"),
-                        spinner_class_name="text-primary-custom"
-                    ),
-                    metrics_section
-                ],
-                className="card-body-custom d-flex flex-column"
-            ),
-        ],
-        className="card-custom h-100",
-        style={"minHeight": "600px"} # Increased min-height to ensure space
-    )
-
-    return html.Div([
-        dbc.Row(
-            [
-                dbc.Col([
-                    dbc.Row([
-                        dbc.Col(upload_card, width=12, className="mb-24"),
-                        dbc.Col(add_data_card, width=12, className="mb-24"),
-                        dbc.Col(download_card, width=12, className="mb-24")
-                    ])
-                ], width=12, lg=3),
-
-                dbc.Col(data_table_card, width=12, lg=9, className="mb-24"),
-            ]
-        ),
-    ])
-
-# 4. Tab Armazéns Content
-def get_tab_armazens_layout():
-    # Card 1: Select Base
-    card_select_base = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Selecionar Base", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-select-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Selecione qual base de armazéns deseja utilizar para o modelo de otimização.",
-                        target="help-select-base",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    dcc.Dropdown(
-                        id="dropdown-base-armazens",
-                        options=[
-                            {"label": "Armazéns Credenciados (Conab)", "value": "credenciados"},
-                            {"label": "Armazéns Cadastrados (SICARM)", "value": "cadastrados"},
-                            {"label": "Base Personalizada (Envio do usuário)", "value": "personalizada"}
-                        ],
-                        value="credenciados",
-                        clearable=False,
-                        className="mb-0"
-                    )
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom mb-24"
-    )
-
-    # Card 2: Update and Save
-    card_update_save = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Gerenciar Base", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-manage-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Essa função guardará a nova versão que será enviada para os futuros usos do aplicativo, substituindo a base que hoje é carregada automaticamente.",
-                        target="help-manage-base",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    dbc.Button("Atualizar a Base", id="btn-update-base", color="none", className="btn-primary-custom w-100 mb-2"),
-                    # Manage Container (Initially Hidden, dynamic content)
-                    html.Div(
-                        id="manage-base-container",
-                        children=[
-                            # Upload Component
-                            html.Div(
-                                id="upload-update-container",
-                                children=[
-                                    dcc.Upload(
-                                        id='upload-update-base',
-                                        children=html.Div([
-                                            html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
-                                            html.Span('Arraste e solte ou ', style={"color": UNB_THEME['UNB_GRAY_DARK']}),
-                                            html.A('Selecione', className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
-                                            html.Div("Formatos: .csv", id="upload-format-hint", className="text-muted small mt-2")
-                                        ]),
-                                        className="upload-box",
-                                        multiple=False,
-                                        accept='.csv'
-                                    )
-                                ],
-                                style={"display": "block"}
-                            ),
-                            # Download Example Button (for Personalizada)
-                            html.Div(
-                                id="download-example-container",
-                                children=[
-                                    dbc.Button("Baixar Planilha Exemplo (.xlsx)", id="btn-download-example", color="none", className="btn-outline-secondary-custom w-100 mt-2"),
-                                    dcc.Download(id="download-example-personalizada")
-                                ],
-                                style={"display": "none"}
-                            ),
-                            # Fetch Button (for Cadastrados)
-                            html.Div(
-                                id="fetch-cadastrados-container",
-                                children=[
-                                    dbc.Button("Baixar Dados da Conab", id="btn-fetch-cadastrados", color="none", className="btn-primary-custom w-100 mt-2")
-                                ],
-                                style={"display": "none"}
-                            )
-                        ],
-                        style={"display": "none"}
-                    ),
-
-                    # Salvar na base (Initially Hidden)
-                    dbc.Button("Salvar na Base", id="btn-save-base", color="none", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom h-100"
-    )
-
-    # Metrics Section for Armazéns
-    armazens_metrics_section = dbc.Row(
-        [
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-building-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
-                                    html.Div(
-                                        [
-                                            html.H6("Unidades Armazenadoras", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-armazens-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-bank2 fs-1 me-3", style={"color": "#FFC107"}), # Warning/Yellow color
-                                    html.Div(
-                                        [
-                                            html.H6("Unidades Armazenadoras Públicas", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-armazens-public", children="0", className="mb-0", style={"color": "#FFC107"})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-buildings-fill fs-1 me-3", style={"color": "#6C757D"}), # Secondary/Gray color
-                                    html.Div(
-                                        [
-                                            html.H6("Unidades Armazenadoras Privadas", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-armazens-private", children="0", className="mb-0", style={"color": "#6C757D"})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div(
-                                [
-                                    html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
-                                    html.Div(
-                                        [
-                                            html.H6("Capacidade Estática (t)", className="text-muted small text-uppercase fw-bold mb-1"),
-                                            html.H3(id="metric-armazens-capacity", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
-                                        ]
-                                    )
-                                ],
-                                className="d-flex align-items-center justify-content-center py-2"
-                            )
-                        ],
-                        className="p-3"
-                    ),
-                    className="shadow-sm border-0 h-100",
-                    style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
-                ),
-                width=6
-            ),
-        ],
-        className="mt-auto pt-3 g-3"
-    )
-
-    # Armazens Table Card
-    armazens_table_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                "Tabela de Armazéns",
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                     dbc.Spinner(
-                        html.Div(id='table-armazens-container', children=[
-                            dash_table.DataTable(
-                                id='table-armazens',
-                                data=[],
-                                columns=[],
-                                editable=True,
-                                row_deletable=False,
-                                filter_action='native',
-                                page_size=10,
-                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
-                                style_cell={
-                                    'textAlign': 'left',
-                                    'fontFamily': "'Roboto', sans-serif",
-                                    'padding': '12px',
-                                    'fontSize': 'var(--font-size-small)',
-                                    'color': UNB_THEME['UNB_GRAY_DARK']
-                                },
-                                style_header={
-                                    'backgroundColor': '#F8F9FA',
-                                    'color': UNB_THEME['UNB_BLUE'],
-                                    'fontWeight': 'bold',
-                                    'border': 'none',
-                                    'padding': '12px',
-                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
-                                },
-                                style_data={
-                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
-                                },
-                                style_data_conditional=[
-                                    {
-                                        'if': {'row_index': 'odd'},
-                                        'backgroundColor': '#f8f9fa'
-                                    }
-                                ]
-                            )
-                        ], className="h-100"),
-                        spinner_class_name="text-primary-custom"
-                    ),
-                    armazens_metrics_section
-                ],
-                className="card-body-custom d-flex flex-column"
-            ),
-        ],
-        className="card-custom h-100",
-        style={"minHeight": "600px"}
-    )
-
-    # Modals
-    tutorial_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle(id="modal-tutorial-title"), close_button=True),
-            dbc.ModalBody(id="modal-tutorial-body"),
-            dbc.ModalFooter(
-                dbc.Button("Entendi", id="close-modal-tutorial", className="btn-primary-custom ms-auto", n_clicks=0)
-            ),
-        ],
-        id="modal-tutorial",
-        size="lg",
-        is_open=False,
-    )
-
-    confirm_save_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Confirmar Salvamento"), close_button=True),
-            dbc.ModalBody("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. A nova base enviada será utilizada para todos os futuros usos do aplicativo. Tem certeza que deseja continuar?"),
-            dbc.ModalFooter(
-                [
-                    dbc.Button("Cancelar", id="cancel-save", color="none", className="btn-secondary-custom me-2", n_clicks=0),
-                    dbc.Button("Confirmar e Salvar", id="confirm-save", color="none", className="btn-danger-custom", n_clicks=0),
-                ]
-            ),
-        ],
-        id="modal-confirm-save",
-        is_open=False,
-    )
-
-    missing_cdas_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Atenção: Capacidade de Recepção Não Encontrada"), close_button=True),
-            dbc.ModalBody(id="modal-missing-cdas-body", children=""),
-            dbc.ModalFooter(
-                dbc.Button("Fechar", id="close-missing-cdas", className="btn-primary-custom ms-auto", n_clicks=0)
-            ),
-        ],
-        id="modal-missing-cdas",
-        is_open=False,
-    )
-
-    lentidao_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Aviso de Desempenho"), close_button=True),
-            dbc.ModalBody("Esta base possui mais de 1000 armazéns e isso pode causar lentidões na sua utilização."),
-            dbc.ModalFooter(
-                dbc.Button("Entendi", id="close-lentidao-modal", className="btn-primary-custom ms-auto", n_clicks=0)
-            ),
-        ],
-        id="modal-lentidao-armazens",
-        is_open=False,
-    )
-
-    return html.Div([
-        dbc.Row(
-            [
-                dbc.Col([
-                    card_select_base,
-                    html.Div(card_update_save, className="flex-grow-1 h-100")
-                ], width=12, lg=3, className="mb-24 d-flex flex-column h-100"),
-                dbc.Col(armazens_table_card, width=12, lg=9, className="mb-24"),
-            ]
-        ),
-        tutorial_modal,
-        confirm_save_modal,
-        missing_cdas_modal,
-        lentidao_modal
-    ])
-
-# 5. Tab Produto e Armazéns Content
-def get_tab_prod_armazens_layout():
-    # Table Card
-    table_card = dbc.Card(
-        [
-            dbc.CardHeader(
-                html.Div([
-                    html.Span("Relação Produto x Tipo de Armazém", className="me-2"),
-                    html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-armazens", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
-                    dbc.Tooltip(
-                        "Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).",
-                        target="help-prod-armazens",
-                        placement="right"
-                    ),
-                ], className="d-flex align-items-center"),
-                className="card-header-custom"
-            ),
-            dbc.CardBody(
-                [
-                    dbc.Spinner(
-                        html.Div(id='table-prod-armazens-container', children=[
-                            dash_table.DataTable(
-                                id='table-prod-armazens',
-                                data=[],
-                                columns=[{'name': 'Produto', 'id': 'Produto'}], # Initial column
-                                editable=False, # We handle clicks via active_cell
-                                row_deletable=False,
-                                page_size=15,
-                                style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
-                                style_cell={
-                                    'textAlign': 'center',
-                                    'fontFamily': "'Roboto', sans-serif",
-                                    'padding': '12px',
-                                    'fontSize': 'var(--font-size-small)',
-                                    'color': UNB_THEME['UNB_GRAY_DARK']
-                                },
-                                style_cell_conditional=[
-                                    {
-                                        'if': {'column_id': 'Produto'},
-                                        'textAlign': 'left',
-                                        'fontWeight': 'bold'
-                                    }
-                                ],
-                                style_header={
-                                    'backgroundColor': '#F8F9FA',
-                                    'color': UNB_THEME['UNB_BLUE'],
-                                    'fontWeight': 'bold',
-                                    'border': 'none',
-                                    'padding': '12px',
-                                    'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}",
-                                    'textAlign': 'center'
-                                },
-                                style_data={
-                                    'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}",
-                                    'cursor': 'pointer',
-                                    'fontSize': '1.5rem', # Checkbox size
-                                },
-                                style_data_conditional=[
-                                    {
-                                        'if': {'row_index': 'odd'},
-                                        'backgroundColor': '#f8f9fa'
-                                    },
-                                    {
-                                        'if': {'column_id': 'Produto'},
-                                        'fontSize': 'var(--font-size-small)' # Product name size
-                                    }
-                                ]
-                            )
-                        ], className="h-100"),
-                        spinner_class_name="text-primary-custom"
-                    ),
-                ],
-                className="card-body-custom"
-            ),
-        ],
-        className="card-custom h-100",
-        style={"minHeight": "600px"}
-    )
-
-    # Missing Data Modal
-    missing_data_modal = dbc.Modal(
-        [
-            dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=False),
-            dbc.ModalBody(id="modal-missing-data-body", children="Faltam dados."),
-            dbc.ModalFooter(
-                dbc.Button("Confirmar", id="btn-confirm-missing-data", color="none", className="btn-primary-custom ms-auto", n_clicks=0)
-            ),
-        ],
-        id="modal-missing-data",
-        is_open=False,
-        backdrop="static", # Prevent closing by clicking outside
-        keyboard=False
-    )
-
-    return html.Div([
-        dbc.Row(
-            [
-                dbc.Col(table_card, width=12, className="mb-24"),
-            ]
-        ),
-        missing_data_modal
-    ])
-
-
-# Error Modal (Global)
-error_modal = dbc.Modal(
-    [
-        dbc.ModalHeader(dbc.ModalTitle("Atenção"), close_button=True),
-        dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
-        dbc.ModalFooter(
-            dbc.Button("Fechar", id="close-modal", className="btn-primary-custom ms-auto", n_clicks=0)
-        ),
-    ],
-    id="error-modal",
-    is_open=False,
-)
-
-# --- App Layout Assembly ---
-
-# Pre-render all tab layouts to ensure IDs exist for callbacks
-tab1_layout = get_tab1_layout()
-tab2_layout = get_tab_armazens_layout()
-tab_prod_armazens_layout = get_tab_prod_armazens_layout()
-tab_costs_layout = get_tab_costs_layout()
-tab_distance_matrix_layout = get_tab_distance_matrix_layout()
-tab_config_layout = get_tab_model_config_layout()
-tab_results_layout = get_tab_results_layout()
-
-content_container = html.Div(
-    [
-        html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
-        html.Div(id="tab-armazens-container", children=tab2_layout, style={"display": "none"}),
-        html.Div(id="tab-prod-armazens-container", children=tab_prod_armazens_layout, style={"display": "none"}),
-        html.Div(id="tab-costs-container", children=tab_costs_layout, style={"display": "none"}),
-        html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
-        html.Div(id="tab-config-container", children=tab_config_layout, style={"display": "none"}),
-        html.Div(id="tab-results-container", children=tab_results_layout, style={"display": "none"}),
-    ],
-    id="tabs-content"
-)
-
-initial_df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
-
-app.layout = html.Div(
-    [
-        navbar,
+def serve_layout(lang="pt", dropdown_base_warehouses_val="credenciados"):
+    navbar = dbc.Navbar(
         dbc.Container(
             [
-                tabs,
-                content_container,
-                dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
-                dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
-                dcc.Store(id='store-armazens'), # New Store for Armazéns
-                dcc.Store(id='store-prod-armazens'), # New Store for Prod x Armazens
-                dcc.Store(id='store-costs-storage'), # New Store for Storage Costs
-                dcc.Store(id='store-costs-freight'), # New Store for Freight Costs
-                dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
-                dcc.Store(id='store-model-results'), # New Store for Model Results
-                dcc.Store(id='store-model-log'), # New Store for optimization logs
-                dcc.Store(id='store-help-seen', storage_type='local'), # Store for help modal state
-                dcc.Download(id='download-dataframe-xlsx'),
-                error_modal,
-                help_modal
+                html.A(
+                    dbc.Row(
+                        [
+                            dbc.Col(html.Img(src="/assets/logo.png", height="48px"), className="me-3"),
+                            dbc.Col(
+                                [
+                                    html.H5(translate("Granum", lang), className="navbar-brand-text mb-0"),
+                                    html.Small(translate("Otimização de Alocação de Produtos", lang), className="navbar-subtext", style={"whiteSpace": "nowrap"}),
+                                    html.Br(),
+                                    html.Small(translate("Universidade de Brasília", lang), className="navbar-subtext", style={"whiteSpace": "nowrap"})
+                                ],
+                            ),
+                        ],
+                        align="center",
+                        className="g-0",
+                    ),
+                    href="#",
+                    style={"textDecoration": "none"},
+                ),
+                html.Div(
+                [
+                    dbc.Button(
+                        [html.I(className="bi bi-question-circle me-2"), translate("Ajuda", lang)],
+                        id="btn-help-modal",
+                        color="none", className="btn-light-custom fw-bold me-2",
+                        size="md",
+                        style={"borderRadius": "8px"}
+                    ),
+                    dbc.DropdownMenu(
+                        label=translate("🌎 ", lang) + lang.upper(),
+                        id="lang-dropdown",
+                        children=[
+                            dbc.DropdownMenuItem(translate("🇧🇷 PT", lang), id="lang-pt", n_clicks=0),
+                            dbc.DropdownMenuItem(translate("🇺🇸 EN", lang), id="lang-en", n_clicks=0),
+                        ],
+                        color="none",
+                        toggle_class_name="btn-light-custom fw-bold",
+                        toggle_style={"borderRadius": "8px", "color": "#000"},
+                    )
+                ],
+                className="d-flex ms-auto"
+            )
             ],
             fluid=True,
-            className="px-4 pb-48"
+            className="d-flex justify-content-between align-items-center"
+        ),
+        className="navbar-custom mb-32 py-3 shadow-sm"
+    )
+
+    # Help Modal
+    help_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle([html.I(className="bi bi-info-circle-fill me-2 text-info-custom"), translate("Guia de Uso do Granum", lang)]), close_button=True),
+            dbc.ModalBody(
+                [
+                    html.P(translate("Bem-vindo ao Granum! Este aplicativo foi desenvolvido para otimizar a alocação de produtos em armazéns, minimizando os custos de frete e armazenagem. Siga o fluxo de 1 a 6 nas abas para obter os resultados da operação:", lang), className="mb-4 text-muted"),
+
+                    dbc.ListGroup([
+                        dbc.ListGroupItem([
+                            html.H5([html.Span("1.", className="badge bg-info-custom rounded-pill me-2"), translate("Oferta", lang)], className="mb-1 fw-bold d-flex align-items-center"),
+                            html.P(translate("Insira a quantidade de produtos disponíveis por cidade (oferta). Você pode carregar uma planilha Excel/CSV ou adicionar manualmente as linhas. As coordenadas (latitude e longitude) são preenchidas automaticamente ao selecionar uma cidade.", lang), className="mb-0 text-muted")
+                        ], className="border-0 border-bottom py-3"),
+
+                        dbc.ListGroupItem([
+                            html.H5([html.Span("2.", className="badge bg-info-custom rounded-pill me-2"), translate("Armazéns", lang)], className="mb-1 fw-bold d-flex align-items-center"),
+                            html.P(translate("Gerencie os armazéns que receberão os produtos. Uma base padrão é carregada automaticamente, mas você pode visualizar e atualizar esta lista se necessário, substituindo-a por uma nova planilha.", lang), className="mb-0 text-muted")
+                        ], className="border-0 border-bottom py-3"),
+
+                        dbc.ListGroupItem([
+                            html.H5([html.Span("3.", className="badge bg-info-custom rounded-pill me-2"), translate("Produto e Armazéns", lang)], className="mb-1 fw-bold d-flex align-items-center"),
+                            html.P(translate("Defina a compatibilidade. Indique quais tipos de armazéns podem estocar cada tipo de produto marcando ou desmarcando as caixas na tabela.", lang), className="mb-0 text-muted")
+                        ], className="border-0 border-bottom py-3"),
+
+                        dbc.ListGroupItem([
+                            html.H5([html.Span("4.", className="badge bg-info-custom rounded-pill me-2"), translate("Custos", lang)], className="mb-1 fw-bold d-flex align-items-center"),
+                            html.P(translate("Configure as tarifas de armazenamento (público e privado) para cada produto e o valor do frete (tonelada/km) para cada estado. Você pode usar os valores padrão ou inserir novos.", lang), className="mb-0 text-muted")
+                        ], className="border-0 border-bottom py-3"),
+
+                        dbc.ListGroupItem([
+                            html.H5([html.Span("5.", className="badge bg-info-custom rounded-pill me-2"), translate("Matriz de Distâncias", lang)], className="mb-1 fw-bold d-flex align-items-center"),
+                            html.P(translate("O sistema calcula todas as rotas possíveis entre as cidades de origem e os armazéns disponíveis. Clique em 'Calcular Matriz de Distâncias' para iniciar e aguarde a conclusão. Em seguida, você também pode visualizar qualquer rota diretamente no mapa interativo abaixo da tabela.", lang), className="mb-0 text-muted")
+                        ], className="border-0 border-bottom py-3"),
+
+                        dbc.ListGroupItem([
+                            html.H5([html.Span("6.", className="badge bg-info-custom rounded-pill me-2"), translate("Configuração e Resultados", lang)], className="mb-1 fw-bold d-flex align-items-center"),
+                            html.P(translate("Na aba de Configuração, apenas rode o modelo de otimização matemática. Em seguida, na aba Resultados, você poderá visualizar as métricas globais, explorar as rotas sugeridas pelo mapa interativo e baixar o relatório final completo.", lang), className="mb-0 text-muted")
+                        ], className="border-0 py-3"),
+                    ], flush=True),
+                ]
+            ),
+            dbc.ModalFooter(
+                dbc.Button(translate("Entendi, vamos começar!", lang), id="close-help-modal", color="none", className="btn-info-custom", n_clicks=0)
+            ),
+        ],
+        id="modal-help",
+        size="lg",
+        is_open=False,
+        centered=True,
+        scrollable=True
+    )
+
+    # 2. Tabs
+    tabs = dbc.Tabs(
+        [
+            dbc.Tab(label=translate("Oferta", lang), tab_id="tab-input", label_class_name="px-4"),
+            dbc.Tab(label=translate("Armazéns", lang), tab_id="tab-warehouses", label_class_name="px-4"),
+            dbc.Tab(label=translate("Produto e Armazéns", lang), tab_id="tab-prod-warehouses", label_class_name="px-4"),
+            dbc.Tab(label=translate("Custos", lang), tab_id="tab-costs", label_class_name="px-4"),
+            dbc.Tab(label=translate("Matriz de Distâncias", lang), tab_id="tab-distance-matrix", label_class_name="px-4"),
+            dbc.Tab(label=translate("Configuração do Modelo", lang), tab_id="tab-config", label_class_name="px-4"),
+            dbc.Tab(label=translate("Resultados", lang), tab_id="tab-results", label_class_name="px-4"),
+        ],
+        id="main-tabs",
+        active_tab="tab-input",
+        className="mb-32"
+    )
+
+    # 3. Tab 1 Content (Input)
+    def get_tab1_layout():
+        # Upload Card
+        upload_card = dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div([
+                        html.Span(translate("Carregar Arquivo", lang), className="me-2"),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-upload", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Caso já possua uma planilha pronta (Excel .xlsx ou CSV), carregue-a aqui. Se não tiver, você pode adicionar dados manualmente abaixo.", lang),
+                            target="help-upload",
+                            placement="right"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        dcc.Upload(
+                            id='upload-data',
+                            children=html.Div([
+                                html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                                html.Span(translate('Arraste e solte ou ', lang), style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                html.A(translate('Selecione', lang), className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                html.Div(translate("Formatos: .xlsx, .csv", lang), className="text-muted small mt-2")
+                            ]),
+                            className="upload-box",
+                            multiple=False,
+                            accept='.xlsx, .csv'
+                        )
+                    ],
+                    className="card-body-custom"
+                ),
+            ],
+            className="card-custom h-100"
         )
-    ],
-    style={
-        'backgroundColor': UNB_THEME['APP_BACKGROUND'],
-        'minHeight': '100vh'
-    }
-)
+
+        # Add Data Card
+        add_data_card = dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div([
+                        html.Span(translate("Adicionar Dados", lang), className="me-2"),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-add", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Inserção manual de dados. Cada inserção será adicionada como uma nova linha na tabela ao lado.", lang),
+                            target="help-add",
+                            placement="right"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        html.P(translate("Adicione uma nova linha à planilha carregada.", lang), className="text-muted small mb-16"),
+                        dbc.Row([
+                            dbc.Col(
+                                [
+                                    html.Div([
+                                        dbc.Label(translate("Produto", lang), className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-product", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Nome do produto (ex: Soja, Milho). O sistema ajustará maiúsculas/minúsculas automaticamente e sugerirá produtos já cadastrados.", lang),
+                                            target="help-product",
+                                        ),
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-product", type="text", placeholder=translate("Ex: Arroz", lang), list="list-suggested-products", className="mb-16"),
+                                    html.Datalist(id="list-suggested-products", children=[])
+                                ],
+                                width=6
+                            ),
+                            dbc.Col(
+                                [
+                                    html.Div([
+                                        dbc.Label(translate("Peso (ton)", lang), className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-weight", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Peso total da carga em quilogramas.", lang),
+                                            target="help-weight",
+                                        ),
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-weight", type="number", placeholder=translate("Ex: 100", lang), className="mb-16")
+                                ],
+                                width=6
+                            ),
+                            dbc.Col(
+                                [
+                                    html.Div([
+                                        dbc.Label(translate("Cidade", lang), className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-city", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Selecione a cidade de origem/destino. Digite para filtrar as opções.", lang),
+                                            target="help-city",
+                                        ),
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dcc.Dropdown(
+                                        id="input-city",
+                                        options=[],
+                                        placeholder=translate("Selecione a cidade...", lang),
+                                        className="mb-16",
+                                        searchable=True
+                                    )
+                                ],
+                                width=12
+                            ),
+                            dbc.Col(
+                                [
+                                    html.Div([
+                                        dbc.Label(translate("Latitude", lang), className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-lat", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Coordenada de latitude. Preenchida automaticamente ao selecionar a cidade.", lang),
+                                            target="help-lat",
+                                        ),
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-lat", type="number", placeholder=translate("Lat", lang), className="mb-16", disabled=True)
+                                ],
+                                width=5
+                            ),
+                            dbc.Col(
+                                [
+                                    html.Div([
+                                        dbc.Label(translate("Longitude", lang), className="fw-bold small me-2 mb-0"),
+                                        html.I(className="bi bi-question-circle-fill text-muted", id="help-lon", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                                        dbc.Tooltip(translate("Coordenada de longitude. Preenchida automaticamente ao selecionar a cidade.", lang),
+                                            target="help-lon",
+                                        ),
+                                    ], className="d-flex align-items-center mb-1"),
+                                    dbc.Input(id="input-lon", type="number", placeholder=translate("Lon", lang), className="mb-16", disabled=True)
+                                ],
+                                width=5
+                            ),
+                            dbc.Col(
+                                [
+                                    dbc.Button("🔒", id="btn-manual-edit", color="none", className="btn-secondary-custom d-flex align-items-center justify-content-center w-100 mb-16", style={"height": "38px"}, n_clicks=0, title=translate("Editar Lat/Long manualmente", lang))
+                                ],
+                                width=2,
+                                className="d-flex align-items-end"
+                            ),
+                        ]),
+                        html.Div(className="d-grid", children=[
+                            dbc.Button(translate("Adicionar Linha", lang),
+                                id='btn-add-row',
+                                color="none", className="btn-primary-custom"
+                            ),
+                        ])
+                    ],
+                    className="card-body-custom"
+                ),
+            ],
+            className="card-custom h-100"
+        )
+
+        # Download Card
+        download_card = dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div([
+                        html.Span(translate("Exportar", lang), className="me-2"),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-export", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Salvar a planilha para usos futuros. Não é necessário exportar para continuar usando as funcionalidades nesta sessão.", lang),
+                            target="help-export",
+                            placement="right"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        html.P(translate("Baixe a planilha com os novos dados adicionados.", lang), className="text-muted small mb-16"),
+                         html.Div(className="d-grid", children=[
+                            dbc.Button(translate("Baixar Planilha (.xlsx)", lang),
+                                id='btn-download',
+                                n_clicks=0,
+                                color="none", className="btn-success-custom"
+                            ),
+                        ])
+                    ],
+                    className="card-body-custom"
+                ),
+            ],
+            className="card-custom h-100"
+        )
+
+
+        # Data Table Card
+        # Initial Empty DataFrame
+        initial_df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
+
+        # Metrics Section
+        metrics_section = dbc.Row(
+            [
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
+                                        html.Div(
+                                            [
+                                                html.H6(translate("Total Peso (ton)", lang), className="text-muted small text-uppercase fw-bold mb-1"),
+                                                html.H3(id="metric-total-weight", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']}, **{"data-raw-value": "0"})
+                                            ]
+                                        )
+                                    ],
+                                    className="d-flex align-items-center justify-content-center py-2"
+                                )
+                            ],
+                            className="p-3"
+                        ),
+                        className="shadow-sm border-0 h-100",
+                        style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                    ),
+                    width=6
+                ),
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="bi bi-tags-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
+                                        html.Div(
+                                            [
+                                                html.H6(translate("Produtos Diferentes", lang), className="text-muted small text-uppercase fw-bold mb-1"),
+                                                html.H3(id="metric-unique-products", children="0", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']}, **{"data-raw-value": "0"})
+                                            ]
+                                        )
+                                    ],
+                                    className="d-flex align-items-center justify-content-center py-2"
+                                )
+                            ],
+                            className="p-3"
+                        ),
+                        className="shadow-sm border-0 h-100",
+                        style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                    ),
+                    width=6
+                ),
+            ],
+            className="mt-auto pt-3 g-3" # Push to bottom
+        )
+
+        data_table_card = dbc.Card(
+            [
+                dbc.CardHeader(translate("Visualização dos Dados", lang),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        dbc.Spinner(
+                            html.Div(id='table-container', children=[
+                                dash_table.DataTable(
+                                    id='editable-table',
+                                    data=initial_df.to_dict('records'), # Initially empty
+                                    columns=[{'name': translate(i, lang), 'id': i, 'deletable': False, 'renamable': False} for i in initial_df.columns],
+                                    editable=True,
+                                    row_deletable=True,
+                                    page_size=10,
+                                    style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                    style_cell={
+                                        'textAlign': 'left',
+                                        'fontFamily': "'Roboto', sans-serif",
+                                        'padding': '12px',
+                                        'fontSize': 'var(--font-size-small)',
+                                        'color': UNB_THEME['UNB_GRAY_DARK']
+                                    },
+                                    style_header={
+                                        'backgroundColor': '#F8F9FA', # Standard light gray header background
+                                        'color': UNB_THEME['UNB_BLUE'],
+                                        'fontWeight': 'bold',
+                                        'border': 'none',
+                                        'padding': '12px',
+                                        'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
+                                    },
+                                    style_data={
+                                        'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
+                                    },
+                                    style_data_conditional=[
+                                        {
+                                            'if': {'row_index': 'odd'},
+                                            'backgroundColor': '#f8f9fa'
+                                        }
+                                    ]
+                                )
+                            ], className="h-100"),
+                            spinner_class_name="text-primary-custom"
+                        ),
+                        metrics_section
+                    ],
+                    className="card-body-custom d-flex flex-column"
+                ),
+            ],
+            className="card-custom h-100",
+            style={"minHeight": "600px"} # Increased min-height to ensure space
+        )
+
+        return html.Div([
+            dbc.Row(
+                [
+                    dbc.Col([
+                        dbc.Row([
+                            dbc.Col(upload_card, width=12, className="mb-24"),
+                            dbc.Col(add_data_card, width=12, className="mb-24"),
+                            dbc.Col(download_card, width=12, className="mb-24")
+                        ])
+                    ], width=12, lg=3),
+
+                    dbc.Col(data_table_card, width=12, lg=9, className="mb-24"),
+                ]
+            ),
+        ])
+
+    # 4. Tab Warehouses Content
+    def get_tab_warehouses_layout(dropdown_base_warehouses_val="credenciados"):
+        # Card 1: Select Base
+        card_select_base = dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div([
+                        html.Span(translate("Selecionar Base", lang), className="me-2"),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-select-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Selecione qual base de armazéns deseja utilizar para o modelo de otimização.", lang),
+                            target="help-select-base",
+                            placement="right"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        dcc.Dropdown(
+                            id="dropdown-base-warehouses",
+                            options=[
+                                {"label": translate("Armazéns Credenciados (Conab)", lang), "value": "credenciados"},
+                                {"label": translate("Armazéns Cadastrados (SICARM)", lang), "value": "cadastrados"},
+                                {"label": translate("Base Personalizada (Envio do usuário)", lang), "value": "personalizada"}
+                            ],
+                            value=dropdown_base_warehouses_val,
+                            clearable=False,
+                            className="mb-0"
+                        )
+                    ],
+                    className="card-body-custom"
+                ),
+            ],
+            className="card-custom mb-24"
+        )
+
+        # Card 2: Update and Save
+        card_update_save = dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div([
+                        html.Span(translate("Gerenciar Base", lang), className="me-2"),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-manage-base", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Essa função guardará a nova versão que será enviada para os futuros usos do aplicativo, substituindo a base que hoje é carregada automaticamente.", lang),
+                            target="help-manage-base",
+                            placement="right"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        dbc.Button(translate("Atualizar a Base", lang), id="btn-update-base", color="none", className="btn-primary-custom w-100 mb-2"),
+                        # Manage Container (Initially Hidden, dynamic content)
+                        html.Div(
+                            id="manage-base-container",
+                            children=[
+                                # Upload Component
+                                html.Div(
+                                    id="upload-update-container",
+                                    children=[
+                                        dcc.Upload(
+                                            id='upload-update-base',
+                                            children=html.Div([
+                                                html.Div("📂", style={"fontSize": "2rem", "marginBottom": "8px"}),
+                                                html.Span(translate('Arraste e solte ou ', lang), style={"color": UNB_THEME['UNB_GRAY_DARK']}),
+                                                html.A(translate('Selecione', lang), className="fw-bold text-decoration-underline", style={"color": UNB_THEME['UNB_BLUE']}),
+                                                html.Div(translate("Formatos: .csv", lang), id="upload-format-hint", className="text-muted small mt-2")
+                                            ]),
+                                            className="upload-box",
+                                            multiple=False,
+                                            accept='.csv'
+                                        )
+                                    ],
+                                    style={"display": "block"}
+                                ),
+                                # Download Example Button (for Personalizada)
+                                html.Div(
+                                    id="download-example-container",
+                                    children=[
+                                        dbc.Button(translate("Baixar Planilha Exemplo (.xlsx)", lang), id="btn-download-example", key=f"btn-dl-ex-{lang}", n_clicks=0, color="none", className="btn-outline-secondary-custom w-100 mt-2")
+                                    ],
+                                    style={"display": "none"}
+                                ),
+                                # Fetch Button (for Cadastrados)
+                                html.Div(
+                                    id="fetch-registered-container",
+                                    children=[
+                                        dbc.Button(translate("Baixar Dados da Conab", lang), id="btn-fetch-registered", key=f"btn-fetch-reg-{lang}", color="none", className="btn-primary-custom w-100 mt-2")
+                                    ],
+                                    style={"display": "none"}
+                                )
+                            ],
+                            style={"display": "none"}
+                        ),
+
+                        # Save to base (Initially Hidden)
+                        dbc.Button(translate("Salvar na Base", lang), id="btn-save-base", color="none", className="btn-success-custom w-100 mt-4", style={"display": "none"}),
+                    ],
+                    className="card-body-custom"
+                ),
+            ],
+            className="card-custom h-100"
+        )
+
+        # Metrics Section for Armazéns
+        warehouses_metrics_section = dbc.Row(
+            [
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="bi bi-building-fill fs-1 me-3", style={"color": UNB_THEME['UNB_BLUE']}),
+                                        html.Div(
+                                            [
+                                                html.H6(translate("Unidades Armazenadoras", lang), className="text-muted small text-uppercase fw-bold mb-1"),
+                                                html.H3(id="metric-warehouses-count", children="0", className="mb-0", style={"color": UNB_THEME['UNB_BLUE']})
+                                            ]
+                                        )
+                                    ],
+                                    className="d-flex align-items-center justify-content-center py-2"
+                                )
+                            ],
+                            className="p-3"
+                        ),
+                        className="shadow-sm border-0 h-100",
+                        style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                    ),
+                    width=6
+                ),
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="bi bi-bank2 fs-1 me-3", style={"color": "#FFC107"}), # Warning/Yellow color
+                                        html.Div(
+                                            [
+                                                html.H6(translate("Unidades Armazenadoras Públicas", lang), className="text-muted small text-uppercase fw-bold mb-1"),
+                                                html.H3(id="metric-warehouses-public", children="0", className="mb-0", style={"color": "#FFC107"})
+                                            ]
+                                        )
+                                    ],
+                                    className="d-flex align-items-center justify-content-center py-2"
+                                )
+                            ],
+                            className="p-3"
+                        ),
+                        className="shadow-sm border-0 h-100",
+                        style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                    ),
+                    width=6
+                ),
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="bi bi-buildings-fill fs-1 me-3", style={"color": "#6C757D"}), # Secondary/Gray color
+                                        html.Div(
+                                            [
+                                                html.H6(translate("Unidades Armazenadoras Privadas", lang), className="text-muted small text-uppercase fw-bold mb-1"),
+                                                html.H3(id="metric-warehouses-private", children="0", className="mb-0", style={"color": "#6C757D"})
+                                            ]
+                                        )
+                                    ],
+                                    className="d-flex align-items-center justify-content-center py-2"
+                                )
+                            ],
+                            className="p-3"
+                        ),
+                        className="shadow-sm border-0 h-100",
+                        style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                    ),
+                    width=6
+                ),
+                dbc.Col(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Div(
+                                    [
+                                        html.I(className="bi bi-box-seam-fill fs-1 me-3", style={"color": UNB_THEME['UNB_GREEN']}),
+                                        html.Div(
+                                            [
+                                                html.H6(translate("Capacidade Estática (t)", lang), className="text-muted small text-uppercase fw-bold mb-1"),
+                                                html.H3(id="metric-warehouses-capacity", children="0.00", className="mb-0", style={"color": UNB_THEME['UNB_GREEN']})
+                                            ]
+                                        )
+                                    ],
+                                    className="d-flex align-items-center justify-content-center py-2"
+                                )
+                            ],
+                            className="p-3"
+                        ),
+                        className="shadow-sm border-0 h-100",
+                        style={"backgroundColor": "#f8f9fa", "borderRadius": "12px"}
+                    ),
+                    width=6
+                ),
+            ],
+            className="mt-auto pt-3 g-3"
+        )
+
+        # Warehouses Table Card
+        warehouses_table_card = dbc.Card(
+            [
+                dbc.CardHeader(translate("Tabela de Armazéns", lang),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                         dbc.Spinner(
+                            html.Div(id='table-warehouses-container', children=[
+                                dash_table.DataTable(
+                                    id='table-warehouses',
+                                    data=[],
+                                    columns=[],
+                                    editable=True,
+                                    row_deletable=False,
+                                    filter_action='native',
+                                    page_size=10,
+                                    style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                    style_cell={
+                                        'textAlign': 'left',
+                                        'fontFamily': "'Roboto', sans-serif",
+                                        'padding': '12px',
+                                        'fontSize': 'var(--font-size-small)',
+                                        'color': UNB_THEME['UNB_GRAY_DARK']
+                                    },
+                                    style_header={
+                                        'backgroundColor': '#F8F9FA',
+                                        'color': UNB_THEME['UNB_BLUE'],
+                                        'fontWeight': 'bold',
+                                        'border': 'none',
+                                        'padding': '12px',
+                                        'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}"
+                                    },
+                                    style_data={
+                                        'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}"
+                                    },
+                                    style_data_conditional=[
+                                        {
+                                            'if': {'row_index': 'odd'},
+                                            'backgroundColor': '#f8f9fa'
+                                        }
+                                    ]
+                                )
+                            ], className="h-100"),
+                            spinner_class_name="text-primary-custom"
+                        ),
+                        warehouses_metrics_section
+                    ],
+                    className="card-body-custom d-flex flex-column"
+                ),
+            ],
+            className="card-custom h-100",
+            style={"minHeight": "600px"}
+        )
+
+        # Modals
+        tutorial_modal = dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle(id="modal-tutorial-title"), close_button=True),
+                dbc.ModalBody(id="modal-tutorial-body"),
+                dbc.ModalFooter(
+                    dbc.Button(translate("Entendi", lang), id="close-modal-tutorial", className="btn-primary-custom ms-auto", n_clicks=0)
+                ),
+            ],
+            id="modal-tutorial",
+            size="lg",
+            is_open=False,
+        )
+
+        confirm_save_modal = dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle(translate("Confirmar Salvamento", lang)), close_button=True),
+                dbc.ModalBody(translate("Atenção: Esta ação irá sobrescrever a base de dados original de forma irreversível. A nova base enviada será utilizada para todos os futuros usos do aplicativo. Tem certeza que deseja continuar?", lang)),
+                dbc.ModalFooter(
+                    [
+                        dbc.Button(translate("Cancelar", lang), id="cancel-save", color="none", className="btn-secondary-custom me-2", n_clicks=0),
+                        dbc.Button(translate("Confirmar e Salvar", lang), id="confirm-save", color="none", className="btn-danger-custom", n_clicks=0),
+                    ]
+                ),
+            ],
+            id="modal-confirm-save",
+            is_open=False,
+        )
+
+        missing_cdas_modal = dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle(translate("Atenção: Capacidade de Recepção Não Encontrada", lang)), close_button=True),
+                dbc.ModalBody(id="modal-missing-cdas-body", children=""),
+                dbc.ModalFooter(
+                    dbc.Button(translate("Fechar", lang), id="close-missing-cdas", className="btn-primary-custom ms-auto", n_clicks=0)
+                ),
+            ],
+            id="modal-missing-cdas",
+            is_open=False,
+        )
+
+        slowness_modal = dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle(translate("Aviso de Desempenho", lang)), close_button=True),
+                dbc.ModalBody(translate("Esta base possui mais de 1000 armazéns e isso pode causar lentidões na sua utilização.", lang)),
+                dbc.ModalFooter(
+                    dbc.Button(translate("Entendi", lang), id="close-slowness-modal", className="btn-primary-custom ms-auto", n_clicks=0)
+                ),
+            ],
+            id="modal-slowness-warehouses",
+            is_open=False,
+        )
+
+        return html.Div([
+            dbc.Row(
+                [
+                    dbc.Col([
+                        card_select_base,
+                        html.Div(card_update_save, className="flex-grow-1 h-100")
+                    ], width=12, lg=3, className="mb-24 d-flex flex-column h-100"),
+                    dbc.Col(warehouses_table_card, width=12, lg=9, className="mb-24"),
+                ]
+            ),
+            tutorial_modal,
+            confirm_save_modal,
+            missing_cdas_modal,
+            slowness_modal
+        ])
+
+    # 5. Tab Product and Warehouses Content
+    def get_tab_prod_warehouses_layout():
+        # Table Card
+        table_card = dbc.Card(
+            [
+                dbc.CardHeader(
+                    html.Div([
+                        html.Span(translate("Relação Produto x Tipo de Armazém", lang), className="me-2"),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-prod-warehouses", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Selecione quais tipos de armazém podem armazenar cada produto. Clique na célula para marcar (☑) ou desmarcar (☐).", lang),
+                            target="help-prod-warehouses",
+                            placement="right"
+                        ),
+                    ], className="d-flex align-items-center"),
+                    className="card-header-custom"
+                ),
+                dbc.CardBody(
+                    [
+                        dbc.Spinner(
+                            html.Div(id='table-prod-armazens-container', children=[
+                                dash_table.DataTable(
+                                    id='table-prod-armazens',
+                                    data=[],
+                                    columns=[{'name': translate('Produto', lang), 'id': 'Produto'}], # Initial column
+                                    editable=False, # We handle clicks via active_cell
+                                    row_deletable=False,
+                                    page_size=15,
+                                    style_table={'overflowX': 'auto', 'borderRadius': '8px', 'border': f"1px solid {UNB_THEME['BORDER_LIGHT']}"},
+                                    style_cell={
+                                        'textAlign': 'center',
+                                        'fontFamily': "'Roboto', sans-serif",
+                                        'padding': '12px',
+                                        'fontSize': 'var(--font-size-small)',
+                                        'color': UNB_THEME['UNB_GRAY_DARK']
+                                    },
+                                    style_cell_conditional=[
+                                        {
+                                            'if': {'column_id': 'Produto'},
+                                            'textAlign': 'left',
+                                            'fontWeight': 'bold'
+                                        }
+                                    ],
+                                    style_header={
+                                        'backgroundColor': '#F8F9FA',
+                                        'color': UNB_THEME['UNB_BLUE'],
+                                        'fontWeight': 'bold',
+                                        'border': 'none',
+                                        'padding': '12px',
+                                        'borderBottom': f"2px solid {UNB_THEME['BORDER_LIGHT']}",
+                                        'textAlign': 'center'
+                                    },
+                                    style_data={
+                                        'borderBottom': f"1px solid {UNB_THEME['BORDER_LIGHT']}",
+                                        'cursor': 'pointer',
+                                        'fontSize': '1.5rem', # Checkbox size
+                                    },
+                                    style_data_conditional=[
+                                        {
+                                            'if': {'row_index': 'odd'},
+                                            'backgroundColor': '#f8f9fa'
+                                        },
+                                        {
+                                            'if': {'column_id': 'Produto'},
+                                            'fontSize': 'var(--font-size-small)' # Product name size
+                                        }
+                                    ]
+                                )
+                            ], className="h-100"),
+                            spinner_class_name="text-primary-custom"
+                        ),
+                    ],
+                    className="card-body-custom"
+                ),
+            ],
+            className="card-custom h-100",
+            style={"minHeight": "600px"}
+        )
+
+        # Missing Data Modal
+        missing_data_modal = dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle(translate("Atenção", lang)), close_button=False),
+                dbc.ModalBody(id="modal-missing-data-body", children=translate("Faltam dados.", lang)),
+                dbc.ModalFooter(
+                    dbc.Button(translate("Confirmar", lang), id="btn-confirm-missing-data", color="none", className="btn-primary-custom ms-auto", n_clicks=0)
+                ),
+            ],
+            id="modal-missing-data",
+            is_open=False,
+            backdrop="static", # Prevent closing by clicking outside
+            keyboard=False
+        )
+
+        return html.Div([
+            dbc.Row(
+                [
+                    dbc.Col(table_card, width=12, className="mb-24"),
+                ]
+            ),
+            missing_data_modal
+        ])
+
+
+    # Error Modal (Global)
+    error_modal = dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle(translate("Atenção", lang)), close_button=True),
+            dbc.ModalBody(id="modal-body-content", children="Ocorreu um erro."),
+            dbc.ModalFooter(
+                dbc.Button(translate("Fechar", lang), id="close-modal", className="btn-primary-custom ms-auto", n_clicks=0)
+            ),
+        ],
+        id="error-modal",
+        is_open=False,
+    )
+
+    # --- App Layout Assembly ---
+
+    # Pre-render all tab layouts to ensure IDs exist for callbacks
+    tab1_layout = get_tab1_layout()
+    tab2_layout = get_tab_warehouses_layout(dropdown_base_warehouses_val)
+    tab_prod_warehouses_layout = get_tab_prod_warehouses_layout()
+    tab_costs_layout = get_tab_costs_layout(lang)
+    tab_distance_matrix_layout = get_tab_distance_matrix_layout(lang)
+    tab_config_layout = get_tab_model_config_layout(lang)
+    tab_results_layout = get_tab_results_layout(lang)
+
+    content_container = html.Div(
+        [
+            html.Div(id="tab-input-container", children=tab1_layout, style={"display": "block"}),
+            html.Div(id="tab-warehouses-container", children=tab2_layout, style={"display": "none"}),
+            html.Div(id="tab-prod-warehouses-container", children=tab_prod_warehouses_layout, style={"display": "none"}),
+            html.Div(id="tab-costs-container", children=tab_costs_layout, style={"display": "none"}),
+            html.Div(id="tab-distance-matrix-container", children=tab_distance_matrix_layout, style={"display": "none"}),
+            html.Div(id="tab-config-container", children=tab_config_layout, style={"display": "none"}),
+            html.Div(id="tab-results-container", children=tab_results_layout, style={"display": "none"}),
+        ],
+        id="tabs-content"
+    )
+
+    initial_df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
+
+    return html.Div(
+        [
+            navbar,
+            dbc.Container(
+                [
+                    tabs,
+                    content_container,
+
+                    error_modal,
+                    help_modal
+                ],
+                fluid=True,
+                className="px-4 pb-48"
+            )
+        ],
+        style={
+            'backgroundColor': UNB_THEME['APP_BACKGROUND'],
+            'minHeight': '100vh'
+        }
+    )
+
+
+
+
+initial_df = pd.DataFrame(columns=['Produto', 'Peso (ton)', 'Cidade', 'Latitude', 'Longitude'])
+
+app.layout = html.Div([
+    dcc.Store(id='store-lang', storage_type='memory', data='pt'),
+    dcc.Store(id='stored-data', data=initial_df.to_json(date_format='iso', orient='split')),
+    dcc.Store(id='metrics-store', data={'weight': 0, 'count': 0}),
+    dcc.Store(id='store-warehouses'), # New Store for Armazéns
+    dcc.Store(id='store-prod-warehouses'), # New Store for Prod x Armazens
+    dcc.Store(id='store-costs-storage'), # New Store for Storage Costs
+    dcc.Store(id='store-costs-freight'), # New Store for Freight Costs
+    dcc.Store(id='store-distance-matrix'), # New Store for Distance Matrix
+    dcc.Store(id='store-model-results'), # New Store for Model Results
+    dcc.Store(id='store-model-log'), # New Store for optimization logs
+    dcc.Store(id='store-help-seen', storage_type='local'),
+
+    # Static Download Components (Prevents auto-download bug on language switch)
+    dcc.Download(id='download-example-personalizada'),
+    dcc.Download(id='download-dataframe-xlsx'),
+    dcc.Download(id='download-storage-csv'),
+    dcc.Download(id='download-freight-csv'),
+    dcc.Download(id='download-matrix-xlsx'),
+    dcc.Download(id='download-model-log'),
+    dcc.Download(id='download-results-xlsx'),
+
+    html.Div(id='page-content', children=serve_layout('pt'))
+])
 
 
 # --- Callbacks ---
+
+@app.callback(
+    Output('store-lang', 'data'),
+    [Input('lang-pt', 'n_clicks'),
+     Input('lang-en', 'n_clicks')],
+    State('store-lang', 'data'),
+    prevent_initial_call=True
+)
+def update_language(pt_clicks, en_clicks, current_lang):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return current_lang
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    if button_id == 'lang-pt':
+        return 'pt'
+    elif button_id == 'lang-en':
+        return 'en'
+    return current_lang
+
+@app.callback(
+    Output('page-content', 'children'),
+    [Input('store-lang', 'data')],
+    State('dropdown-base-warehouses', 'value'),
+    prevent_initial_call=True
+)
+def render_page(lang, dropdown_base_warehouses_val):
+    if not lang:
+        lang = 'pt'
+    if not dropdown_base_warehouses_val:
+        dropdown_base_warehouses_val = 'credenciados'
+    return serve_layout(lang, dropdown_base_warehouses_val)
+
+
+
 
 @app.callback(
     Output("modal-help", "is_open"),
@@ -1115,8 +1186,8 @@ def toggle_help_modal(n_open, n_close, active_tab, is_open, help_seen):
 
 @app.callback(
     [Output("tab-input-container", "style"),
-     Output("tab-armazens-container", "style"),
-     Output("tab-prod-armazens-container", "style"),
+     Output("tab-warehouses-container", "style"),
+     Output("tab-prod-warehouses-container", "style"),
      Output("tab-costs-container", "style"),
      Output("tab-distance-matrix-container", "style"),
      Output("tab-config-container", "style"),
@@ -1128,9 +1199,9 @@ def render_content(active_tab):
 
     if active_tab == 'tab-input':
         base_styles[0] = {"display": "block"}
-    elif active_tab == 'tab-armazens':
+    elif active_tab == 'tab-warehouses':
         base_styles[1] = {"display": "block"}
-    elif active_tab == 'tab-prod-armazens':
+    elif active_tab == 'tab-prod-warehouses':
         base_styles[2] = {"display": "block"}
     elif active_tab == 'tab-costs':
         base_styles[3] = {"display": "block"}
@@ -1145,9 +1216,9 @@ def render_content(active_tab):
 
 # 1. City Dropdown Options (Server-side filtering)
 @app.callback(
-    Output("input-cidade", "options"),
-    Input("input-cidade", "search_value"),
-    State("input-cidade", "value")
+    Output("input-city", "options"),
+    Input("input-city", "search_value"),
+    State("input-city", "value")
 )
 def update_city_options(search_value, value):
     if not search_value:
@@ -1178,7 +1249,7 @@ def update_city_options(search_value, value):
 @app.callback(
     [Output('input-lat', 'value'),
      Output('input-lon', 'value')],
-    Input('input-cidade', 'value'),
+    Input('input-city', 'value'),
     prevent_initial_call=True
 )
 def update_lat_lon(city_value):
@@ -1213,17 +1284,18 @@ def toggle_manual_edit(n_clicks):
      Input('close-modal', 'n_clicks')],
     [State('upload-data', 'filename'),
      State('stored-data', 'data'),
-     State('input-produto', 'value'),
-     State('input-peso', 'value'),
-     State('input-cidade', 'value'),
+     State('input-product', 'value'),
+     State('input-weight', 'value'),
+     State('input-city', 'value'),
      State('input-lat', 'value'),
      State('input-lon', 'value'),
      State('error-modal', 'is_open'),
-     State('editable-table', 'data')]
+     State('editable-table', 'data'),
+     State('store-lang', 'data')]
 )
 def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
-                 prod_val, peso_val, cidade_val, lat_val, lon_val,
-                 is_open, table_data):
+                 prod_val, weight_val, city_val, lat_val, lon_val,
+                 is_open, table_data, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return no_update, no_update, no_update, no_update
@@ -1248,15 +1320,15 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
                 file_bytes = io.BytesIO(decoded)
                 df = flex_read_csv(file_bytes)
             else:
-                return no_update, True, "O arquivo deve ser Excel (.xlsx) ou CSV (.csv).", None
+                return no_update, True, translate("O arquivo deve ser Excel (.xlsx) ou CSV (.csv).", lang), None
 
-            # Validar colunas esperadas
+            # Validate expected columns
             expected_cols = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
-            # Checar se todas as colunas esperadas existem
+            # Check if all expected columns exist
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"Aviso: O arquivo carregado deve conter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, translate("Aviso: O arquivo carregado deve conter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
-            # Garantir que apenas as colunas esperadas (na ordem correta) sejam mantidas, caso o usuário tenha colunas extras
+            # Ensure that only expected columns (in correct order) are kept, in case the user has extra columns
             df = df[expected_cols]
 
             # Normalize "Produto" column se existir (vai existir devido a verificação anterior)
@@ -1266,7 +1338,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             return df.to_json(date_format='iso', orient='split'), False, no_update, None
         except Exception as e:
             print(f"Error processing file: {e}")
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo válido.", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo válido.", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-row':
@@ -1275,8 +1347,8 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
         else:
              df = pd.DataFrame(columns=["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"])
 
-        if not prod_val or not peso_val or not cidade_val:
-             return no_update, True, "Preencha Produto, Peso e Cidade para adicionar.", no_update
+        if not prod_val or not weight_val or not city_val:
+             return no_update, True, translate("Preencha Produto, Peso e Cidade para adicionar.", lang), no_update
 
         try:
             # Normalize Product Name (Title Case)
@@ -1285,8 +1357,8 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
 
             new_row_data = {
                 'Produto': prod_val_normalized,
-                'Peso (ton)': peso_val,
-                'Cidade': cidade_val,
+                'Peso (ton)': weight_val,
+                'Cidade': city_val,
                 'Latitude': lat_val,
                 'Longitude': lon_val
             }
@@ -1295,7 +1367,7 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
             return df.to_json(date_format='iso', orient='split'), False, no_update, no_update
         except Exception as e:
             print(f"Error adding row: {e}")
-            return no_update, True, f"Erro ao adicionar linha: {str(e)}", no_update
+            return no_update, True, translate("Erro ao adicionar linha:", lang) + f" {str(e)}", no_update
 
     # Table Edited (Manual Data Entry)
     if trigger_id == 'editable-table':
@@ -1324,9 +1396,10 @@ def update_store(contents, n_add, timestamp, n_close, filename, stored_data,
     Output('editable-table', 'data'),
     Output('editable-table', 'columns'),
     [Input('stored-data', 'data'),
-     Input('main-tabs', 'active_tab')]
+     Input('main-tabs', 'active_tab')],
+    State('store-lang', 'data')
 )
-def update_table_view(stored_data, active_tab):
+def update_table_view(stored_data, active_tab, lang='pt'):
     if active_tab != 'tab-input':
         return no_update, no_update
 
@@ -1335,7 +1408,7 @@ def update_table_view(stored_data, active_tab):
 
     try:
         df = pd.read_json(io.StringIO(stored_data), orient='split')
-        columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
+        columns = [{'name': translate(i, lang), 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
         return df.to_dict('records'), columns
     except Exception as e:
         print(f"Error rendering table: {e}")
@@ -1344,9 +1417,10 @@ def update_table_view(stored_data, active_tab):
 # 2.1 Update Metrics Store
 @app.callback(
     Output('metrics-store', 'data'),
-    Input('stored-data', 'data')
+    Input('stored-data', 'data'),
+    State('store-lang', 'data')
 )
-def update_metrics(stored_data):
+def update_metrics(stored_data, lang='pt'):
     if stored_data is None:
         return {'weight': 0, 'count': 0}
 
@@ -1358,7 +1432,14 @@ def update_metrics(stored_data):
 
         if not df.empty:
             if "Peso (ton)" in df.columns:
-                total_weight = pd.to_numeric(df["Peso (ton)"], errors='coerce').fillna(0).sum()
+                try:
+                    if pd.api.types.is_numeric_dtype(df["Peso (ton)"]):
+                        total_weight = df["Peso (ton)"].sum()
+                    else:
+                        total_weight = df["Peso (ton)"].apply(parse_brazilian_number).sum()
+                except Exception as e:
+                    print(f"Error calculating weight: {e}")
+                    total_weight = 0
 
             if "Produto" in df.columns:
                 unique_products = df["Produto"].nunique()
@@ -1371,9 +1452,10 @@ def update_metrics(stored_data):
 # 2.2 Product Suggestions (Datalist)
 @app.callback(
     Output('list-suggested-products', 'children'),
-    Input('stored-data', 'data')
+    Input('stored-data', 'data'),
+    State('store-lang', 'data')
 )
-def update_product_suggestions(stored_data):
+def update_product_suggestions(stored_data, lang='pt'):
     if stored_data is None:
         return []
 
@@ -1391,15 +1473,18 @@ def update_product_suggestions(stored_data):
 # Client-side callback for animating metrics
 app.clientside_callback(
     """
-    function(data) {
+    function(data, lang) {
         if (!data) return window.dash_clientside.no_update;
+
+        // Map dash lang to browser locale string
+        const locale = lang === 'pt' ? 'pt-BR' : 'en-US';
 
         const animate = (id, endValue, isFloat) => {
             const el = document.getElementById(id);
             if (!el) return;
 
-            // Get current value (stripped of formatting) or default to 0
-            let startValue = parseFloat(el.innerText.replace(/,/g, '')) || 0;
+            // Get current value from dataset attribute or default to 0
+            let startValue = parseFloat(el.dataset.rawValue) || 0;
             const duration = 1000; // 1 second
             const startTime = performance.now();
 
@@ -1413,9 +1498,9 @@ app.clientside_callback(
                 const current = startValue + (endValue - startValue) * ease;
 
                 if (isFloat) {
-                    el.innerText = current.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    el.innerText = current.toLocaleString(locale, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 } else {
-                    el.innerText = Math.round(current).toString();
+                    el.innerText = Math.round(current).toLocaleString(locale);
                 }
 
                 if (progress < 1) {
@@ -1423,10 +1508,12 @@ app.clientside_callback(
                 } else {
                      // Ensure final value is exact
                     if (isFloat) {
-                        el.innerText = endValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        el.innerText = endValue.toLocaleString(locale, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     } else {
-                        el.innerText = endValue.toString();
+                        el.innerText = endValue.toLocaleString(locale);
                     }
+                    // Update the raw value in the dataset attribute
+                    el.dataset.rawValue = endValue;
                 }
             };
 
@@ -1440,7 +1527,8 @@ app.clientside_callback(
     }
     """,
     Output('metric-total-weight', 'id'), # Dummy output
-    Input('metrics-store', 'data')
+    Input('metrics-store', 'data'),
+    State('store-lang', 'data')
 )
 
 # 3. Download
@@ -1448,9 +1536,10 @@ app.clientside_callback(
     Output("download-dataframe-xlsx", "data"),
     Input("btn-download", "n_clicks"),
     State('stored-data', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_data(n_clicks, stored_data):
+def download_data(n_clicks, stored_data, lang='pt'):
     if not n_clicks:
         return no_update
 
@@ -1458,14 +1547,14 @@ def download_data(n_clicks, stored_data):
         return no_update
 
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Oferta_Editada.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Edited_Supply.xlsx", lang), index=False)
 
 
 # --- Armazéns Callbacks ---
 
 # 4. Load Data to Store (and Handle Restore)
 @app.callback(
-    Output('store-armazens', 'data'),
+    Output('store-warehouses', 'data'),
     Output('error-modal', 'is_open', allow_duplicate=True),
     Output('modal-body-content', 'children', allow_duplicate=True),
     Output('btn-save-base', 'style'), # New output for Save button visibility
@@ -1473,17 +1562,18 @@ def download_data(n_clicks, stored_data):
     Output('modal-missing-cdas-body', 'children'),
     Output('upload-update-base', 'contents'),
     [Input('main-tabs', 'active_tab'),
-     Input('dropdown-base-armazens', 'value'),
+     Input('dropdown-base-warehouses', 'value'),
      Input('upload-update-base', 'contents'),
-     Input('btn-fetch-cadastrados', 'n_clicks'),
-     Input('table-armazens', 'data_timestamp')],
-    [State('store-armazens', 'data'),
-     State('table-armazens', 'data'),
-     State('upload-update-base', 'filename')],
+     Input('btn-fetch-registered', 'n_clicks'),
+     Input('table-warehouses', 'data_timestamp')],
+    [State('store-warehouses', 'data'),
+     State('table-warehouses', 'data'),
+     State('upload-update-base', 'filename'),
+     State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, timestamp,
-                         stored_data, table_data, upload_filename):
+def manage_warehouses_data(active_tab, dropdown_value, upload_contents, n_fetch, timestamp,
+                         stored_data, table_data, upload_filename, lang='pt'):
     ctx = dash.callback_context
 
     def get_current_base_path(dropdown_val):
@@ -1498,7 +1588,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
     if not ctx.triggered:
          # Initial Load if tab is active
-        if active_tab == 'tab-armazens' and not stored_data:
+        if active_tab == 'tab-warehouses' and not stored_data:
              try:
                 # Load CSV
                 df = pd.read_csv(current_path, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
@@ -1515,7 +1605,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Load from Base
-    if trigger_id == 'main-tabs' and active_tab == 'tab-armazens':
+    if trigger_id == 'main-tabs' and active_tab == 'tab-warehouses':
         if not stored_data:
             try:
                 # Load CSV
@@ -1531,14 +1621,14 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
         return no_update, no_update, no_update, no_update, False, no_update, None # Keep current state
 
     # Dropdown Base Changed
-    if trigger_id == 'dropdown-base-armazens':
+    if trigger_id == 'dropdown-base-warehouses':
         try:
-            # Ao trocar de base, retornamos dados vazios primeiro se preferível, mas o store-armazens já sobrescreve.
-            # O problema principal de lentidão é manter os dados antigos no layout da tabela enquanto novos dados carregam,
-            # ou renderizar muitos nós repetidas vezes.
-            # O retorno no callback 'update_armazens_table_view' reconstrói a UI. Para evitar que os dados da
-            # aba 3 (Matrizes) acumulem, não precisamos mexer neles até que seja acionada a atualização.
-            # Apenas garantimos que o Store será resetado com a nova base.
+            # When switching bases, we return empty data first if preferred, but store-warehouses already overwrites.
+            # The main slowness issue is keeping old data in the table layout while new data loads,
+            # or rendering many nodes repeatedly.
+            # The return in the 'update_warehouses_table_view' callback rebuilds the UI. To prevent the data from
+            # tab 3 (Matrices) from accumulating, we don't need to touch them until the update is triggered.
+            # We just ensure the Store will be reset with the new base.
             df = pd.read_csv(current_path, sep=';', encoding='iso-8859-1', skiprows=1, index_col=False)
 
             # Drop trailing empty column if exists
@@ -1550,11 +1640,11 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
             return no_update, no_update, no_update, no_update, False, no_update, None
 
     # Update from Upload (CSV) or fetch
-    if trigger_id == 'btn-fetch-cadastrados' and dropdown_value == 'cadastrados':
+    if trigger_id == 'btn-fetch-registered' and dropdown_value == 'cadastrados':
         try:
             df_conab = get_conab_txt_data()
             if df_conab.empty:
-                return no_update, True, "Erro ao buscar dados do Conab.", no_update, False, no_update, None
+                return no_update, True, translate("Erro ao buscar dados do Conab.", lang), no_update, False, no_update, None
 
             # Map the columns
             # identificacao_armazem to CDA
@@ -1617,7 +1707,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
         except Exception as e:
             print(f"Error fetching and processing cadastrados: {e}")
-            return no_update, True, f"Erro ao processar dados do Conab: {e}", no_update, False, no_update, None
+            return no_update, True, translate("Erro ao processar dados do Conab:", lang) + f" {e}", no_update, False, no_update, None
 
     elif trigger_id == 'upload-update-base' and upload_contents:
         content_type, content_string = upload_contents.split(',')
@@ -1661,7 +1751,7 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                          df = df.iloc[:, :-1]
 
             if df is not None:
-                # Se for Base Personalizada, verificar as colunas esperadas
+                # If it is a Custom Base, check the expected columns
                 if dropdown_value == 'personalizada':
                     import unicodedata
 
@@ -1688,12 +1778,12 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     missing_cols = [c for c in expected_cols if c not in df.columns]
                     if missing_cols:
                         error_msg = html.Div([
-                            html.Span(f"Erro: A base personalizada deve conter as colunas: {', '.join(expected_cols)}."),
+                            html.Span(translate("Erro: A base personalizada deve conter as colunas:", lang) + f" {', '.join(expected_cols)}."),
                             html.Br(),
                             html.Br(),
-                                html.Span(f"Faltam: {', '.join(missing_cols)}", className="text-danger fw-bold"),
+                                html.Span(translate("Faltam:", lang) + f" {', '.join(missing_cols)}", className="text-danger fw-bold"),
                                 html.Br(),
-                                html.Span(f"As colunas lidas no seu arquivo foram: {', '.join([str(c) for c in rename_mapping.keys()])}", className="text-muted small")
+                                html.Span(translate("As colunas lidas no seu arquivo foram:", lang) + f" {', '.join([str(c) for c in rename_mapping.keys()])}", className="text-muted small")
                         ])
                         return no_update, True, error_msg, no_update, False, no_update, None
 
@@ -1790,26 +1880,26 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
                     modal_is_open = True
                     list_items = [html.Li(cda) for cda in missing_cdas]
                     modal_children = html.Div([
-                        html.P("Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:"),
+                        html.P(translate("Os seguintes CDAs do seu arquivo não tiveram sua 'Capacidade de Recepção' encontrada na base atualizada do SICARM (Conab) e, portanto, foram definidos como 0:", lang)),
                         html.Ul(list_items, style={"maxHeight": "200px", "overflowY": "auto"})
                     ])
 
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, {"display": "block"}, modal_is_open, modal_children, None
             else:
-                return no_update, True, "Arquivo vazio ou inválido.", no_update, False, no_update, None
+                return no_update, True, translate("Arquivo vazio ou inválido.", lang), no_update, False, no_update, None
 
         except Exception as e:
             print(f"Error reconstruction: {e}")
-            return no_update, True, f"Erro ao processar arquivo: {e}", no_update, False, no_update, None
+            return no_update, True, translate("Erro ao processar arquivo:", lang) + f" {e}", no_update, False, no_update, None
 
     # Table Edits (Auto-save)
-    if trigger_id == 'table-armazens':
+    if trigger_id == 'table-warehouses':
         if table_data:
              df = pd.DataFrame(table_data)
              if "Estoque Inicial" not in df.columns:
                  df["Estoque Inicial"] = 0
 
-             # Salvar na base (Auto-save)
+             # Save to base (Auto-save)
              try:
                  with open(current_path, 'w', encoding='iso-8859-1') as f:
                      f.write(current_title + "\n")
@@ -1824,16 +1914,21 @@ def manage_armazens_data(active_tab, dropdown_value, upload_contents, n_fetch, t
 
 # 5. Render Armazéns Table and Metrics
 @app.callback(
-    Output('table-armazens', 'data'),
-    Output('table-armazens', 'columns'),
-    Output('metric-armazens-count', 'children'),
-    Output('metric-armazens-capacity', 'children'),
-    Output('metric-armazens-public', 'children'),
-    Output('metric-armazens-private', 'children'),
-    Output('modal-lentidao-armazens', 'is_open'),
-    Input('store-armazens', 'data')
+    Output('table-warehouses', 'data'),
+    Output('table-warehouses', 'columns'),
+    Output('metric-warehouses-count', 'children'),
+    Output('metric-warehouses-capacity', 'children'),
+    Output('metric-warehouses-public', 'children'),
+    Output('metric-warehouses-private', 'children'),
+    Output('modal-slowness-warehouses', 'is_open'),
+    Input('main-tabs', 'active_tab'),
+    Input('store-warehouses', 'data'),
+    Input('store-lang', 'data')
 )
-def update_armazens_table_view(stored_data):
+def update_warehouses_table_view(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-warehouses':
+        return no_update, no_update, no_update, no_update, no_update, no_update, no_update
+
     if not stored_data:
         return [], [], "0", "0.00", "0", "0", False
 
@@ -1844,7 +1939,7 @@ def update_armazens_table_view(stored_data):
         if "Estoque Inicial" not in df.columns:
             df["Estoque Inicial"] = 0
 
-        columns = [{'name': i, 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
+        columns = [{'name': translate(i, lang), 'id': i, 'deletable': False, 'renamable': False} for i in df.columns]
 
         # Calculate Metrics
         count = len(df)
@@ -1854,17 +1949,15 @@ def update_armazens_table_view(stored_data):
         cap_col = next((c for c in df.columns if 'cap' in str(c).lower() or 'ton' in str(c).lower()), None)
 
         if cap_col:
-            # Clean and convert to numeric
             try:
-                # Force to string first to handle mixed types or already parsed floats
-                series_str = df[cap_col].astype(str)
-
-                # Check if it looks like Brazilian format (1.000,00)
-                # Remove thousands separator (.) and replace decimal separator (,) with (.)
-                series_clean = series_str.str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
-
-                capacity = pd.to_numeric(series_clean, errors='coerce').sum()
-            except:
+                if pd.api.types.is_numeric_dtype(df[cap_col]):
+                    # If pandas already parsed it as numbers, just sum it
+                    capacity = df[cap_col].sum()
+                else:
+                    # If it's a string/object, safely clean it
+                    capacity = df[cap_col].apply(parse_brazilian_number).sum()
+            except Exception as e:
+                print(f"Error calculating capacity: {e}")
                 capacity = 0
 
         # Calculate Public vs Private
@@ -1892,21 +1985,21 @@ def update_armazens_table_view(stored_data):
         # But ensure it's not the first load since we only want to warn when switching or loading large dataset
         # To avoid overlaps with the tutorial modal, we'll only trigger lentidao
         # when actually displaying a new base from the store.
-        is_lentidao = count > 1000
+        is_slowness = count > 1000
 
-        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str, is_lentidao
+        return df.to_dict('records'), columns, count_str, capacity_str, public_str, private_str, is_slowness
     except Exception as e:
-        print(f"Error in update_armazens_table_view: {e}")
+        print(f"Error in update_warehouses_table_view: {e}")
         return [], [], "0", "0.00", "0", "0", False
 
-# 5.1. Fechar modal de lentidão
+# 5.1. Close slowness modal
 @app.callback(
-    Output("modal-lentidao-armazens", "is_open", allow_duplicate=True),
-    Input("close-lentidao-modal", "n_clicks"),
-    State("modal-lentidao-armazens", "is_open"),
+    Output("modal-slowness-warehouses", "is_open", allow_duplicate=True),
+    Input("close-slowness-modal", "n_clicks"),
+    State("modal-slowness-warehouses", "is_open"),
     prevent_initial_call=True
 )
-def close_lentidao_modal(n_clicks, is_open):
+def close_slowness_modal(n_clicks, is_open):
     if n_clicks:
         return False
     return is_open
@@ -1919,8 +2012,8 @@ def close_lentidao_modal(n_clicks, is_open):
      Input("confirm-save", "n_clicks"),
      Input("cancel-save", "n_clicks")],
     [State("modal-confirm-save", "is_open"),
-     State('store-armazens', 'data'),
-     State('dropdown-base-armazens', 'value')]
+     State('store-warehouses', 'data'),
+     State('dropdown-base-warehouses', 'value')]
 )
 def toggle_save_modal(n_save, n_confirm, n_cancel, is_open, stored_data, dropdown_value):
     ctx = dash.callback_context
@@ -1978,7 +2071,7 @@ def close_missing_cdas_modal(n_clicks, is_open):
     Output("modal-tutorial", "is_open"),
     Output("manage-base-container", "style"),
     Output("upload-update-container", "style"),
-    Output("fetch-cadastrados-container", "style"),
+    Output("fetch-registered-container", "style"),
     Output("download-example-container", "style"),
     Output("modal-tutorial-title", "children"),
     Output("modal-tutorial-body", "children"),
@@ -1986,10 +2079,11 @@ def close_missing_cdas_modal(n_clicks, is_open):
     Output("upload-format-hint", "children"),
     [Input("btn-update-base", "n_clicks"),
      Input("close-modal-tutorial", "n_clicks"),
-     Input("dropdown-base-armazens", "value")],
-    [State("modal-tutorial", "is_open")]
+     Input("dropdown-base-warehouses", "value")],
+    [State("modal-tutorial", "is_open"),
+     State('store-lang', 'data')]
 )
-def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
+def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open, lang='pt'):
     ctx = dash.callback_context
     if not ctx.triggered:
         return is_open, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, "", "", no_update, no_update
@@ -1997,7 +2091,7 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Hide everything if we just changed the dropdown
-    if trigger_id == "dropdown-base-armazens":
+    if trigger_id == "dropdown-base-warehouses":
         return False, {"display": "none"}, {"display": "none"}, {"display": "none"}, {"display": "none"}, no_update, no_update, no_update, no_update
 
     manage_style = {"display": "block"}
@@ -2010,53 +2104,53 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
 
     # Set modal content based on selected base
     if dropdown_value == 'cadastrados':
-        title = "Como Atualizar a Base (Armazéns Cadastrados)"
+        title = translate("Como Atualizar a Base (Armazéns Cadastrados)", lang)
         body = [
-            html.P("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este pop-up e clicar no botão 'Baixar Dados da Conab'."),
-            html.P("O sistema buscará automaticamente as informações mais recentes do site oficial da Conab e substituirá a base atual."),
+            html.P(translate("Para atualizar a base de Armazéns Cadastrados do SICARM, basta fechar este pop-up e clicar no botão 'Baixar Dados da Conab'.", lang)),
+            html.P(translate("O sistema buscará automaticamente as informações mais recentes do site oficial da Conab e substituirá a base atual.", lang)),
             html.Ul([
-                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação.")),
-                html.Li(html.B("Atenção: Para as unidades em que a base não fornecer o valor da capacidade de recepção, este será definido automaticamente como 0."))
+                html.Li(html.B(translate("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação.", lang))),
+                html.Li(html.B(translate("Atenção: Para as unidades em que a base não fornecer o valor da capacidade de recepção, este será definido automaticamente como 0.", lang)))
             ])
         ]
     elif dropdown_value == 'personalizada':
-        title = "Como Enviar uma Base Personalizada"
+        title = translate("Como Enviar uma Base Personalizada", lang)
         body = [
-            html.P("Você pode enviar a sua própria base de armazéns enviando um arquivo .csv ou .xlsx."),
-            html.P("Você também pode baixar um arquivo de exemplo com o formato esperado e editá-lo antes do envio."),
-            html.P("O arquivo deve conter as seguintes colunas (a ordem não importa e letras maiúsculas/minúsculas ou acentos são tolerados):"),
+            html.P(translate("Você pode enviar a sua própria base de armazéns enviando um arquivo .csv ou .xlsx.", lang)),
+            html.P(translate("Você também pode baixar um arquivo de exemplo com o formato esperado e editá-lo antes do envio.", lang)),
+            html.P(translate("O arquivo deve conter as seguintes colunas (a ordem não importa e letras maiúsculas/minúsculas ou acentos são tolerados):", lang)),
             html.Ul([
-                html.Li("CDA"),
-                html.Li("Armazenador"),
-                html.Li("Endereço"),
-                html.Li("Município"),
+                html.Li(translate("CDA", lang)),
+                html.Li(translate("Armazenador", lang)),
+                html.Li(translate("Endereço", lang)),
+                html.Li(translate("Município", lang)),
                 html.Li("UF"),
-                html.Li("Tipo"),
-                html.Li("Email"),
-                html.Li("Capacidade (t)"),
-                html.Li("Latitude"),
-                html.Li("Longitude"),
-                html.Li("Estoque Inicial"),
-                html.Li("Capacidade de Recepção")
+                html.Li(translate("Tipo", lang)),
+                html.Li(translate("Email", lang)),
+                html.Li(translate("Capacidade (t)", lang)),
+                html.Li(translate("Latitude", lang)),
+                html.Li(translate("Longitude", lang)),
+                html.Li(translate("Estoque Inicial", lang)),
+                html.Li(translate("Capacidade de Recepção", lang))
             ]),
-            html.P("Carregue o arquivo na área que aparecerá após fechar esta janela.")
+            html.P(translate("Carregue o arquivo na área que aparecerá após fechar esta janela.", lang))
         ]
     else: # credenciados
-        title = "Como Atualizar a Base (Armazéns Credenciados)"
+        title = translate("Como Atualizar a Base (Armazéns Credenciados)", lang)
         body = [
-            html.P("Siga os passos abaixo para atualizar a base de armazéns:"),
+            html.P(translate("Siga os passos abaixo para atualizar a base de armazéns:", lang)),
             html.Ol([
                 html.Li([
-                    "Acesse o link: ",
-                    html.A("Consulta Conab", href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
+                    translate("Acesse o link: ", lang),
+                    html.A(translate("Consulta Conab", lang), href="https://consultaweb.conab.gov.br/consultas/consultaArmazem.do?method=acaoCarregarConsulta", target="_blank")
                 ]),
-                html.Li("Marque apenas a opção 'Armazéns Credenciados'."),
-                html.Li("Deixe os outros campos em branco."),
-                html.Li("Preencha o código de segurança e clique em 'Consultar'."),
-                html.Li("No final da página de resultados, exporte ou salve a tabela como arquivo CSV."),
-                html.Li("Carregue o arquivo CSV na área que aparecerá após fechar esta janela."),
-                html.Li("O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'."),
-                html.Li(html.B("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação."))
+                html.Li(translate("Marque apenas a opção 'Armazéns Credenciados'.", lang)),
+                html.Li(translate("Deixe os outros campos em branco.", lang)),
+                html.Li(translate("Preencha o código de segurança e clique em 'Consultar'.", lang)),
+                html.Li(translate("No final da página de resultados, exporte ou salve a tabela como arquivo CSV.", lang)),
+                html.Li(translate("Carregue o arquivo CSV na área que aparecerá após fechar esta janela.", lang)),
+                html.Li(translate("O sistema consultará automaticamente a base do SICARM para preencher a coluna 'Capacidade de Recepção'.", lang)),
+                html.Li(html.B(translate("Atenção: Você precisará informar o estoque inicial manualmente para cada unidade armazenadora na tabela ao lado, pois a base utilizada não fornece essa informação.", lang)))
             ]),
             html.Img(src="/assets/data/Tutorial_Atualizar_Armazens.png", style={"width": "100%", "marginTop": "10px", "borderRadius": "8px", "border": "1px solid #ddd"})
         ]
@@ -2073,10 +2167,12 @@ def toggle_tutorial_modal(n_update, n_close, dropdown_value, is_open):
 @app.callback(
     Output("download-example-personalizada", "data"),
     Input("btn-download-example", "n_clicks"),
+    State('store-lang', 'data'),
     prevent_initial_call=True
 )
-def download_example_file(n_clicks):
-    if not n_clicks:
+def download_example_file(n_clicks, lang='pt'):
+    ctx = dash.callback_context
+    if not n_clicks or not ctx.triggered or ctx.triggered[0]['prop_id'] != 'btn-download-example.n_clicks':
         return no_update
 
     # Create example dataframe
@@ -2096,7 +2192,7 @@ def download_example_file(n_clicks):
     }
     df = pd.DataFrame(data)
 
-    return dcc.send_data_frame(df.to_excel, "Base_Personalizada_Exemplo.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Custom_Base_Example.xlsx", lang), index=False)
 
 # 9. Validation for Tab Prod x Armazens
 @app.callback(
@@ -2104,10 +2200,11 @@ def download_example_file(n_clicks):
     Output("modal-missing-data-body", "children"),
     Input("main-tabs", "active_tab"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data')]
+     State('store-warehouses', 'data'),
+     State('store-lang', 'data')]
 )
-def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
-    if active_tab != 'tab-prod-armazens':
+def validate_tab_prod_warehouses(active_tab, stored_data, stored_warehouses, lang='pt'):
+    if active_tab != 'tab-prod-warehouses':
         return False, no_update
 
     # Check Products
@@ -2121,21 +2218,21 @@ def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
             pass
 
     # Check Armazens
-    has_armazens = False
-    if stored_armazens:
+    has_warehouses = False
+    if stored_warehouses:
         try:
-            df = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            df = pd.read_json(io.StringIO(stored_warehouses), orient='split')
             if not df.empty:
-                has_armazens = True
+                has_warehouses = True
         except:
             pass
 
-    if not has_prod and not has_armazens:
-        return True, "Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir."
+    if not has_prod and not has_warehouses:
+        return True, translate("Você precisa adicionar produtos na aba 'Oferta' e carregar a base na aba 'Armazéns' antes de prosseguir.", lang)
     elif not has_prod:
-        return True, "Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir."
-    elif not has_armazens:
-        return True, "Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir."
+        return True, translate("Você precisa adicionar pelo menos um produto na aba 'Oferta' antes de prosseguir.", lang)
+    elif not has_warehouses:
+        return True, translate("Você precisa carregar a base de dados na aba 'Armazéns' antes de prosseguir.", lang)
 
     return False, no_update
 
@@ -2145,10 +2242,10 @@ def validate_tab_prod_armazens(active_tab, stored_data, stored_armazens):
     Output("modal-missing-data", "is_open", allow_duplicate=True),
     Input("btn-confirm-missing-data", "n_clicks"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data')],
+     State('store-warehouses', 'data')],
     prevent_initial_call=True
 )
-def redirect_missing_data(n_clicks, stored_data, stored_armazens):
+def redirect_missing_data(n_clicks, stored_data, stored_warehouses):
     if not n_clicks:
         return no_update, no_update
 
@@ -2163,35 +2260,36 @@ def redirect_missing_data(n_clicks, stored_data, stored_armazens):
             pass
 
     # Check Armazens
-    has_armazens = False
-    if stored_armazens:
+    has_warehouses = False
+    if stored_warehouses:
         try:
-            df = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            df = pd.read_json(io.StringIO(stored_warehouses), orient='split')
             if not df.empty:
-                has_armazens = True
+                has_warehouses = True
         except:
             pass
 
     if not has_prod:
         return 'tab-input', False
-    elif not has_armazens:
-        return 'tab-armazens', False
+    elif not has_warehouses:
+        return 'tab-warehouses', False
 
     return no_update, False
 
 
 # 11. Populate Product x Armazens Table and Sync Store
 @app.callback(
-    Output('store-prod-armazens', 'data'),
+    Output('store-prod-warehouses', 'data'),
     Output('table-prod-armazens', 'data'),
     Output('table-prod-armazens', 'columns'),
     Input('main-tabs', 'active_tab'),
     Input('stored-data', 'data'),
-    Input('store-armazens', 'data'),
-    State('store-prod-armazens', 'data')
+    Input('store-warehouses', 'data'),
+    Input('store-lang', 'data'),
+    State('store-prod-warehouses', 'data')
 )
-def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_matrix):
-    if active_tab != 'tab-prod-armazens':
+def update_prod_warehouses_table(active_tab, stored_data, stored_warehouses, lang, stored_matrix):
+    if active_tab != 'tab-prod-warehouses':
         return no_update, no_update, no_update
 
     # 1. Get Unique Products
@@ -2206,9 +2304,9 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
 
     # 2. Get Unique Warehouse Types
     types = []
-    if stored_armazens:
+    if stored_warehouses:
         try:
-            df_arm = pd.read_json(io.StringIO(stored_armazens), orient='split')
+            df_arm = pd.read_json(io.StringIO(stored_warehouses), orient='split')
             if not df_arm.empty and "Tipo" in df_arm.columns:
                 types = sorted(df_arm["Tipo"].dropna().unique().astype(str).tolist())
         except Exception as e:
@@ -2246,7 +2344,7 @@ def update_prod_armazens_table(active_tab, stored_data, stored_armazens, stored_
 
     # 5. Prepare Output
     columns = [
-        {'name': 'Produto', 'id': 'Produto', 'editable': False}
+        {'name': translate('Produto', lang), 'id': 'Produto', 'editable': False}
     ] + [
         {'name': t, 'id': t, 'editable': False} for t in types
     ]
@@ -2285,7 +2383,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading storage costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Tarifas de Armazenagem.", no_update
+                return no_update, True, translate("Erro ao carregar a tabela de Tarifas de Armazenagem.", lang), no_update
         return no_update, no_update, no_update, no_update
 
     # Upload
@@ -2308,7 +2406,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Produto', 'Armazenar_Publico', 'Armazenar_Privado']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O arquivo de Tarifas de Armazenagem deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, translate("O arquivo de Tarifas de Armazenagem deve ter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2336,7 +2434,7 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(STORAGE_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-storage-row':
@@ -2386,25 +2484,37 @@ def manage_storage_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 
 @app.callback(
     Output('table-costs-storage', 'data'),
-    Input('store-costs-storage', 'data')
+    Output('table-costs-storage', 'columns'),
+    Input('main-tabs', 'active_tab'),
+    Input('store-costs-storage', 'data'),
+    Input('store-lang', 'data')
 )
-def update_storage_table(stored_data):
+def update_storage_table(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-costs':
+        return no_update, no_update
+
+    columns = [
+        {'name': translate('Produto', lang), 'id': 'Produto'},
+        {'name': translate('Armazenar Público', lang), 'id': 'Armazenar_Publico'},
+        {'name': translate('Armazenar Privado', lang), 'id': 'Armazenar_Privado'}
+    ]
     if not stored_data:
-        return []
+        return [], columns
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return df.to_dict('records')
+    return df.to_dict('records'), columns
 
 @app.callback(
     Output("download-storage-csv", "data"),
     Input("btn-download-storage", "n_clicks"),
     State('store-costs-storage', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_storage(n_clicks, stored_data):
+def download_storage(n_clicks, stored_data, lang='pt'):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Tarifa_de_Armazenagem.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Storage_Rate.xlsx", lang), index=False)
 
 
 # Freight Cost Data Logic
@@ -2437,7 +2547,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
                 return df.to_json(date_format='iso', orient='split'), no_update, no_update, no_update
             except Exception as e:
                 print(f"Error loading freight costs: {e}")
-                return no_update, True, "Erro ao carregar a tabela de Valor do Frete.", no_update
+                return no_update, True, translate("Erro ao carregar a tabela de Valor do Frete.", lang), no_update
         return no_update, no_update, no_update, no_update
 
     # Upload
@@ -2460,7 +2570,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             expected_cols = ['Estado', 'Frete Tonelada Km']
 
             if not all(col in df.columns for col in expected_cols):
-                return no_update, True, f"O arquivo de Valor do Frete deve ter exatamente as colunas: {', '.join(expected_cols)}.", None
+                return no_update, True, translate("O arquivo de Valor do Frete deve ter exatamente as colunas:", lang) + f" {', '.join(expected_cols)}.", None
 
             # Enforce column order and remove extras
             df = df[expected_cols]
@@ -2469,7 +2579,7 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
             df.to_csv(FREIGHT_COSTS_PATH, sep=';', index=False, encoding='iso-8859-1')
             return df.to_json(date_format='iso', orient='split'), no_update, no_update, None
         except Exception as e:
-            return no_update, True, "Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", None
+            return no_update, True, translate("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido (.xlsx) ou um CSV separado por ponto e vírgula (;).", lang), None
 
     # Add Row
     if trigger_id == 'btn-add-freight-row':
@@ -2496,30 +2606,41 @@ def manage_freight_costs(active_tab, upload_contents, n_add, timestamp, stored_d
 
 @app.callback(
     Output('table-costs-freight', 'data'),
-    Input('store-costs-freight', 'data')
+    Output('table-costs-freight', 'columns'),
+    Input('main-tabs', 'active_tab'),
+    Input('store-costs-freight', 'data'),
+    Input('store-lang', 'data')
 )
-def update_freight_table(stored_data):
+def update_freight_table(active_tab, stored_data, lang='pt'):
+    if active_tab != 'tab-costs':
+        return no_update, no_update
+
+    columns = [
+        {'name': translate('Estado', lang), 'id': 'Estado'},
+        {'name': translate('Frete (R$/ton.km)', lang), 'id': 'Frete Tonelada Km'}
+    ]
     if not stored_data:
-        return []
+        return [], columns
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return df.to_dict('records')
+    return df.to_dict('records'), columns
 
 @app.callback(
     Output("download-freight-csv", "data"),
     Input("btn-download-freight", "n_clicks"),
     State('store-costs-freight', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_freight(n_clicks, stored_data):
+def download_freight(n_clicks, stored_data, lang='pt'):
     if not n_clicks or not stored_data:
         return no_update
     df = pd.read_json(io.StringIO(stored_data), orient='split')
-    return dcc.send_data_frame(df.to_excel, "Valor_Tonelada_km.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Freight_Cost_Ton_km.xlsx", lang), index=False)
 
 
 # 12. Handle Checkbox Toggles
 @app.callback(
-    Output('store-prod-armazens', 'data', allow_duplicate=True),
+    Output('store-prod-warehouses', 'data', allow_duplicate=True),
     Output('table-prod-armazens', 'data', allow_duplicate=True),
     Output('table-prod-armazens', 'active_cell'),
     Input('table-prod-armazens', 'active_cell'),
@@ -2572,31 +2693,32 @@ def toggle_checkbox(active_cell, viewport_data, table_data):
     Output('btn-download-matrix', 'disabled'),
     Input('btn-calc-matrix', 'n_clicks'),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data')],
+     State('store-warehouses', 'data'),
+     State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
+def calculate_distance_matrix(n_clicks, stored_data, stored_warehouses, lang='pt'):
     if not n_clicks:
         return no_update, no_update, no_update, no_update, True
 
     start_time = time.time()
 
-    if not stored_data or not stored_armazens:
-        return no_update, [], [], "Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", True
+    if not stored_data or not stored_warehouses:
+        return no_update, [], [], translate("Dados de entrada ou armazéns não encontrados. Verifique as abas anteriores.", lang), True
 
     try:
         # Load Data
         df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-        df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+        df_warehouses = pd.read_json(io.StringIO(stored_warehouses), orient='split')
 
-        if df_input.empty or df_armazens.empty:
-            return no_update, [], [], "As tabelas de entrada ou armazéns estão vazias.", True
+        if df_input.empty or df_warehouses.empty:
+            return no_update, [], [], translate("As tabelas de entrada ou armazéns estão vazias.", lang), True
 
         # Prepare Coordinates
         # Origins: Unique cities from input
         # Note: We need unique coordinate pairs. If multiple products come from same city, we only need one origin.
         if "Latitude" not in df_input.columns or "Longitude" not in df_input.columns:
-             return no_update, [], [], "Colunas de Latitude/Longitude ausentes na entrada.", True
+             return no_update, [], [], translate("Colunas de Latitude/Longitude ausentes na entrada.", lang), True
 
         origins_df = df_input[['Cidade', 'Latitude', 'Longitude']].drop_duplicates().dropna()
 
@@ -2614,7 +2736,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         origin_names = origins_df['Cidade_Display'].tolist()
 
         if not origins:
-             return no_update, [], [], "Nenhuma origem válida (com coordenadas) encontrada.", True
+             return no_update, [], [], translate("Nenhuma origem válida (com coordenadas) encontrada.", lang), True
 
         # Destinations: Warehouses
         # We try to use 'Município' or similar if available for labeling, but use lat/lon for routing
@@ -2624,8 +2746,8 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         # Let's check if we have Lat/Lon in armazens.
 
         # Checking columns...
-        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+        lat_col = next((c for c in df_warehouses.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_warehouses.columns if 'lon' in str(c).lower()), None)
 
         # If no Lat/Lon in warehouses, we need to geocode them based on City/UF?
         # The user said "Lembre-se que todos tem latitude e longitude." so I assume they are in the data or derived.
@@ -2634,12 +2756,12 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         if not lat_col or not lon_col:
             # Attempt to look up by City - UF
             # Warehouse CSV usually has "Municipio" and "UF".
-            mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-            uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+            mun_col = next((c for c in df_warehouses.columns if 'munic' in str(c).lower()), None)
+            uf_col = next((c for c in df_warehouses.columns if 'uf' in str(c).lower()), None)
 
             if mun_col and uf_col:
                 # Create a temporary key
-                df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+                df_warehouses['lookup_key'] = df_warehouses[mun_col].astype(str) + ' - ' + df_warehouses[uf_col].astype(str)
 
                 # We need to map this key to our CITY_LOOKUP
                 # CITY_LOOKUP keys are "City - UF"
@@ -2649,21 +2771,21 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
                         return CITY_LOOKUP[key]
                     return {'latitude': None, 'longitude': None}
 
-                coords = df_armazens['lookup_key'].apply(get_coords)
-                df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
-                df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
+                coords = df_warehouses['lookup_key'].apply(get_coords)
+                df_warehouses['Latitude'] = coords.apply(lambda x: x['latitude'])
+                df_warehouses['Longitude'] = coords.apply(lambda x: x['longitude'])
 
                 # Filter out those without coords
-                dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+                dests_df = df_warehouses.dropna(subset=['Latitude', 'Longitude'])
             else:
-                return no_update, [], [], "Não foi possível identificar coordenadas ou colunas de Município/UF nos armazéns.", True
+                return no_update, [], [], translate("Não foi possível identificar coordenadas ou colunas de Município/UF nos armazéns.", lang), True
         else:
-            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            dests_df = df_warehouses.dropna(subset=[lat_col, lon_col])
             # Rename for consistency
             dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
         if dests_df.empty:
-             return no_update, [], [], "Nenhum armazém com coordenadas válidas encontrado.", True
+             return no_update, [], [], translate("Nenhum armazém com coordenadas válidas encontrado.", lang), True
 
         destinations = list(zip(dests_df['Latitude'], dests_df['Longitude']))
 
@@ -2675,7 +2797,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
 
         dest_labels = []
         for idx, row in dests_df.iterrows():
-            # Construir o rótulo base
+            # Build the base label
             parts = []
             if cda_col and pd.notna(row[cda_col]):
                 parts.append(str(row[cda_col]).strip())
@@ -2689,7 +2811,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
             if parts:
                 label = " - ".join(parts)
             else:
-                label = f"Dest {idx}"
+                label = translate("Dest", lang) + f" {idx}"
 
             dest_labels.append(label)
 
@@ -2707,7 +2829,7 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
         try:
             matrix = client.get_distance_matrix(origins, destinations)
         except Exception as e:
-             return no_update, [], [], f"Erro de conexão com OSRM: {str(e)}", True
+             return no_update, [], [], translate("Erro de conexão com OSRM:", lang) + f" {str(e)}", True
 
         # Format Result
         # Rows: Origins, Cols: Destinations
@@ -2729,40 +2851,42 @@ def calculate_distance_matrix(n_clicks, stored_data, stored_armazens):
 
         final_df = pd.DataFrame(final_data)
 
-        columns = [{"name": i, "id": i} for i in final_df.columns]
+        columns = [{"name": translate(i, lang) if i == "Origem" else i, "id": i} for i in final_df.columns]
 
-        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, f"Cálculo concluído com sucesso! (Tempo de execução: {time.time() - start_time:.2f} segundos)", False
+        return final_df.to_json(date_format='iso', orient='split'), final_df.to_dict('records'), columns, translate("Cálculo concluído com sucesso! (Tempo de execução:", lang) + f" {time.time() - start_time:.2f} " + translate("segundos)", lang), False
 
     except Exception as e:
         print(f"Calculation error: {e}")
         import traceback
         traceback.print_exc()
-        return no_update, [], [], f"Erro inesperado: {str(e)}", True
+        return no_update, [], [], translate("Erro inesperado:", lang) + f" {str(e)}", True
 
 # 14. Download Matrix
 @app.callback(
     Output("download-matrix-xlsx", "data"),
     Input("btn-download-matrix", "n_clicks"),
     State('store-distance-matrix', 'data'),
+    State('store-lang', 'data'),
     prevent_initial_call=True,
 )
-def download_matrix(n_clicks, stored_matrix):
+def download_matrix(n_clicks, stored_matrix, lang='pt'):
     if not n_clicks or not stored_matrix:
         return no_update
 
     df = pd.read_json(io.StringIO(stored_matrix), orient='split')
-    return dcc.send_data_frame(df.to_excel, "matriz_distancias.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Distance_Matrix.xlsx", lang), index=False)
 
 # 15. Route Visualization
 @app.callback(
     Output("graph-route-map", "figure"),
     Input("table-distance-matrix", "active_cell"),
     [State('stored-data', 'data'),
-     State('store-armazens', 'data'),
-     State('table-distance-matrix', 'derived_viewport_data')],
+     State('store-warehouses', 'data'),
+     State('table-distance-matrix', 'derived_viewport_data'),
+     State('store-lang', 'data')],
     prevent_initial_call=True
 )
-def update_route_map(active_cell, stored_data, stored_armazens, table_data):
+def update_route_map(active_cell, stored_data, stored_warehouses, table_data, lang='pt'):
     # Default map centered on Brazil
     default_fig = go.Figure(go.Scattermapbox())
     default_fig.update_layout(
@@ -2772,7 +2896,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         margin={"r": 0, "t": 0, "l": 0, "b": 0}
     )
 
-    if not active_cell or not stored_data or not stored_armazens or not table_data:
+    if not active_cell or not stored_data or not stored_warehouses or not table_data:
         return default_fig
 
     try:
@@ -2792,7 +2916,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
 
         # Retrieve Coordinates
         df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-        df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+        df_warehouses = pd.read_json(io.StringIO(stored_warehouses), orient='split')
 
         # Origin Coords
         # We need to find the lat/lon for the origin_name (City)
@@ -2823,23 +2947,23 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         # Re-running logic for now (could be optimized by storing mapping)
 
         # Re-resolve warehouses logic
-        lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-        lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+        lat_col = next((c for c in df_warehouses.columns if 'lat' in str(c).lower()), None)
+        lon_col = next((c for c in df_warehouses.columns if 'lon' in str(c).lower()), None)
 
         if not lat_col or not lon_col:
              # Using lookup logic
-             mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-             uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
-             df_armazens['lookup_key'] = df_armazens[mun_col].astype(str) + ' - ' + df_armazens[uf_col].astype(str)
+             mun_col = next((c for c in df_warehouses.columns if 'munic' in str(c).lower()), None)
+             uf_col = next((c for c in df_warehouses.columns if 'uf' in str(c).lower()), None)
+             df_warehouses['lookup_key'] = df_warehouses[mun_col].astype(str) + ' - ' + df_warehouses[uf_col].astype(str)
              def get_coords(key):
                  if key in CITY_LOOKUP: return CITY_LOOKUP[key]
                  return {'latitude': None, 'longitude': None}
-             coords = df_armazens['lookup_key'].apply(get_coords)
-             df_armazens['Latitude'] = coords.apply(lambda x: x['latitude'])
-             df_armazens['Longitude'] = coords.apply(lambda x: x['longitude'])
-             dests_df = df_armazens.dropna(subset=['Latitude', 'Longitude'])
+             coords = df_warehouses['lookup_key'].apply(get_coords)
+             df_warehouses['Latitude'] = coords.apply(lambda x: x['latitude'])
+             df_warehouses['Longitude'] = coords.apply(lambda x: x['longitude'])
+             dests_df = df_warehouses.dropna(subset=['Latitude', 'Longitude'])
         else:
-            dests_df = df_armazens.dropna(subset=[lat_col, lon_col])
+            dests_df = df_warehouses.dropna(subset=[lat_col, lon_col])
             dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
         # Match label
@@ -2862,7 +2986,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             if parts:
                 label = " - ".join(parts)
             else:
-                label = f"Dest {idx}"
+                label = translate("Dest", lang) + f" {idx}"
 
             if label == dest_label:
                 dest_coords = (row['Latitude'], row['Longitude'])
@@ -2891,12 +3015,12 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
         # We use distinct colors instead.
         line_color = UNB_THEME['UNB_BLUE']
         line_width = 4
-        line_name = "Rota (OSRM)"
+        line_name = translate("Rota (OSRM)", lang)
 
         if is_fallback:
             line_color = '#FF4500' # OrangeRed for visibility
             line_width = 3
-            line_name = "Rota Estimada (Linha Reta x 1.3)"
+            line_name = translate("Rota Estimada (Linha Reta x 1.3)", lang)
 
         # Create Figure
         fig = go.Figure(go.Scattermapbox(
@@ -2913,7 +3037,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             lon=[origin_coords[1]],
             lat=[origin_coords[0]],
             marker={'size': 12, 'color': UNB_THEME['UNB_GREEN']},
-            name=f"Origem: {origin_name}"
+            name=f"{translate('Origem', lang)}: {origin_name}"
         ))
 
         # Add Destination Marker
@@ -2922,7 +3046,7 @@ def update_route_map(active_cell, stored_data, stored_armazens, table_data):
             lon=[dest_coords[1]],
             lat=[dest_coords[0]],
             marker={'size': 12, 'color': 'red'},
-            name=f"Destino: {dest_label}"
+            name=f"{translate('Destino', lang)}: {dest_label}"
         ))
 
         # Center map on route
@@ -2972,11 +3096,11 @@ def toggle_min_max_container(is_active):
     return {"display": "none"}
 
 @app.callback(
-    Output("input-carga-max", "disabled"),
-    Input("toggle-use-recepcao", "value")
+    Output("input-max-load", "disabled"),
+    Input("toggle-use-reception", "value")
 )
-def toggle_carga_max_input(use_recepcao):
-    return use_recepcao
+def toggle_carga_max_input(use_reception):
+    return use_reception
 
 # 16. Run Optimization Model (Background Callback)
 @app.callback(
@@ -2990,40 +3114,41 @@ def toggle_carga_max_input(use_recepcao):
     inputs=[
         Input("btn-run-model", "n_clicks"),
         State('stored-data', 'data'),
-        State('store-armazens', 'data'),
-        State('store-prod-armazens', 'data'),
+        State('store-warehouses', 'data'),
+        State('store-prod-warehouses', 'data'),
         State('store-distance-matrix', 'data'),
         State('toggle-detailed-log', 'value'),
+        State('toggle-pareto-routes', 'value'),
         State('toggle-min-max-capacity', 'value'),
-        State('input-carga-min', 'value'),
-        State('input-carga-max', 'value'),
-        State('toggle-use-recepcao', 'value'),
-        State('input-dias-alocacao', 'value'),
-        State('input-frete-min', 'value'),
-        State('input-frete-max', 'value')
+        State('input-min-load', 'value'),
+        State('input-max-load', 'value'),
+        State('toggle-use-reception', 'value'),
+        State('input-allocation-days', 'value'),
+        State('input-min-freight', 'value'),
+        State('input-max-freight', 'value'),
+        State('store-lang', 'data')
     ],
     background=True,
     running=[
         (Output("btn-run-model", "disabled"), True, False),
         (Output("btn-cancel-model", "disabled"), False, True),
-        (Output("modal-model-running", "is_open"), True, False),
     ],
     cancel=[Input("btn-cancel-model", "n_clicks")],
     prevent_initial_call=True
 )
-def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, stored_matrix, detailed_log,
-                  toggle_min_max_capacity, input_carga_min, input_carga_max, toggle_use_recepcao, input_dias_alocacao, input_frete_min, input_frete_max):
+def execute_model(n_clicks, stored_data, stored_warehouses, stored_prod_warehouses, stored_matrix, detailed_log,
+                  toggle_pareto, toggle_min_max_capacity, input_min_load, input_max_load, toggle_use_reception, input_allocation_days, input_min_freight, input_max_freight, lang='pt'):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    if not stored_data or not stored_armazens or not stored_prod_armazens or not stored_matrix:
-        return "Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
+    if not stored_data or not stored_warehouses or not stored_prod_warehouses or not stored_matrix:
+        return translate("Erro: Faltam dados. Certifique-se de preencher todas as abas anteriores (Oferta, Armazéns, Relação Produto x Armazém, Matriz de Distâncias) antes de rodar o modelo.", lang), "text-danger mt-3", dash.no_update, dash.no_update, dash.no_update
 
     try:
         # Load DataFrames
         df_supply = pd.read_json(io.StringIO(stored_data), orient='split')
-        df_demand = pd.read_json(io.StringIO(stored_armazens), orient='split')
-        df_compat = pd.read_json(io.StringIO(stored_prod_armazens), orient='split')
+        df_demand = pd.read_json(io.StringIO(stored_warehouses), orient='split')
+        df_compat = pd.read_json(io.StringIO(stored_prod_warehouses), orient='split')
         df_dist = pd.read_json(io.StringIO(stored_matrix), orient='split')
 
         # Load local CSVs for Freight and Storage
@@ -3051,26 +3176,28 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
             df_freight=df_freight,
             df_storage=df_storage,
             detailed_log=detailed_log,
+            toggle_pareto=toggle_pareto,
             toggle_min_max_capacity=toggle_min_max_capacity,
-            input_carga_min=input_carga_min,
-            input_carga_max=input_carga_max,
-            toggle_use_recepcao=toggle_use_recepcao,
-            input_dias_alocacao=input_dias_alocacao,
-            input_frete_min=input_frete_min,
-            input_frete_max=input_frete_max
+            input_min_load=input_min_load,
+            input_max_load=input_max_load,
+            toggle_use_reception=toggle_use_reception,
+            input_allocation_days=input_allocation_days,
+            input_min_freight=input_min_freight,
+            input_max_freight=input_max_freight,
+            lang=lang
         )
 
-        # Obter tempo de execução
+        # Get execution time
         exec_time = results_dict.get('kpis', {}).get('execution_time', 0.0)
-        time_str = f" (Tempo de execução: {exec_time:.2f} segundos)" if exec_time else ""
+        time_str = translate(" (Tempo de execução:", lang) + f" {exec_time:.2f} " + translate("segundos)", lang) if exec_time else ""
 
-        status_msg = f"Modelo executado com sucesso!{time_str}" if results_dict.get("status") == "optimal" else f"Falha ao encontrar solução ótima.{time_str}"
+        status_msg = translate("Modelo executado com sucesso!", lang) + time_str if results_dict.get("status") == "optimal" else translate("Falha ao encontrar solução ótima.", lang) + time_str
         status_class = "text-success mt-3 fw-bold" if results_dict.get("status") == "optimal" else "text-warning mt-3 fw-bold"
 
-        # Redirecionar para aba de resultados se sucesso
+        # Redirect to results tab on success
         next_tab = "tab-results" if results_dict.get("status") == "optimal" else dash.no_update
 
-        # O log_filename é apenas uma string (nome do arquivo) e será armazenada em store-model-log
+        # The log_filename is just a string (filename) and will be stored in store-model-log
         return status_msg, status_class, results_dict, log_filename, next_tab
 
     except Exception as e:
@@ -3091,9 +3218,10 @@ def execute_model(n_clicks, stored_data, stored_armazens, stored_prod_armazens, 
      Output("table-results-routes", "columns"),
      Output("results-warnings-container", "children")],
     Input("store-model-results", "data"),
+    State("store-lang", "data"),
     prevent_initial_call=True
 )
-def update_results_kpis_and_table(results_data):
+def update_results_kpis_and_table(results_data, lang='pt'):
     if not results_data or results_data.get("status") != "optimal":
         return "R$ 0,00", "0.00", "0.00", "R$ 0,00", "R$ 0,00", [], dash.no_update, dash.no_update
 
@@ -3125,14 +3253,14 @@ def update_results_kpis_and_table(results_data):
         table_data.append(row_data)
 
     columns = [
-        {'name': 'Origem', 'id': 'Origem'},
-        {'name': 'Destino', 'id': 'Destino'},
-        {'name': 'Produto', 'id': 'Produto'},
-        {'name': 'Qtd (ton)', 'id': 'Quantidade (ton)'}
+        {'name': translate('Origem', lang), 'id': 'Origem'},
+        {'name': translate('Destino', lang), 'id': 'Destino'},
+        {'name': translate('Produto', lang), 'id': 'Produto'},
+        {'name': translate('Qtd (ton)', lang), 'id': 'Quantidade (ton)'}
     ]
 
     if has_viagens:
-        columns.append({'name': 'Qtd. de Viagens', 'id': 'Qtd. de Viagens'})
+        columns.append({'name': translate('Qtd. de Viagens', lang), 'id': 'Qtd. de Viagens'})
 
     # Render warnings
     warnings_html = []
@@ -3142,8 +3270,8 @@ def update_results_kpis_and_table(results_data):
         if warnings:
             warnings_list = [html.Li(w) for w in warnings]
             warnings_html.append(dbc.Alert([
-                html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Atenção: Uso de Capacidade Artificial Detectado!"], className="alert-heading"),
-                html.P("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):"),
+                html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), translate("Atenção: Uso de Capacidade Artificial Detectado!", lang)], className="alert-heading"),
+                html.P(translate("O modelo matemático identificou restrições na sua infraestrutura real. Para evitar que o modelo ficasse 'sem solução' e para indicar onde estão os gargalos logísticos, as seguintes capacidades artificiais foram utilizadas (Elas carregam um custo exorbitante no modelo):", lang)),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-0")
             ], className="alert-danger-custom shadow-sm mb-3"))
@@ -3153,17 +3281,19 @@ def update_results_kpis_and_table(results_data):
         if capacity_warnings:
             warnings_list = [html.Li(w) for w in capacity_warnings]
             warnings_html.append(dbc.Alert([
-                html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), "Armazenamento Insuficiente"], className="alert-heading"),
-                html.P("A oferta excedeu a capacidade de armazenamento dos armazéns. Não há um erro no cálculo, mas sim uma limitação na infraestrutura de armazenamento disponível para os armazéns utilizados.", className="mb-2"),
-                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
-                html.P("Os valores de custo total e outras métricas exatas exibidas nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução' e para mostrar exatamente onde estão os gargalos logísticos, o sistema utilizou uma capacidade de armazenamento artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="mb-2"),
+                html.H5([html.I(className="bi bi-exclamation-triangle-fill me-2"), translate("Armazenamento Insuficiente", lang)], className="alert-heading"),
+                html.P(translate("A oferta excedeu a capacidade de armazenamento dos armazéns. Não há um erro no cálculo, mas sim uma limitação física na infraestrutura de armazenamento disponível para os armazéns utilizados.", lang), className="mb-2"),
+                html.P(translate("Capacidade Local vs. Global: Somar a capacidade total de todos os armazéns não garante a viabilidade. Se um armazém tiver espaço vazio, mas possuir restrições de recepção diária ou de frete que forcem envios incompatíveis, o modelo pode ser obrigado a estourar a capacidade física de outro armazém para escoar a carga.", lang), className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B(translate("Suposições do Modelo e Atenção aos Resultados:", lang))], className="fw-bold mb-1"),
+                html.P(translate("Estes avisos refletem escolhas matemáticas que o modelo precisou fazer para contornar gargalos logísticos. Para evitar que o sistema ficasse 'sem solução' e mostrar onde a operação trava, o modelo utilizou uma capacidade artificial com um custo (multa) exorbitantemente alto. Portanto, os valores de custo total exibidos nesta página devem ser desconsiderados até que a questão seja resolvida.", lang), className="mb-2"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-3"),
-                html.P(html.B("Possíveis Soluções:")),
+                html.P(html.B(translate("Possíveis Soluções:", lang))),
                 html.Ul([
-                    html.Li("Aumente a capacidade estática dos armazéns utilizados na aba 'Armazéns'."),
-                    html.Li("Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga."),
-                    html.Li("Reduza a quantidade ofertada na aba 'Oferta'.")
+                    html.Li(translate("Aumente a capacidade estática dos armazéns utilizados na aba 'Armazéns'.", lang)),
+                    html.Li(translate("Habilite novos armazéns na aba 'Produto e Armazéns' para distribuir melhor a carga.", lang)),
+                    html.Li(translate("Reduza a quantidade ofertada na aba 'Oferta'.", lang)),
+                    html.Li(translate("Verifique se as restrições de 'Carga mínima de frete' não estão forçando o envio de cargas maiores do que o armazém suporta receber.", lang))
                 ], className="mb-0")
             ], className="alert-warning-custom shadow-sm mb-3"))
 
@@ -3172,17 +3302,19 @@ def update_results_kpis_and_table(results_data):
         if reception_warnings:
             warnings_list = [html.Li(w) for w in reception_warnings]
             warnings_html.append(dbc.Alert([
-                html.H5([html.I(className="bi bi-calendar2-x-fill me-2"), "Capacidade de Recepção Diária Insuficiente"], className="alert-heading"),
-                html.P("O volume alocado superou a capacidade diária de recepção (em toneladas por dia) de um ou mais armazéns dentro do tempo estipulado.", className="mb-2"),
-                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
-                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para evitar que o modelo ficasse 'sem solução', o sistema utilizou uma capacidade de recepção artificial com um custo unitário (multa) exorbitantemente alto. Resolva as pendências abaixo e rode o modelo novamente para obter os resultados reais.", className="mb-2"),
+                html.H5([html.I(className="bi bi-calendar2-x-fill me-2"), translate("Capacidade de Recepção Diária Insuficiente", lang)], className="alert-heading"),
+                html.P(translate("O volume alocado superou a capacidade diária de recepção (em toneladas por dia) de um ou mais armazéns dentro do tempo estipulado.", lang), className="mb-2"),
+                html.P(translate("Interações de regras: Mesmo que haja muito espaço interno (capacidade estática) sobrando, se a taxa diária de recepção for insuficiente, ocorrerá um gargalo. Além disso, se houver regras rígidas de 'Frete Mínimo', o modelo pode preferir estourar essa recepção diária para garantir que os caminhões não viagem vazios.", lang), className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B(translate("Suposições do Modelo e Atenção aos Resultados:", lang))], className="fw-bold mb-1"),
+                html.P(translate("Estes avisos refletem escolhas matemáticas que o modelo precisou fazer para contornar gargalos logísticos. Para evitar que o sistema ficasse 'sem solução' e mostrar onde a operação trava, o modelo utilizou uma capacidade artificial com um custo (multa) exorbitantemente alto. Portanto, os valores de custo total exibidos nesta página devem ser desconsiderados até que a questão seja resolvida.", lang), className="mb-2"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-3"),
-                html.P(html.B("Possíveis Soluções:")),
+                html.P(html.B(translate("Possíveis Soluções:", lang))),
                 html.Ul([
-                    html.Li("Aumente a carga máxima de recepção diária ou os dias de alocação na configuração do modelo."),
-                    html.Li("Se estiver usando a capacidade do banco de dados, certifique-se de que os armazéns escolhidos possuem valores suficientes de recepção na base."),
-                    html.Li("Distribua melhor a oferta entre outros armazéns habilitados.")
+                    html.Li(translate("Aumente a carga máxima de recepção diária ou o número de dias úteis na configuração do modelo.", lang)),
+                    html.Li(translate("Se estiver usando a capacidade do banco de dados, certifique-se de que os armazéns escolhidos possuem valores suficientes de recepção na base.", lang)),
+                    html.Li(translate("Distribua melhor a oferta entre outros armazéns habilitados.", lang)),
+                    html.Li(translate("Verifique se as restrições de 'Carga mínima de frete' não estão obrigando o envio de volumes muito grandes de uma só vez.", lang))
                 ], className="mb-0")
             ], className="alert-warning-custom shadow-sm mb-3"))
 
@@ -3191,16 +3323,18 @@ def update_results_kpis_and_table(results_data):
         if freight_warnings:
             warnings_list = [html.Li(w) for w in freight_warnings]
             warnings_html.append(dbc.Alert([
-                html.H5([html.I(className="bi bi-truck-flatbed me-2"), "Conflito nas Regras de Frete Mínimo/Máximo"], className="alert-heading"),
-                html.P("Existem ofertas não alocadas porque as restrições de frete (carga mínima ou máxima por viagem) inviabilizaram o escoamento total dessa carga para qualquer destino válido.", className="mb-2"),
-                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
-                html.P("Os custos totais sofreram penalização altíssima pela oferta não alocada. Quando uma rota de frete é amarrada entre um mínimo e um máximo, sobras que não formam um caminhão viável ou grandes volumes não absorvidos são penalizados em vez de transportados.", className="mb-2"),
+                html.H5([html.I(className="bi bi-truck-flatbed me-2"), translate("Conflito nas Regras de Frete Mínimo/Máximo", lang)], className="alert-heading"),
+                html.P(translate("Existem ofertas não alocadas porque as restrições de frete (carga mínima ou máxima por viagem) inviabilizaram o escoamento total dessa carga para qualquer destino válido.", lang), className="mb-2"),
+                html.P(translate("Interações de regras: Isso ocorre quando os dados entram em conflito. Por exemplo, se a sobra de oferta for de 10t, mas a exigência de Frete Mínimo for de 30t, as 10t não podem ser enviadas. O mesmo acontece se um armazém só puder receber 15t diárias, mas o caminhão mínimo carrega 30t: o modelo não tem como fazer a entrega sem quebrar alguma restrição.", lang), className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B(translate("Suposições do Modelo e Atenção aos Resultados:", lang))], className="fw-bold mb-1"),
+                html.P(translate("Estes avisos refletem escolhas matemáticas que o modelo precisou fazer para contornar gargalos logísticos. Para evitar que o sistema ficasse 'sem solução' e mostrar onde a operação trava, o modelo utilizou uma capacidade artificial com um custo (multa) exorbitantemente alto. Portanto, os valores de custo total exibidos nesta página devem ser desconsiderados até que a questão seja resolvida.", lang), className="mb-2"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-3"),
-                html.P(html.B("Possíveis Soluções:")),
+                html.P(html.B(translate("Possíveis Soluções:", lang))),
                 html.Ul([
-                    html.Li("Alivie as restrições de frete mínimo ou máximo na configuração do modelo."),
-                    html.Li("Certifique-se de que as quantidades ofertadas são compatíveis com os limites de carga estabelecidos.")
+                    html.Li(translate("Reduza a exigência de 'Carga mínima de frete' na configuração do modelo para permitir que as sobras sejam transportadas.", lang)),
+                    html.Li(translate("Certifique-se de que as quantidades ofertadas totais são compatíveis com os limites de carga estabelecidos.", lang)),
+                    html.Li(translate("Verifique se os armazéns de destino possuem 'Capacidade de Recepção Diária' suficiente para receber ao menos um caminhão do tamanho mínimo exigido.", lang))
                 ], className="mb-0")
             ], className="alert-danger-custom shadow-sm mb-3"))
 
@@ -3209,17 +3343,17 @@ def update_results_kpis_and_table(results_data):
         if unallocated_warnings:
             warnings_list = [html.Li(w) for w in unallocated_warnings]
             warnings_html.append(dbc.Alert([
-                html.H5([html.I(className="bi bi-exclamation-octagon-fill me-2"), "Oferta Não Alocada (Sem Rotas)"], className="alert-heading"),
-                html.P("Alguns pontos de oferta não possuem rotas válidas para nenhum armazém. Isso geralmente acontece quando uma nova cidade é adicionada na aba de Oferta, mas a matriz de distâncias não foi recalculada.", className="mb-2"),
-                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B("Atenção aos Resultados:")], className="fw-bold mb-1"),
-                html.P("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo unitário (multa) exorbitantemente alto para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.", className="mb-2"),
+                html.H5([html.I(className="bi bi-exclamation-octagon-fill me-2"), translate("Oferta Não Alocada (Sem Rotas)", lang)], className="alert-heading"),
+                html.P(translate("Alguns pontos de oferta não possuem rotas válidas para nenhum armazém. Isso geralmente acontece quando uma nova cidade é adicionada na aba de Oferta, mas a matriz de distâncias não foi recalculada.", lang), className="mb-2"),
+                html.P([html.I(className="bi bi-info-circle-fill me-1"), html.B(translate("Atenção aos Resultados:", lang))], className="fw-bold mb-1"),
+                html.P(translate("Os valores de custo total exibidos nesta página devem ser desconsiderados. Para impedir que o sistema falhasse completamente, foi criada uma rota artificial de escoamento ('não alocada') com um custo unitário (multa) exorbitantemente alto para essas cidades isoladas. Resolva a falta de rotas abaixo e rode o modelo novamente para obter os custos reais.", lang), className="mb-2"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-3"),
-                html.P(html.B("Possíveis Soluções:")),
+                html.P(html.B(translate("Possíveis Soluções:", lang))),
                 html.Ul([
-                    html.Li("Recalcule a matriz de distâncias para garantir que todas as origens tenham rotas mapeadas.")
+                    html.Li(translate("Recalcule a matriz de distâncias para garantir que todas as origens tenham rotas mapeadas.", lang))
                 ], className="mb-3"),
-                dbc.Button("Ir para a aba Matriz de Distâncias", id="btn-go-to-distance-matrix", color="none", className="btn-primary-custom", size="sm")
+                dbc.Button(translate("Ir para a aba Matriz de Distâncias", lang), id="btn-go-to-distance-matrix", color="none", className="btn-primary-custom", size="sm")
             ], className="alert-danger-custom shadow-sm mb-3"))
 
         # 3. General warnings
@@ -3227,7 +3361,7 @@ def update_results_kpis_and_table(results_data):
         if general_warnings:
             warnings_list = [html.Li(w) for w in general_warnings]
             warnings_html.append(dbc.Alert([
-                html.H5([html.I(className="bi bi-exclamation-circle-fill me-2"), "Aviso Geral"], className="alert-heading"),
+                html.H5([html.I(className="bi bi-exclamation-circle-fill me-2"), translate("Aviso Geral", lang)], className="alert-heading"),
                 html.Hr(),
                 html.Ul(warnings_list, className="mb-0")
             ], className="alert-info-custom shadow-sm mb-3"))
@@ -3248,9 +3382,10 @@ def navigate_to_distance_matrix(n_clicks):
     Output("download-results-xlsx", "data"),
     Input("btn-download-results", "n_clicks"),
     State("store-model-results", "data"),
+    State('store-lang', 'data'),
     prevent_initial_call=True
 )
-def download_results(n_clicks, results_data):
+def download_results(n_clicks, results_data, lang='pt'):
     if not n_clicks or not results_data or results_data.get("status") != "optimal":
         return dash.no_update
 
@@ -3264,7 +3399,7 @@ def download_results(n_clicks, results_data):
     if "Qtd. de Viagens" in df.columns and df["Qtd. de Viagens"].isnull().all():
         df = df.drop(columns=["Qtd. de Viagens"])
 
-    return dcc.send_data_frame(df.to_excel, "Resultados_Otimizacao.xlsx", index=False)
+    return dcc.send_data_frame(df.to_excel, translate("Optimization_Results.xlsx", lang), index=False)
 
 @app.callback(
     Output("modal-confirm-all-routes", "is_open"),
@@ -3302,10 +3437,11 @@ def manage_all_routes_modal(n_show, n_cancel, n_confirm, results_data, is_open):
     [State("table-results-routes", "derived_viewport_data"),
      State("store-model-results", "data"),
      State("stored-data", "data"),
-     State("store-armazens", "data")],
+     State("store-warehouses", "data"),
+     State("store-lang", "data")],
     prevent_initial_call=True
 )
-def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_armazens):
+def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data, results_data, stored_data, stored_warehouses, lang='pt'):
     ctx = dash.callback_context
     trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
@@ -3326,13 +3462,13 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     )
 
     if not results_data or results_data.get("status") != "optimal":
-        return default_fig, html.P("Resultados indisponíveis.", className="text-muted small")
+        return default_fig, html.P(translate("Resultados indisponíveis.", lang), className="text-muted small")
 
-    if not stored_data or not stored_armazens:
-        return default_fig, html.P("Faltam dados base para renderizar o mapa.", className="text-muted small")
+    if not stored_data or not stored_warehouses:
+        return default_fig, html.P(translate("Faltam dados base para renderizar o mapa.", lang), className="text-muted small")
 
     df_input = pd.read_json(io.StringIO(stored_data), orient='split')
-    df_armazens = pd.read_json(io.StringIO(stored_armazens), orient='split')
+    df_warehouses = pd.read_json(io.StringIO(stored_warehouses), orient='split')
 
     # Pre-calculate coordinate mappings for performance
     # 1. Origin Mappings
@@ -3348,26 +3484,26 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     origin_mapping = origins_df_map.set_index('Cidade_Display')[['Latitude', 'Longitude']].to_dict('index')
 
     # 2. Destination Mappings
-    lat_col = next((c for c in df_armazens.columns if 'lat' in str(c).lower()), None)
-    lon_col = next((c for c in df_armazens.columns if 'lon' in str(c).lower()), None)
+    lat_col = next((c for c in df_warehouses.columns if 'lat' in str(c).lower()), None)
+    lon_col = next((c for c in df_warehouses.columns if 'lon' in str(c).lower()), None)
 
     if not lat_col or not lon_col:
-        mun_col = next((c for c in df_armazens.columns if 'munic' in str(c).lower()), None)
-        uf_col = next((c for c in df_armazens.columns if 'uf' in str(c).lower()), None)
+        mun_col = next((c for c in df_warehouses.columns if 'munic' in str(c).lower()), None)
+        uf_col = next((c for c in df_warehouses.columns if 'uf' in str(c).lower()), None)
         if mun_col and uf_col:
-            df_armazens_map = df_armazens.copy()
-            df_armazens_map['lookup_key'] = df_armazens_map[mun_col].astype(str) + ' - ' + df_armazens_map[uf_col].astype(str)
+            df_warehouses_map = df_warehouses.copy()
+            df_warehouses_map['lookup_key'] = df_warehouses_map[mun_col].astype(str) + ' - ' + df_warehouses_map[uf_col].astype(str)
             def get_c(key):
                 if key in CITY_LOOKUP: return CITY_LOOKUP[key]
                 return {'latitude': None, 'longitude': None}
-            coords = df_armazens_map['lookup_key'].apply(get_c)
-            df_armazens_map['Latitude'] = coords.apply(lambda x: x['latitude'])
-            df_armazens_map['Longitude'] = coords.apply(lambda x: x['longitude'])
-            dests_df = df_armazens_map.dropna(subset=['Latitude', 'Longitude'])
+            coords = df_warehouses_map['lookup_key'].apply(get_c)
+            df_warehouses_map['Latitude'] = coords.apply(lambda x: x['latitude'])
+            df_warehouses_map['Longitude'] = coords.apply(lambda x: x['longitude'])
+            dests_df = df_warehouses_map.dropna(subset=['Latitude', 'Longitude'])
         else:
             dests_df = pd.DataFrame()
     else:
-        dests_df = df_armazens.dropna(subset=[lat_col, lon_col]).copy()
+        dests_df = df_warehouses.dropna(subset=[lat_col, lon_col]).copy()
         dests_df = dests_df.rename(columns={lat_col: 'Latitude', lon_col: 'Longitude'})
 
     dest_mapping = {}
@@ -3436,15 +3572,15 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
                 break
 
         if not route_detail:
-            return default_fig, html.P("Detalhes não encontrados.", className="text-muted small")
+            return default_fig, html.P(translate("Detalhes não encontrados.", lang), className="text-muted small")
 
         orig_coords, dest_coords = get_coords_optimized(orig_name, dest_name)
         if not orig_coords or not dest_coords:
-            return default_fig, html.P("Coordenadas não encontradas para desenhar a rota.", className="text-muted small")
+            return default_fig, html.P(translate("Coordenadas não encontradas para desenhar a rota.", lang), className="text-muted small")
 
         route_data_osrm = client.get_route(orig_coords, dest_coords)
         if not route_data_osrm:
-             return default_fig, html.P("Falha ao calcular a rota no OSRM.", className="text-muted small")
+             return default_fig, html.P(translate("Falha ao calcular a rota no OSRM.", lang), className="text-muted small")
 
         geometry = route_data_osrm['geometry']
         lats = [p[1] for p in geometry['coordinates']]
@@ -3491,40 +3627,40 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
         fmt_dist = f"{route_detail['Distancia (km)']:,.2f} km".replace(",", "X").replace(".", ",").replace("X", ".")
 
         details_html = dbc.Card([
-            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), "Detalhes da Rota Selecionada"], className="mb-0 text-white"), className="bg-primary-custom"),
+            dbc.CardHeader(html.H6([html.I(className="bi bi-info-circle-fill me-2"), translate("Detalhes da Rota Selecionada", lang)], className="mb-0 text-white"), className="bg-primary-custom"),
             dbc.ListGroup([
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-geo-alt-fill text-success-custom me-2"), html.Strong("Origem: ")]),
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-success-custom me-2"), html.Strong(translate("Origem: ", lang))]),
                     html.Span(orig_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger-custom me-2"), html.Strong("Destino: ")]),
+                    html.Div([html.I(className="bi bi-geo-alt-fill text-danger-custom me-2"), html.Strong(translate("Destino: ", lang))]),
                     html.Span(dest_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-box-seam-fill text-primary-custom me-2"), html.Strong("Produto: ")]),
+                    html.Div([html.I(className="bi bi-box-seam-fill text-primary-custom me-2"), html.Strong(translate("Produto: ", lang))]),
                     html.Span(prod_name, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-truck text-secondary-custom me-2"), html.Strong("Distância: ")]),
+                    html.Div([html.I(className="bi bi-truck text-secondary-custom me-2"), html.Strong(translate("Distância: ", lang))]),
                     html.Span(fmt_dist, className="text-muted d-block ms-4")
                 ], className="py-2"),
                 dbc.ListGroupItem([
-                    html.Div([html.I(className="bi bi-boxes text-info-custom me-2"), html.Strong("Movimentado: ")]),
+                    html.Div([html.I(className="bi bi-boxes text-info-custom me-2"), html.Strong(translate("Movimentado: ", lang))]),
                     html.Span(fmt_qtd, className="fw-bold text-info-custom d-block ms-4")
                 ], className="py-2"),
             ], flush=True),
             dbc.CardFooter([
                 html.Div([
-                    html.Span("Custo de Frete: ", className="text-muted small"),
+                    html.Span(translate("Custo de Frete: ", lang), className="text-muted small"),
                     html.Span(fmt_freight, className="float-end fw-bold text-danger-custom")
                 ], className="mb-1"),
                 html.Div([
-                    html.Span("Custo de Armaz.: ", className="text-muted small"),
+                    html.Span(translate("Custo de Armaz.: ", lang), className="text-muted small"),
                     html.Span(fmt_storage, className="float-end fw-bold text-warning-custom")
                 ], className="mb-2"),
                 html.Div([
-                    html.Span("Custo da Rota:", className="fw-bold"),
+                    html.Span(translate("Custo da Rota:", lang), className="fw-bold"),
                     html.H5(fmt_total, className="float-end fw-bold mb-0 text-success-custom")
                 ], className="mt-2 border-top pt-2")
             ], className="bg-light")
@@ -3536,7 +3672,7 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
     if trigger_id == "btn-confirm-all-routes" or trigger_id == "btn-show-all-routes" or (trigger_id is None and results_data.get("routes")):
         routes = results_data.get("routes", [])
         if not routes:
-            return default_fig, html.P("Nenhuma rota encontrada.", className="text-muted small")
+            return default_fig, html.P(translate("Nenhuma rota encontrada.", lang), className="text-muted small")
 
         fig = go.Figure()
         all_lats, all_lons = [], []
@@ -3581,13 +3717,13 @@ def update_results_map(active_cell, btn_all_routes, btn_confirm_all, table_data,
             fig = default_fig
 
         details_html = html.Div([
-            html.P(f"Exibindo malha logística com {len(routes)} rotas realizadas.", className="text-muted mb-2"),
-            html.P("Selecione uma rota na tabela para ver os detalhes individuais.", className="text-muted small")
+            html.P(translate("Exibindo malha logística com", lang) + f" {len(routes)} " + translate("rotas realizadas.", lang), className="text-muted mb-2"),
+            html.P(translate("Selecione uma rota na tabela para ver os detalhes individuais.", lang), className="text-muted small")
         ])
 
         return fig, details_html
 
-    return default_fig, html.P("Selecione uma rota na tabela para ver os detalhes.", className="text-muted small")
+    return default_fig, html.P(translate("Selecione uma rota na tabela para ver os detalhes.", lang), className="text-muted small")
 
 @app.callback(
     Output("btn-download-log", "disabled"),
@@ -3609,14 +3745,18 @@ def download_log_route(filename):
     # Security: Ensure filename is just a basename, no directory traversal
     filename = os.path.basename(filename)
     log_dir = os.path.join(tempfile.gettempdir(), 'granum_logs')
+    # Get lang from query params
+    lang = flask.request.args.get('lang', 'pt')
+    download_name = translate('Model_Execution_Log.txt', lang)
     # Use standard flask send_from_directory for secure file serving
-    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name='log_execucao_modelo.txt')
+    return flask.send_from_directory(log_dir, filename, as_attachment=True, download_name=download_name)
 
 app.clientside_callback(
     """
-    function(n_clicks, log_filename) {
+    function(n_clicks, log_filename, lang) {
         if (n_clicks && log_filename) {
-            window.location.href = '/download_log/' + log_filename;
+            let userLang = lang || 'pt';
+            window.location.href = '/download_log/' + log_filename + '?lang=' + userLang;
         }
         return window.dash_clientside.no_update;
     }
@@ -3624,8 +3764,37 @@ app.clientside_callback(
     Output("download-model-log", "data"),
     Input("btn-download-log", "n_clicks"),
     State("store-model-log", "data"),
+    State("store-lang", "data"),
     prevent_initial_call=True
 )
+
+app.clientside_callback(
+    """
+    function(n_clicks, d1, d2, d3, d4) {
+        if (n_clicks && d1 && d2 && d3 && d4) {
+            return true;
+        }
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("modal-model-running", "is_open", allow_duplicate=True),
+    Input("btn-run-model", "n_clicks"),
+    [State("stored-data", "data"),
+     State("store-warehouses", "data"),
+     State("store-prod-warehouses", "data"),
+     State("store-distance-matrix", "data")],
+    prevent_initial_call=True
+)
+
+@app.callback(
+    Output("modal-model-running", "is_open", allow_duplicate=True),
+    [Input("store-model-results", "data"),
+     Input("btn-cancel-model", "n_clicks"),
+     Input("model-output-text", "children")],
+    prevent_initial_call=True
+)
+def close_model_modal(results_data, cancel_clicks, error_text):
+    return False
 
 def view():
     # Use environment variable to determine if we are in Docker or dev
