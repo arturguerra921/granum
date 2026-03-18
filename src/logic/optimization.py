@@ -6,11 +6,12 @@ import sys
 import io
 import tempfile
 import os
+import math
 
 import time
 
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False,
-                           toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
+                           toggle_pareto=False, toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
                            toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, lang="pt"):
     """
     Runs the linear optimization mathematical model for product allocation.
@@ -265,6 +266,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             input_min_load=input_min_load, input_max_load=input_max_load,
             toggle_use_reception=toggle_use_reception, input_allocation_days=input_allocation_days,
             input_min_freight=input_min_freight, input_max_freight=input_max_freight,
+            toggle_pareto=toggle_pareto,
             lang=lang
         )
 
@@ -332,9 +334,25 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         # significantly memory usage and optimization speed.
         valid_routes = []
         for o in model.Origins:
-            for d in model.Destinations:
-                for p in model.Products:
+            for p in model.Products:
+                compatible_dests = []
+                # Reúne todos os destinos válidos para esta origem e produto
+                for d in model.Destinations:
                     if (o, d) in distance and prod_dest_compat.get((p, d), False):
+                        dist_val = distance[(o, d)]
+                        # Armazena apenas a distância para o Pareto
+                        compatible_dests.append((d, dist_val))
+
+                if compatible_dests:
+                    if toggle_pareto:
+                        # Ordena pela menor distância
+                        compatible_dests.sort(key=lambda x: x[1])
+                        # Aplica a regra 80/20, arredondando sempre para cima
+                        limit = max(1, math.ceil(len(compatible_dests) * 0.20))
+                        compatible_dests = compatible_dests[:limit]
+
+                    # Adiciona os destinos filtrados às rotas válidas
+                    for d, _ in compatible_dests:
                         valid_routes.append((o, d, p))
 
         print(translate("Total de combinações (Origem x Destino x Produto) válidas: {val}", lang).format(val=len(valid_routes)))
@@ -608,7 +626,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                                  prod_dest_compat, distance, freight_cost, storage_cost, avg_freight,
                                  all_products, origins_list, detailed_log,
                                  input_min_load, input_max_load, toggle_use_reception,
-                                 input_allocation_days, input_min_freight, input_max_freight, lang="pt"):
+                                 input_allocation_days, input_min_freight, input_max_freight, toggle_pareto=False, lang="pt"):
     """
     Versão MILP do modelo, inclui restrições extras e variáveis binárias (RouteActive).
     """
@@ -685,9 +703,25 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
         valid_routes = []
         for o in model.Origins:
-            for d in model.Destinations:
-                for p in model.Products:
+            for p in model.Products:
+                compatible_dests = []
+                # Reúne todos os destinos válidos para esta origem e produto
+                for d in model.Destinations:
                     if (o, d) in distance and prod_dest_compat.get((p, d), False):
+                        dist_val = distance[(o, d)]
+                        # Armazena apenas a distância para o Pareto
+                        compatible_dests.append((d, dist_val))
+
+                if compatible_dests:
+                    if toggle_pareto:
+                        # Ordena pela menor distância
+                        compatible_dests.sort(key=lambda x: x[1])
+                        # Aplica a regra 80/20, arredondando sempre para cima
+                        limit = max(1, math.ceil(len(compatible_dests) * 0.20))
+                        compatible_dests = compatible_dests[:limit]
+
+                    # Adiciona os destinos filtrados às rotas válidas
+                    for d, _ in compatible_dests:
                         valid_routes.append((o, d, p))
 
         print(translate("Total de combinações (Origem x Destino x Produto) válidas: {val}", lang).format(val=len(valid_routes)))
