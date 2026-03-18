@@ -3115,6 +3115,7 @@ def toggle_carga_max_input(use_reception):
         State('store-prod-warehouses', 'data'),
         State('store-distance-matrix', 'data'),
         State('toggle-detailed-log', 'value'),
+        State('toggle-pareto-routes', 'value'),
         State('toggle-min-max-capacity', 'value'),
         State('input-min-load', 'value'),
         State('input-max-load', 'value'),
@@ -3133,7 +3134,7 @@ def toggle_carga_max_input(use_reception):
     prevent_initial_call=True
 )
 def execute_model(n_clicks, stored_data, stored_warehouses, stored_prod_warehouses, stored_matrix, detailed_log,
-                  toggle_min_max_capacity, input_min_load, input_max_load, toggle_use_reception, input_allocation_days, input_min_freight, input_max_freight, lang='pt'):
+                  toggle_pareto, toggle_min_max_capacity, input_min_load, input_max_load, toggle_use_reception, input_allocation_days, input_min_freight, input_max_freight, lang='pt'):
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -3172,6 +3173,7 @@ def execute_model(n_clicks, stored_data, stored_warehouses, stored_prod_warehous
             df_freight=df_freight,
             df_storage=df_storage,
             detailed_log=detailed_log,
+            toggle_pareto=toggle_pareto,
             toggle_min_max_capacity=toggle_min_max_capacity,
             input_min_load=input_min_load,
             input_max_load=input_max_load,

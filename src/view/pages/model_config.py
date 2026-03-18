@@ -24,6 +24,23 @@ def get_tab_model_config_layout(lang='pt'):
 
                     html.Div([
                         dbc.Switch(
+                            id="toggle-pareto-routes",
+                            value=False,
+                            className="custom-switch mb-0 small"
+                        ),
+                        html.Label(translate("Utilizar Princípio de Pareto (20% melhores rotas)", lang),
+                            htmlFor="toggle-pareto-routes",
+                            className="mb-0 mx-2 text-muted cursor-pointer small"
+                        ),
+                        html.I(className="bi bi-question-circle-fill text-muted", id="help-pareto", style={"cursor": "help", "fontSize": "var(--font-size-small)"}),
+                        dbc.Tooltip(translate("Aplica o Princípio de Pareto (Regra 80/20) filtrando apenas as 20% melhores rotas (mais curtas) de cada origem. Isso acelera significativamente o tempo de resolução do modelo matemático. Atenção: se a oferta e a demanda estiverem muito justas, essa restrição pode impedir o modelo de encontrar uma solução ótima, pois rotas alternativas fora das 20% melhores foram descartadas.", lang),
+                            target="help-pareto",
+                            placement="top"
+                        )
+                    ], className="mb-4 d-flex align-items-center justify-content-center"),
+
+                    html.Div([
+                        dbc.Switch(
                             id="toggle-min-max-capacity",
                             value=False,
                             className="custom-switch mb-0 small"
