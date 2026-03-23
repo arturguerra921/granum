@@ -254,7 +254,7 @@ def main():
 
     # Load Cost Datasets
     try:
-        df_storage = pd.read_csv(TARIFA_CSV)
+        df_storage = pd.read_csv(TARIFA_CSV, sep=';', encoding='utf-8')
         df_freight = pd.read_csv(FRETE_CSV, sep=';', encoding='latin1')
     except Exception as e:
         print(f"Error loading cost datasets: {e}")
@@ -275,9 +275,11 @@ def main():
 
         # Run model
         try:
+            # We copy df_supply and df_demand to avoid pandas SettingWithCopyWarnings
+            # when the model logic modifies them in-place.
             log_filename, results_dict = run_optimization_model(
-                df_supply=df_supply,
-                df_demand=df_demand,
+                df_supply=df_supply.copy(),
+                df_demand=df_demand.copy(),
                 df_compat=df_compat,
                 df_dist=df_dist,
                 df_freight=df_freight,
@@ -317,6 +319,17 @@ def main():
             import traceback
             traceback.print_exc()
 
+
+    # Export the Last (Biggest) Dataset Generated
+    try:
+        if 'df_supply' in locals() and 'df_demand' in locals():
+            supply_file = os.path.join(PROJECT_ROOT, "benchmark_supply_biggest.xlsx")
+            demand_file = os.path.join(PROJECT_ROOT, "benchmark_demand_biggest.xlsx")
+            df_supply.to_excel(supply_file, index=False)
+            df_demand.to_excel(demand_file, index=False)
+            print(f"\nBiggest datasets generated exported to:\n - {supply_file}\n - {demand_file}")
+    except Exception as e:
+        print(f"Failed to export biggest datasets: {e}")
 
     # Export Results
     if results:
