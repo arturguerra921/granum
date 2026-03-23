@@ -2,10 +2,17 @@
 Automated Benchmarking Script for the Optimization Model
 
 Prerequisites:
+1. OSRM Docker Server:
 Make sure the OSRM Docker container is running locally and accessible on port 5000
 before executing this script locally.
-
 Run: `docker-compose up -d osrm`
+
+2. CBC Solver:
+Since you are running this outside the main Docker container, you MUST have the 'cbc'
+solver installed on your host machine to execute Pyomo optimization routines.
+- Windows: Download binaries from https://github.com/coin-or/Cbc/releases, extract, and add the 'bin' folder to your system PATH.
+- Ubuntu/Debian: `sudo apt-get install coinor-cbc`
+- macOS: `brew install cbc`
 """
 import os
 import time
