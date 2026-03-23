@@ -302,6 +302,8 @@ def main():
             status = results_dict.get("status", "unknown")
 
             print(f"Model Status: {status}")
+            if status == 'error':
+                print(f"Warnings/Errors: {results_dict.get('warnings', {}).get('general', [])}")
             print(f"Distance Matrix Time: {df_dist_time:.2f}s")
             print(f"Resolution Time: {execution_time:.2f}s")
             print(f"Optimal Value: {optimal_value:.2f}")
