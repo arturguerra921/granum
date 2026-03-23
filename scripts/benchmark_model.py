@@ -31,7 +31,6 @@ INCREMENTO_OFERTAS = 10
 MAXIMO_OFERTAS = 50
 INCREMENTO_ARMAZENS = 5
 MAXIMO_ARMAZENS = 25
-MAXIMO_TONELADAS = 2_000_000
 MAX_RECEPTION_PERCENTAGE = 0.8
 
 # =============================================================================
@@ -127,7 +126,8 @@ def generate_test_pairs():
 
         df_armazens_final = df_armazens_recorte.drop(columns=['_cap_estatica_num', '_cap_recepcao_num'])
 
-        peso_maximo_permitido = min(MAXIMO_TONELADAS, total_estatica, recepcao_limite)
+        # Calculate maximum weight based strictly on available capacity
+        peso_maximo_permitido = min(total_estatica, recepcao_limite)
 
         df_ofertas_recorte = df_ofertas_base.head(num_ofertas).copy()
         pesos_aleatorios = np.random.uniform(low=10, high=1000, size=num_ofertas)
