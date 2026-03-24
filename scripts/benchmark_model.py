@@ -188,7 +188,8 @@ def build_distance_matrix(df_ofertas, df_armazens):
     """
     Uses the OSRM client to construct the distance matrix expected by the model.
     """
-    client = OSRMClient(base_url="http://localhost:5000")
+    osrm_url = os.environ.get('OSRM_URL', 'http://localhost:5000')
+    client = OSRMClient(base_url=osrm_url)
 
     # Process Supply Origins (Cidade + Lat + Lon)
     # Deduplicate origins exactly like the model does
@@ -329,11 +330,15 @@ def main():
             traceback.print_exc()
 
 
+    # Ensure benchmark directory exists
+    benchmark_dir = os.path.join(PROJECT_ROOT, "benchmark")
+    os.makedirs(benchmark_dir, exist_ok=True)
+
     # Export the Last (Biggest) Dataset Generated
     try:
         if 'df_supply' in locals() and 'df_demand' in locals():
-            supply_file = os.path.join(PROJECT_ROOT, "benchmark_supply_biggest.xlsx")
-            demand_file = os.path.join(PROJECT_ROOT, "benchmark_demand_biggest.xlsx")
+            supply_file = os.path.join(benchmark_dir, "benchmark_supply_biggest.xlsx")
+            demand_file = os.path.join(benchmark_dir, "benchmark_demand_biggest.xlsx")
             df_supply.to_excel(supply_file, index=False)
             df_demand.to_excel(demand_file, index=False)
             print(f"\nBiggest datasets generated exported to:\n - {supply_file}\n - {demand_file}")
@@ -343,7 +348,7 @@ def main():
     # Export Results
     if results:
         df_results = pd.DataFrame(results)
-        output_file = os.path.join(PROJECT_ROOT, "benchmark_results.xlsx")
+        output_file = os.path.join(benchmark_dir, "benchmark_results.xlsx")
         try:
             df_results.to_excel(output_file, index=False)
             print(f"\nBenchmark results successfully exported to {output_file}")
