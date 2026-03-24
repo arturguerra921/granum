@@ -11,6 +11,8 @@ services:
     volumes:
       - ./src:/app/src  # For development: live reload if possible (needs reloading server)
       - ./data:/app/data # Access to data files if needed
+      - ./benchmark:/app/benchmark # Map benchmark output dir to host
+      - ./scripts:/app/scripts # Make scripts accessible to execute benchmark inside container
 
   osrm:
     image: osrm/osrm-backend
