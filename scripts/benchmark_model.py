@@ -249,9 +249,10 @@ def build_distance_matrix(df_ofertas, df_armazens):
     # Columns: Origem, Dest1, Dest2...
     df_dist = pd.DataFrame(matrix_data, columns=destinations_names)
 
-    # Convert meters to km
+    # Convert meters to km and round to 2 decimal places
     # OSRM output is typically in meters, the model expects km
-    df_dist = df_dist / 1000.0
+    # We round to 2 decimal places to exactly match the Dash interface logic
+    df_dist = (df_dist / 1000.0).round(2)
 
     df_dist.insert(0, 'Origem', origins_names)
 
