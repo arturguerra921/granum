@@ -9,7 +9,7 @@ where = ["."]
 include-package-data = true
 
 [project]
-name = "granum"
+name = "GranumDSS"
 version = "0.0.1"
 authors = [
     {name = "ualivent", email="ualivent@gmail.com"}
