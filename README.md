@@ -29,42 +29,76 @@ The result is a structured, data-driven approach to scenario exploration. Decisi
 
 ## Getting Started
 
-### Using Docker (Recommended)
-The easiest way to run GranumDSS alongside the required OSRM backend is via Docker Compose.
+The recommended way to run GranumDSS is with Docker, as it manages both the application and the OSRM routing engine.
 
-1. **Clone the repository:**
+### Prerequisites
+
+*   **Git**: To clone the repository.
+*   **Python**: To execute the initial map setup script.
+*   **Docker Desktop**: Must be installed and running to manage the application services.
+
+### 1. Clone the Repository
+
+First, clone the project to your local machine:
    ```bash
    git clone https://github.com/arturguerra921/granum.git
    cd granum
    ```
 
-2. **Start the application and OSRM services:**
+### 2. Generate OSRM Map Data (One-Time Setup)
+
+Before launching the application, you must process the map data for the routing engine. This is a **one-time step** that can take **20-60 minutes** depending on your computer's performance.
+
+This script will:
+1.  Download the latest map of Brazil (approx. 400-500 MB).
+2.  Use Docker to process the map into a format OSRM can use.
+
+Run the following command from the project root:
+```bash
+python scripts/setup_osrm.py
+```
+
+> **Note:** Ensure Docker Desktop is running before executing this script. You will see a "OSRM processing complete" message when it's done.
+
+### 3. Launch the Application
+
+With the map data ready, you can now start all the services using Docker Compose:
    ```bash
    docker-compose up -d --build
    ```
 
-3. **Access the Application:**
-   Open your browser and navigate to `http://localhost:8050`.
+### 4. Access the Application
 
-### Local Installation
-If you prefer to run the application directly on your host machine:
+Open your browser and navigate to: **http://localhost:8050**
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/arturguerra921/granum.git
-   cd granum
-   ```
+---
 
-2. **Install dependencies:**
-   ```bash
-   pip install .
-   ```
+### Alternative: Local Development Setup
 
-3. **Run the server:**
-   ```bash
-   python run_server.py
-   ```
-*(Note: Running locally requires access to an OSRM instance. Set the `OSRM_URL` environment variable if your instance is not running on `http://localhost:5000`)*
+This setup is for developers who wish to run the Python application on the host machine for faster iteration, while still using Docker for the OSRM service.
+
+1.  **Complete the one-time map generation**: Follow steps 1 and 2 from the guide above.
+2.  **Start only the OSRM service**: `docker-compose up -d osrm`
+3.  **Install dependencies locally**: It's recommended to use a virtual environment. `pip install -e .`
+4.  **Run the Dash server**: `python run_server.py`
+5.  The application will be available at `http://localhost:8050` and will connect to the OSRM service running in Docker.
+
+## Usage Workflow
+The application is designed around a 7-step workflow, guiding the user through the data input and optimization process via a series of tabs:
+
+1.  **Oferta (Supply)**: Input the quantity of products available by city. You can upload a spreadsheet or add data manually.
+2.  **Armazéns (Warehouses)**: Manage the destination warehouses. A default database is provided, which can be updated with recent data from Conab or a custom user-provided file.
+3.  **Produto e Armazéns (Product & Warehouses)**: Define compatibility rules, specifying which types of warehouses can store each product.
+4.  **Custos (Costs)**: Configure storage tariffs and per-state freight costs (R$/ton-km).
+5.  **Matriz de Distâncias (Distance Matrix)**: Calculate the road distance matrix between all supply origins and warehouse destinations.
+6.  **Configuração do Modelo (Model Configuration)**: Set operational constraints for the optimization model, such as reception limits, freight rules, or applying the Pareto Principle to filter routes.
+7.  **Resultados (Results)**: Run the optimization model and view the results, including key performance indicators, a map of the suggested logistic network, and downloadable reports.
+
+## Running Tests
+To run the backend test suite, execute the following command from the project root. This will automatically discover and run all tests within the `tests` directory:
+```bash
+python -m unittest discover tests
+```
 
 ## Project Structure
 ```
