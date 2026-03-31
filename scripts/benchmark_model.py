@@ -34,11 +34,10 @@ TOGGLE_USE_RECEPTION = False
 # =============================================================================
 # DATA GENERATION CONFIGURATION
 # =============================================================================
-INCREMENTO_OFERTAS = 10
-MAXIMO_OFERTAS = 50
-INCREMENTO_ARMAZENS = 5
-MAXIMO_ARMAZENS = 25
+INICIAL_OFERTAS = 30
+INICIAL_ARMAZENS = 2
 MAX_RECEPTION_PERCENTAGE = 0.8
+GAPS = [0.05, 0.01]
 
 # =============================================================================
 # FILE PATHS
@@ -52,13 +51,7 @@ FRETE_CSV = os.path.join(PROJECT_ROOT, 'src', 'view', 'assets', 'data', 'Valor_T
 
 PRODUTOS = ['Soja', 'Milho', 'Trigo', 'Arroz', 'Café', 'Feijão', 'Sorgo', 'Algodão', 'Aveia']
 
-def generate_test_pairs():
-    """
-    Generator that yields in-memory DataFrames for supply (ofertas) and demand (armazéns).
-    Based on the exact logic from scripts/gerar_ofertas_teste.py.
-    """
-    print(f"Loading base data for generation...")
-
+def load_base_data():
     if not all(os.path.exists(f) for f in [MUNICIPIOS_CSV, ESTADOS_CSV, ARMAZENS_CSV]):
         raise FileNotFoundError("One or more base CSV files are missing in src/view/assets/data/.")
 
@@ -97,59 +90,47 @@ def generate_test_pairs():
     if total_armazens_validos == 0:
         raise ValueError("Nenhum armazém com capacidades válidas encontrado.")
 
-    np.random.seed(42)  # Seed para manter exemplos iguais
+    return df_municipios, df_armazens_validos
+
+def generate_test_pair(num_ofertas, num_armazens, df_municipios, df_armazens_validos):
+    np.random.seed(42)  # Seed para manter exemplos consistentes
+
+    total_armazens_validos = len(df_armazens_validos)
 
     # Base de Ofertas
-    indices_municipios = np.random.choice(df_municipios.index, size=MAXIMO_OFERTAS, replace=True)
+    indices_municipios = np.random.choice(df_municipios.index, size=num_ofertas, replace=True)
     df_ofertas_base = df_municipios.loc[indices_municipios].copy().reset_index(drop=True)
     df_ofertas_base.rename(columns={'nome_formatado': 'Cidade', 'latitude': 'Latitude', 'longitude': 'Longitude'}, inplace=True)
-    df_ofertas_base['Produto'] = np.random.choice(PRODUTOS, size=MAXIMO_OFERTAS)
+    df_ofertas_base['Produto'] = np.random.choice(PRODUTOS, size=num_ofertas)
 
     # Base de Armazéns
-    indices_armazens = np.random.choice(df_armazens_validos.index, size=MAXIMO_ARMAZENS, replace=(MAXIMO_ARMAZENS > total_armazens_validos))
+    indices_armazens = np.random.choice(df_armazens_validos.index, size=num_armazens, replace=(num_armazens > total_armazens_validos))
     df_armazens_base = df_armazens_validos.loc[indices_armazens].copy().reset_index(drop=True)
 
-    passos_ofertas = list(range(INCREMENTO_OFERTAS, MAXIMO_OFERTAS + 1, INCREMENTO_OFERTAS))
-    if MAXIMO_OFERTAS not in passos_ofertas:
-        passos_ofertas.append(MAXIMO_OFERTAS)
+    df_armazens_recorte = df_armazens_base.copy()
+    total_estatica = df_armazens_recorte['_cap_estatica_num'].sum()
+    total_recepcao = df_armazens_recorte['_cap_recepcao_num'].sum()
+    recepcao_limite = total_recepcao * MAX_RECEPTION_PERCENTAGE
 
-    passos_armazens = list(range(INCREMENTO_ARMAZENS, MAXIMO_ARMAZENS + 1, INCREMENTO_ARMAZENS))
-    if MAXIMO_ARMAZENS not in passos_armazens:
-        passos_armazens.append(MAXIMO_ARMAZENS)
+    df_armazens_final = df_armazens_recorte.drop(columns=['_cap_estatica_num', '_cap_recepcao_num'])
 
-    max_passos = max(len(passos_ofertas), len(passos_armazens))
-    while len(passos_ofertas) < max_passos:
-        passos_ofertas.append(passos_ofertas[-1])
-    while len(passos_armazens) < max_passos:
-        passos_armazens.append(passos_armazens[-1])
+    # Calculate maximum weight based strictly on available capacity
+    peso_maximo_permitido = min(total_estatica, recepcao_limite)
 
-    test_cases = sorted(list(set(zip(passos_ofertas, passos_armazens))))
+    df_ofertas_recorte = df_ofertas_base.copy()
+    pesos_aleatorios = np.random.uniform(low=10, high=1000, size=num_ofertas)
+    fator_normalizacao = peso_maximo_permitido / pesos_aleatorios.sum()
+    pesos_normalizados = pesos_aleatorios * fator_normalizacao
 
-    for num_ofertas, num_armazens in test_cases:
-        df_armazens_recorte = df_armazens_base.head(num_armazens).copy()
-        total_estatica = df_armazens_recorte['_cap_estatica_num'].sum()
-        total_recepcao = df_armazens_recorte['_cap_recepcao_num'].sum()
-        recepcao_limite = total_recepcao * MAX_RECEPTION_PERCENTAGE
+    df_ofertas_recorte['Peso (ton)'] = np.round(pesos_normalizados, 2)
+    diferenca = peso_maximo_permitido - df_ofertas_recorte['Peso (ton)'].sum()
+    df_ofertas_recorte.loc[df_ofertas_recorte.index[-1], 'Peso (ton)'] += diferenca
+    df_ofertas_recorte['Peso (ton)'] = np.round(df_ofertas_recorte['Peso (ton)'], 2)
 
-        df_armazens_final = df_armazens_recorte.drop(columns=['_cap_estatica_num', '_cap_recepcao_num'])
+    colunas_finais_ofertas = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
+    df_ofertas_final = df_ofertas_recorte[colunas_finais_ofertas]
 
-        # Calculate maximum weight based strictly on available capacity
-        peso_maximo_permitido = min(total_estatica, recepcao_limite)
-
-        df_ofertas_recorte = df_ofertas_base.head(num_ofertas).copy()
-        pesos_aleatorios = np.random.uniform(low=10, high=1000, size=num_ofertas)
-        fator_normalizacao = peso_maximo_permitido / pesos_aleatorios.sum()
-        pesos_normalizados = pesos_aleatorios * fator_normalizacao
-
-        df_ofertas_recorte['Peso (ton)'] = np.round(pesos_normalizados, 2)
-        diferenca = peso_maximo_permitido - df_ofertas_recorte['Peso (ton)'].sum()
-        df_ofertas_recorte.loc[df_ofertas_recorte.index[-1], 'Peso (ton)'] += diferenca
-        df_ofertas_recorte['Peso (ton)'] = np.round(df_ofertas_recorte['Peso (ton)'], 2)
-
-        colunas_finais_ofertas = ["Produto", "Peso (ton)", "Cidade", "Latitude", "Longitude"]
-        df_ofertas_final = df_ofertas_recorte[colunas_finais_ofertas]
-
-        yield df_ofertas_final, df_armazens_final
+    return df_ofertas_final, df_armazens_final
 
 # =============================================================================
 # BENCHMARK LOGIC
@@ -269,94 +250,150 @@ def main():
         print(f"Error loading cost datasets: {e}")
         return
 
-    results = []
+    print("Loading base data for generation...")
+    df_municipios, df_armazens_validos = load_base_data()
 
-    for idx, (df_supply, df_demand) in enumerate(generate_test_pairs()):
-        num_supply_nodes = len(df_supply)
-        num_demand_nodes = len(df_demand)
-
-        print(f"\n--- Iteration {idx + 1} ---")
-        print(f"Supply Nodes: {num_supply_nodes} | Demand Nodes: {num_demand_nodes}")
-
-        # Construct dynamic matrices
-        df_compat = construct_df_compat(df_supply, df_demand)
-        df_dist, df_dist_time = build_distance_matrix(df_supply, df_demand)
-
-        # Run model
-        try:
-            # We copy df_supply and df_demand to avoid pandas SettingWithCopyWarnings
-            # when the model logic modifies them in-place.
-            log_filename, results_dict = run_optimization_model(
-                df_supply=df_supply.copy(),
-                df_demand=df_demand.copy(),
-                df_compat=df_compat,
-                df_dist=df_dist,
-                df_freight=df_freight,
-                df_storage=df_storage,
-                detailed_log=False,
-                toggle_pareto=TOGGLE_PARETO,
-                toggle_min_max_capacity=TOGGLE_MIN_MAX_CAPACITY,
-                input_min_load=INPUT_MIN_LOAD,
-                input_max_load=INPUT_MAX_LOAD,
-                toggle_use_reception=TOGGLE_USE_RECEPTION,
-                input_allocation_days=INPUT_ALLOCATION_DAYS,
-                input_min_freight=INPUT_MIN_FREIGHT,
-                input_max_freight=INPUT_MAX_FREIGHT,
-                lang="pt"
-            )
-
-            # Extract metrics
-            execution_time = results_dict.get("kpis", {}).get("execution_time", 0.0)
-            optimal_value = results_dict.get("objective", 0.0)
-            status = results_dict.get("status", "unknown")
-
-            print(f"Model Status: {status}")
-            if status == 'error':
-                print(f"Warnings/Errors: {results_dict.get('warnings', {}).get('general', [])}")
-            print(f"Distance Matrix Time: {df_dist_time:.2f}s")
-            print(f"Resolution Time: {execution_time:.2f}s")
-            print(f"Optimal Value: {optimal_value:.2f}")
-
-            results.append({
-                "Number of Supply Nodes": num_supply_nodes,
-                "Number of Demand Nodes": num_demand_nodes,
-                "Distance Matrix Time (seconds)": df_dist_time,
-                "Resolution Time (seconds)": execution_time,
-                "Optimal Value": optimal_value
-            })
-
-        except Exception as e:
-            print(f"Error during optimization run: {e}")
-            import traceback
-            traceback.print_exc()
-
-
-    # Ensure benchmark directory exists
+    all_results = []
     benchmark_dir = os.path.join(PROJECT_ROOT, "benchmark")
     os.makedirs(benchmark_dir, exist_ok=True)
 
-    # Export the Last (Biggest) Dataset Generated
-    try:
-        if 'df_supply' in locals() and 'df_demand' in locals():
-            supply_file = os.path.join(benchmark_dir, "benchmark_supply_biggest.xlsx")
-            demand_file = os.path.join(benchmark_dir, "benchmark_demand_biggest.xlsx")
-            df_supply.to_excel(supply_file, index=False)
-            df_demand.to_excel(demand_file, index=False)
-            print(f"\nBiggest datasets generated exported to:\n - {supply_file}\n - {demand_file}")
-    except Exception as e:
-        print(f"Failed to export biggest datasets: {e}")
+    for gap_val in GAPS:
+        print(f"\n====================================================================")
+        print(f"STARTING BENCHMARK SUITE FOR GAP = {gap_val*100}%")
+        print(f"====================================================================")
 
-    # Export Results
-    if results:
-        df_results = pd.DataFrame(results)
-        output_file = os.path.join(benchmark_dir, "benchmark_results.xlsx")
+        num_ofertas = INICIAL_OFERTAS
+        num_armazens = INICIAL_ARMAZENS
+        idx = 1
+
+        results_for_gap = []
+
+        while True:
+            print(f"\n--- Iteration {idx} (Gap: {gap_val*100}%) ---")
+            print(f"Supply Nodes: {num_ofertas} | Demand Nodes: {num_armazens}")
+
+            df_supply, df_demand = generate_test_pair(num_ofertas, num_armazens, df_municipios, df_armazens_validos)
+
+            # Construct dynamic matrices
+            df_compat = construct_df_compat(df_supply, df_demand)
+            df_dist, df_dist_time = build_distance_matrix(df_supply, df_demand)
+
+            # Run model
+            try:
+                # We copy df_supply and df_demand to avoid pandas SettingWithCopyWarnings
+                # when the model logic modifies them in-place.
+                log_filename, results_dict = run_optimization_model(
+                    df_supply=df_supply.copy(),
+                    df_demand=df_demand.copy(),
+                    df_compat=df_compat,
+                    df_dist=df_dist,
+                    df_freight=df_freight,
+                    df_storage=df_storage,
+                    detailed_log=False,
+                    toggle_pareto=TOGGLE_PARETO,
+                    toggle_min_max_capacity=TOGGLE_MIN_MAX_CAPACITY,
+                    input_min_load=INPUT_MIN_LOAD,
+                    input_max_load=INPUT_MAX_LOAD,
+                    toggle_use_reception=TOGGLE_USE_RECEPTION,
+                    input_allocation_days=INPUT_ALLOCATION_DAYS,
+                    input_min_freight=INPUT_MIN_FREIGHT,
+                    input_max_freight=INPUT_MAX_FREIGHT,
+                    solver_gap=gap_val,
+                    lang="pt"
+                )
+
+                # Extract metrics
+                execution_time = results_dict.get("kpis", {}).get("execution_time", 0.0)
+                optimal_value = results_dict.get("objective", 0.0)
+                status = results_dict.get("status", "unknown")
+                gap_achieved = results_dict.get("kpis", {}).get("gap", "N/A")
+
+                print(f"Model Status: {status}")
+                if status == 'error':
+                    print(f"Warnings/Errors: {results_dict.get('warnings', {}).get('general', [])}")
+                print(f"Distance Matrix Time: {df_dist_time:.2f}s")
+                print(f"Resolution Time: {execution_time:.2f}s")
+                print(f"Optimal Value: {optimal_value:.2f}")
+                print(f"Gap Achieved: {gap_achieved}")
+
+                res_record = {
+                    "Gap Target": gap_val,
+                    "Number of Supply Nodes": num_ofertas,
+                    "Number of Demand Nodes": num_armazens,
+                    "Distance Matrix Time (seconds)": df_dist_time,
+                    "Resolution Time (seconds)": execution_time,
+                    "Optimal Value": optimal_value,
+                    "Gap Achieved": gap_achieved,
+                    "Status": status
+                }
+                results_for_gap.append(res_record)
+                all_results.append(res_record)
+
+                if execution_time >= 600 or status == "timeout_nfs":
+                    print(f"\n[!] Time limit of 600 seconds reached (Resolution Time: {execution_time:.2f}s). Stopping doubling for Gap {gap_val*100}%.\n")
+                    break
+
+            except Exception as e:
+                print(f"Error during optimization run: {e}")
+                import traceback
+                traceback.print_exc()
+                # On unexpected error, we can also decide to break
+                break
+
+            # Double the sizes for next iteration
+            num_ofertas *= 2
+            num_armazens *= 2
+            idx += 1
+
+        # End of while loop for current gap. Save the intermediate results.
+        if results_for_gap:
+            df_results_gap = pd.DataFrame(results_for_gap)
+            csv_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.csv")
+            pkl_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.pkl")
+            try:
+                df_results_gap.to_csv(csv_file, index=False)
+                df_results_gap.to_pickle(pkl_file)
+                print(f"Results for Gap {gap_val*100}% exported to {csv_file} and {pkl_file}")
+            except Exception as e:
+                print(f"Failed to export results for gap {gap_val}: {e}")
+
+        # Export the Last (Biggest) Dataset Generated for this gap
         try:
-            df_results.to_excel(output_file, index=False)
-            print(f"\nBenchmark results successfully exported to {output_file}")
+            if 'df_supply' in locals() and 'df_demand' in locals():
+                supply_file = os.path.join(benchmark_dir, f"benchmark_supply_biggest_gap_{int(gap_val*100)}.xlsx")
+                demand_file = os.path.join(benchmark_dir, f"benchmark_demand_biggest_gap_{int(gap_val*100)}.xlsx")
+                df_supply.to_excel(supply_file, index=False)
+                df_demand.to_excel(demand_file, index=False)
+                print(f"Biggest datasets generated for gap {gap_val*100}% exported to:\n - {supply_file}\n - {demand_file}")
         except Exception as e:
-            print(f"Failed to export results: {e}")
+            print(f"Failed to export biggest datasets for gap {gap_val}: {e}")
+
+    print("\n====================================================================")
+    print("FINAL SUMMARY REPORT")
+    print("====================================================================")
+
+    if all_results:
+        df_all = pd.DataFrame(all_results)
+
+        # Create a combined Size string for comparison
+        df_all["Problem Size (Supply x Demand)"] = df_all.apply(lambda row: f"{row['Number of Supply Nodes']}x{row['Number of Demand Nodes']}", axis=1)
+
+        # Pivot table
+        # We'll pivot using 'Problem Size (Supply x Demand)' as index and 'Gap Target' as columns.
+        pivot_df = df_all.pivot_table(
+            index="Problem Size (Supply x Demand)",
+            columns="Gap Target",
+            values=["Resolution Time (seconds)", "Gap Achieved", "Status"],
+            aggfunc=lambda x: ' '.join(str(v) for v in x) if isinstance(x.iloc[0], str) else x.iloc[0] # To handle strings like "NFS" and "Status"
+        )
+
+        print(pivot_df.to_string())
+
+        summary_csv = os.path.join(benchmark_dir, "benchmark_summary.csv")
+        pivot_df.to_csv(summary_csv)
+        print(f"\nFinal summary exported to {summary_csv}")
     else:
-        print("No results to export.")
+        print("No results generated.")
 
 if __name__ == "__main__":
     main()
