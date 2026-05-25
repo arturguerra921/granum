@@ -22,6 +22,7 @@ import numpy as np
 # =============================================================================
 # MODEL PARAMETERS CONFIGURATION
 # =============================================================================
+FORCE_MILP = False # Set to True to force the use of the MILP model regardless of other inputs
 TOGGLE_MIN_MAX_CAPACITY = False  # Set to True to use MILP model
 INPUT_MIN_LOAD = None
 INPUT_MAX_LOAD = None
@@ -282,6 +283,10 @@ def main():
             try:
                 # We copy df_supply and df_demand to avoid pandas SettingWithCopyWarnings
                 # when the model logic modifies them in-place.
+                # Override TOGGLE_MIN_MAX_CAPACITY if FORCE_MILP is true, and provide a dummy minimum load to force the use of MILP model
+                effective_toggle = True if FORCE_MILP else TOGGLE_MIN_MAX_CAPACITY
+                effective_min_load = 1.0 if FORCE_MILP and not any([INPUT_MIN_LOAD, INPUT_MAX_LOAD, INPUT_MIN_FREIGHT, INPUT_MAX_FREIGHT, TOGGLE_USE_RECEPTION]) else INPUT_MIN_LOAD
+
                 log_filename, results_dict = run_optimization_model(
                     df_supply=df_supply.copy(),
                     df_demand=df_demand.copy(),
@@ -291,8 +296,8 @@ def main():
                     df_storage=df_storage,
                     detailed_log=False,
                     toggle_pareto=TOGGLE_PARETO,
-                    toggle_min_max_capacity=TOGGLE_MIN_MAX_CAPACITY,
-                    input_min_load=INPUT_MIN_LOAD,
+                    toggle_min_max_capacity=effective_toggle,
+                    input_min_load=effective_min_load,
                     input_max_load=INPUT_MAX_LOAD,
                     toggle_use_reception=TOGGLE_USE_RECEPTION,
                     input_allocation_days=INPUT_ALLOCATION_DAYS,
@@ -307,6 +312,15 @@ def main():
                 optimal_value = results_dict.get("objective", 0.0)
                 status = results_dict.get("status", "unknown")
                 gap_achieved = results_dict.get("kpis", {}).get("gap", "N/A")
+
+                model_stats = results_dict.get("model_stats", {})
+                tot_vars = model_stats.get("total_variables", 0)
+                tot_cons = model_stats.get("total_constraints", 0)
+                tot_iters = model_stats.get("iterations", 0)
+                tot_nodes = model_stats.get("nodes", 0)
+                bin_vars = model_stats.get("binary_variables", 0)
+                int_vars = model_stats.get("integer_variables", 0)
+                cont_vars = model_stats.get("continuous_variables", 0)
 
                 print(f"Model Status: {status}")
                 if status == 'error':
@@ -324,6 +338,13 @@ def main():
                     "Resolution Time (seconds)": execution_time,
                     "Optimal Value": optimal_value,
                     "Gap Achieved": gap_achieved,
+                    "Total Variables": tot_vars,
+                    "Continuous Variables": cont_vars,
+                    "Binary Variables": bin_vars,
+                    "Integer Variables": int_vars,
+                    "Total Constraints": tot_cons,
+                    "Total Iterations": tot_iters,
+                    "Enumerated Nodes": tot_nodes,
                     "Status": status
                 }
                 results_for_gap.append(res_record)
@@ -383,7 +404,7 @@ def main():
         pivot_df = df_all.pivot_table(
             index="Problem Size (Supply x Demand)",
             columns="Gap Target",
-            values=["Resolution Time (seconds)", "Gap Achieved", "Status"],
+            values=["Resolution Time (seconds)", "Gap Achieved", "Total Variables", "Binary Variables", "Total Constraints", "Total Iterations", "Status"],
             aggfunc=lambda x: ' '.join(str(v) for v in x) if isinstance(x.iloc[0], str) else x.iloc[0] # To handle strings like "NFS" and "Status"
         )
 
