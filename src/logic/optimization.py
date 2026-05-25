@@ -23,7 +23,7 @@ def safe_parse_numeric(val):
 
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False,
                            toggle_pareto=False, toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
-                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, solver_gap=None, solver_time_limit=600, lang="pt"):
+                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, solver_gap=None, solver_time_limit=600, force_milp=False, lang="pt"):
     """
     Runs the linear optimization mathematical model for product allocation.
     """
@@ -248,8 +248,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
 
     # 2. Despacho: LP ou MILP
 
-    use_milp = False
-    if toggle_min_max_capacity:
+    use_milp = force_milp
+    if not use_milp and toggle_min_max_capacity:
         if (input_min_load is not None and str(input_min_load).strip() != "") or \
            (input_max_load is not None and str(input_max_load).strip() != "") or \
            (input_min_freight is not None and str(input_min_freight).strip() != "") or \
@@ -654,17 +654,18 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         try:
             import re
             sys.stdout.flush()
-            with open(log_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # CBC usually reports nodes and iterations
-                match_nodes = re.search(r'Enumerated nodes:\s+(\d+)', content)
-                match_iters = re.search(r'Total iterations:\s+(\d+)', content)
-                if match_nodes:
-                    results_dict["model_stats"]["nodes"] = int(match_nodes.group(1))
-                if match_iters:
-                    results_dict["model_stats"]["iterations"] = int(match_iters.group(1))
-        except Exception:
-            pass
+            if 'log_path' in locals() and os.path.exists(log_path):
+                with open(log_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # CBC usually reports nodes and iterations
+                    match_nodes = re.search(r'Enumerated nodes:\s+(\d+)', content)
+                    match_iters = re.search(r'Total iterations:\s+(\d+)', content)
+                    if match_nodes:
+                        results_dict["model_stats"]["nodes"] = int(match_nodes.group(1))
+                    if match_iters:
+                        results_dict["model_stats"]["iterations"] = int(match_iters.group(1))
+        except Exception as e:
+            print(f"Error parsing log: {e}")
 
         # Registrar tempo total e imprimir no log
         end_time = time.time()
@@ -1201,16 +1202,17 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         try:
             import re
             sys.stdout.flush()
-            with open(log_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                match_nodes = re.search(r'Enumerated nodes:\s+(\d+)', content)
-                match_iters = re.search(r'Total iterations:\s+(\d+)', content)
-                if match_nodes:
-                    results_dict["model_stats"]["nodes"] = int(match_nodes.group(1))
-                if match_iters:
-                    results_dict["model_stats"]["iterations"] = int(match_iters.group(1))
-        except Exception:
-            pass
+            if 'log_path' in locals() and os.path.exists(log_path):
+                with open(log_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    match_nodes = re.search(r'Enumerated nodes:\s+(\d+)', content)
+                    match_iters = re.search(r'Total iterations:\s+(\d+)', content)
+                    if match_nodes:
+                        results_dict["model_stats"]["nodes"] = int(match_nodes.group(1))
+                    if match_iters:
+                        results_dict["model_stats"]["iterations"] = int(match_iters.group(1))
+        except Exception as e:
+            print(f"Error parsing log: {e}")
 
         end_time = time.time()
         total_time_seconds = end_time - start_time

@@ -284,10 +284,6 @@ def main():
             try:
                 # We copy df_supply and df_demand to avoid pandas SettingWithCopyWarnings
                 # when the model logic modifies them in-place.
-                # Override TOGGLE_MIN_MAX_CAPACITY if FORCE_MILP is true, and provide a dummy minimum load to force the use of MILP model
-                effective_toggle = True if FORCE_MILP else TOGGLE_MIN_MAX_CAPACITY
-                effective_min_load = 1.0 if FORCE_MILP and not any([INPUT_MIN_LOAD, INPUT_MAX_LOAD, INPUT_MIN_FREIGHT, INPUT_MAX_FREIGHT, TOGGLE_USE_RECEPTION]) else INPUT_MIN_LOAD
-
                 log_filename, results_dict = run_optimization_model(
                     df_supply=df_supply.copy(),
                     df_demand=df_demand.copy(),
@@ -297,8 +293,8 @@ def main():
                     df_storage=df_storage,
                     detailed_log=False,
                     toggle_pareto=TOGGLE_PARETO,
-                    toggle_min_max_capacity=effective_toggle,
-                    input_min_load=effective_min_load,
+                    toggle_min_max_capacity=TOGGLE_MIN_MAX_CAPACITY,
+                    input_min_load=INPUT_MIN_LOAD,
                     input_max_load=INPUT_MAX_LOAD,
                     toggle_use_reception=TOGGLE_USE_RECEPTION,
                     input_allocation_days=INPUT_ALLOCATION_DAYS,
@@ -306,6 +302,7 @@ def main():
                     input_max_freight=INPUT_MAX_FREIGHT,
                     solver_gap=gap_val,
                     solver_time_limit=TIME_LIMIT_SECONDS,
+                    force_milp=FORCE_MILP,
                     lang="pt"
                 )
 
@@ -394,33 +391,8 @@ def main():
             print(f"Failed to export biggest datasets for gap {gap_val}: {e}")
 
     print("\n====================================================================")
-    print("FINAL SUMMARY REPORT")
+    print("BENCHMARK EXECUTION COMPLETED")
     print("====================================================================")
-
-    if all_results:
-        df_all = pd.DataFrame(all_results)
-
-        # Create a combined Size string for comparison
-        df_all["Problem Size (Supply x Demand)"] = df_all.apply(lambda row: f"{row['Number of Supply Nodes']}x{row['Number of Demand Nodes']}", axis=1)
-
-        # Pivot table
-        # We'll pivot using 'Problem Size (Supply x Demand)' as index and 'Gap Target' as columns.
-        pivot_df = df_all.pivot_table(
-            index="Problem Size (Supply x Demand)",
-            columns="Gap Target",
-            values=["Resolution Time (seconds)", "Gap Achieved", "Total Variables", "Binary Variables", "Total Constraints", "Total Iterations", "Status"],
-            aggfunc=lambda x: ' '.join(str(v) for v in x) if isinstance(x.iloc[0], str) else x.iloc[0] # To handle strings like "NFS" and "Status"
-        )
-
-        print(pivot_df.to_string())
-
-        summary_csv = os.path.join(benchmark_dir, "benchmark_summary.csv")
-        summary_xlsx = os.path.join(benchmark_dir, "benchmark_summary.xlsx")
-        pivot_df.to_csv(summary_csv)
-        pivot_df.to_excel(summary_xlsx)
-        print(f"\nFinal summary exported to {summary_csv} and {summary_xlsx}")
-    else:
-        print("No results generated.")
 
 if __name__ == "__main__":
     main()
