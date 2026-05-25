@@ -22,15 +22,15 @@ import numpy as np
 # =============================================================================
 # MODEL PARAMETERS CONFIGURATION
 # =============================================================================
-FORCE_MILP = False # Set to True to force the use of the MILP model regardless of other inputs
-TOGGLE_MIN_MAX_CAPACITY = False  # Set to True to use MILP model
+FORCE_MILP = True # Set to True to force the use of the MILP model regardless of other inputs
+TOGGLE_MIN_MAX_CAPACITY = True  # Set to True to use MILP model
 INPUT_MIN_LOAD = None
 INPUT_MAX_LOAD = None
 INPUT_ALLOCATION_DAYS = 1.0
 INPUT_MIN_FREIGHT = None
-INPUT_MAX_FREIGHT = None
+INPUT_MAX_FREIGHT = 50
 TOGGLE_PARETO = False
-TOGGLE_USE_RECEPTION = False
+TOGGLE_USE_RECEPTION = True
 
 # =============================================================================
 # DATA GENERATION CONFIGURATION

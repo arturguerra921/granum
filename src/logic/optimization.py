@@ -516,7 +516,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print("\n" + translate("Chamando solver CBC...", lang))
         solver = SolverFactory('cbc')
         # Time limit to prevent infinite locking
-        solver.options['sec'] = 600
+        #solver.options['sec'] = 600
         if solver_gap is not None:
             solver.options['ratioGap'] = solver_gap
 
@@ -1039,7 +1039,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
         print("\n" + translate("Chamando solver CBC (MILP)...", lang))
         solver = SolverFactory('cbc')
-        solver.options['sec'] = 600
+        #solver.options['sec'] = 600
         if solver_gap is not None:
             solver.options['ratioGap'] = solver_gap
 
