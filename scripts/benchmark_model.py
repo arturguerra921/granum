@@ -39,6 +39,7 @@ INICIAL_OFERTAS = 30
 INICIAL_ARMAZENS = 2
 MAX_RECEPTION_PERCENTAGE = 0.8
 GAPS = [0.05, 0.01]
+TIME_LIMIT_SECONDS = 600  # Maximum time in seconds for the solver per iteration
 
 # =============================================================================
 # FILE PATHS
@@ -304,6 +305,7 @@ def main():
                     input_min_freight=INPUT_MIN_FREIGHT,
                     input_max_freight=INPUT_MAX_FREIGHT,
                     solver_gap=gap_val,
+                    solver_time_limit=TIME_LIMIT_SECONDS,
                     lang="pt"
                 )
 
@@ -350,8 +352,8 @@ def main():
                 results_for_gap.append(res_record)
                 all_results.append(res_record)
 
-                if execution_time >= 600 or status == "timeout_nfs":
-                    print(f"\n[!] Time limit of 600 seconds reached (Resolution Time: {execution_time:.2f}s). Stopping doubling for Gap {gap_val*100}%.\n")
+                if execution_time >= TIME_LIMIT_SECONDS or status == "timeout_nfs":
+                    print(f"\n[!] Time limit of {TIME_LIMIT_SECONDS} seconds reached (Resolution Time: {execution_time:.2f}s). Stopping doubling for Gap {gap_val*100}%.\n")
                     break
 
             except Exception as e:
@@ -371,10 +373,12 @@ def main():
             df_results_gap = pd.DataFrame(results_for_gap)
             csv_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.csv")
             pkl_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.pkl")
+            xlsx_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.xlsx")
             try:
                 df_results_gap.to_csv(csv_file, index=False)
                 df_results_gap.to_pickle(pkl_file)
-                print(f"Results for Gap {gap_val*100}% exported to {csv_file} and {pkl_file}")
+                df_results_gap.to_excel(xlsx_file, index=False)
+                print(f"Results for Gap {gap_val*100}% exported to {csv_file}, {pkl_file}, and {xlsx_file}")
             except Exception as e:
                 print(f"Failed to export results for gap {gap_val}: {e}")
 
@@ -411,8 +415,10 @@ def main():
         print(pivot_df.to_string())
 
         summary_csv = os.path.join(benchmark_dir, "benchmark_summary.csv")
+        summary_xlsx = os.path.join(benchmark_dir, "benchmark_summary.xlsx")
         pivot_df.to_csv(summary_csv)
-        print(f"\nFinal summary exported to {summary_csv}")
+        pivot_df.to_excel(summary_xlsx)
+        print(f"\nFinal summary exported to {summary_csv} and {summary_xlsx}")
     else:
         print("No results generated.")
 

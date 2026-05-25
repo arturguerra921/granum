@@ -23,7 +23,7 @@ def safe_parse_numeric(val):
 
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False,
                            toggle_pareto=False, toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
-                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, solver_gap=None, lang="pt"):
+                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, solver_gap=None, solver_time_limit=600, lang="pt"):
     """
     Runs the linear optimization mathematical model for product allocation.
     """
@@ -273,6 +273,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             input_min_freight=input_min_freight, input_max_freight=input_max_freight,
             toggle_pareto=toggle_pareto,
             solver_gap=solver_gap,
+            solver_time_limit=solver_time_limit,
             lang=lang
         )
 
@@ -516,7 +517,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print("\n" + translate("Chamando solver CBC...", lang))
         solver = SolverFactory('cbc')
         # Time limit to prevent infinite locking
-        solver.options['sec'] = 600
+        solver.options['sec'] = solver_time_limit
         if solver_gap is not None:
             solver.options['ratioGap'] = solver_gap
 
@@ -685,7 +686,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                                  prod_dest_compat, distance, freight_cost, storage_cost, avg_freight,
                                  all_products, origins_list, detailed_log,
                                  input_min_load, input_max_load, toggle_use_reception,
-                                 input_allocation_days, input_min_freight, input_max_freight, toggle_pareto=False, solver_gap=None, lang="pt"):
+                                 input_allocation_days, input_min_freight, input_max_freight, toggle_pareto=False, solver_gap=None, solver_time_limit=600, lang="pt"):
     """
     Versão MILP do modelo, inclui restrições extras e variáveis binárias (RouteActive).
     """
@@ -1038,7 +1039,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
 
         print("\n" + translate("Chamando solver CBC (MILP)...", lang))
         solver = SolverFactory('cbc')
-        solver.options['sec'] = 600
+        solver.options['sec'] = solver_time_limit
         if solver_gap is not None:
             solver.options['ratioGap'] = solver_gap
 
