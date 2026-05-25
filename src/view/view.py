@@ -3189,6 +3189,7 @@ def execute_model(n_clicks, stored_data, stored_warehouses, stored_prod_warehous
             input_allocation_days=input_allocation_days,
             input_min_freight=input_min_freight,
             input_max_freight=input_max_freight,
+            solver_gap=0.01,
             lang=lang
         )
 
