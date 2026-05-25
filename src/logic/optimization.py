@@ -23,7 +23,7 @@ def safe_parse_numeric(val):
 
 def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight, df_storage, detailed_log=False,
                            toggle_pareto=False, toggle_min_max_capacity=False, input_min_load=None, input_max_load=None,
-                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, lang="pt"):
+                           toggle_use_reception=False, input_allocation_days=None, input_min_freight=None, input_max_freight=None, solver_gap=None, lang="pt"):
     """
     Runs the linear optimization mathematical model for product allocation.
     """
@@ -272,6 +272,7 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
             toggle_use_reception=toggle_use_reception, input_allocation_days=input_allocation_days,
             input_min_freight=input_min_freight, input_max_freight=input_max_freight,
             toggle_pareto=toggle_pareto,
+            solver_gap=solver_gap,
             lang=lang
         )
 
@@ -501,6 +502,8 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         solver = SolverFactory('cbc')
         # Time limit to prevent infinite locking
         solver.options['sec'] = 600
+        if solver_gap is not None:
+            solver.options['ratioGap'] = solver_gap
 
         results = solver.solve(model, tee=True)
 
@@ -508,7 +511,21 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
         print(translate("Status do Solver: {status}", lang).format(status=results.solver.status))
         print(translate("Condição de Término: {condition}", lang).format(condition=results.solver.termination_condition))
 
-        if results.solver.status == pyo.SolverStatus.ok and results.solver.termination_condition == pyo.TerminationCondition.optimal:
+        lower_bound = results.problem.lower_bound if results.problem.lower_bound is not None else "N/A"
+        upper_bound = results.problem.upper_bound if results.problem.upper_bound is not None else "N/A"
+        gap = "N/A"
+        if isinstance(lower_bound, (int, float)) and isinstance(upper_bound, (int, float)) and upper_bound != 0:
+            if lower_bound > -1e20 and upper_bound < 1e20: # Ensure valid bounds
+                gap = abs(upper_bound - lower_bound) / abs(upper_bound)
+
+        results_dict["kpis"]["lower_bound"] = lower_bound
+        results_dict["kpis"]["upper_bound"] = upper_bound
+        results_dict["kpis"]["gap"] = gap
+
+        termination_condition = results.solver.termination_condition
+        is_max_time_limit = termination_condition == pyo.TerminationCondition.maxTimeLimit
+
+        if results.solver.status == pyo.SolverStatus.ok and (termination_condition == pyo.TerminationCondition.optimal or is_max_time_limit):
             print(translate("Solução Ótima Encontrada!", lang))
 
             objective_value = pyo.value(model.Objective)
@@ -597,9 +614,15 @@ def run_optimization_model(df_supply, df_demand, df_compat, df_dist, df_freight,
                 print(translate("Custo de Oferta Não Alocada (Big M) = {val:.2e}", lang).format(val=pyo.value(model.BigMUnallocated)))
 
         else:
-            print(translate("Não foi possível encontrar uma solução ótima. O modelo pode estar mal-condicionado.", lang))
-            results_dict["status"] = "infeasible"
-            results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução ótima.", lang))
+            if is_max_time_limit:
+                print(translate("Limite de tempo atingido sem solução factível (NFS).", lang))
+                results_dict["status"] = "timeout_nfs"
+                results_dict["kpis"]["gap"] = "NFS"
+                results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução factível antes do tempo limite.", lang))
+            else:
+                print(translate("Não foi possível encontrar uma solução ótima. O modelo pode estar mal-condicionado.", lang))
+                results_dict["status"] = "infeasible"
+                results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução ótima.", lang))
 
     except Exception as e:
         print("\n" + translate("ERRO DURANTE A OTIMIZAÇÃO: {err}", lang).format(err=str(e)))
@@ -631,7 +654,7 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                                  prod_dest_compat, distance, freight_cost, storage_cost, avg_freight,
                                  all_products, origins_list, detailed_log,
                                  input_min_load, input_max_load, toggle_use_reception,
-                                 input_allocation_days, input_min_freight, input_max_freight, toggle_pareto=False, lang="pt"):
+                                 input_allocation_days, input_min_freight, input_max_freight, toggle_pareto=False, solver_gap=None, lang="pt"):
     """
     Versão MILP do modelo, inclui restrições extras e variáveis binárias (RouteActive).
     """
@@ -969,6 +992,8 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         print("\n" + translate("Chamando solver CBC (MILP)...", lang))
         solver = SolverFactory('cbc')
         solver.options['sec'] = 600
+        if solver_gap is not None:
+            solver.options['ratioGap'] = solver_gap
 
         results = solver.solve(model, tee=True)
 
@@ -976,7 +1001,21 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
         print(translate("Status do Solver: {status}", lang).format(status=results.solver.status))
         print(translate("Condição de Término: {condition}", lang).format(condition=results.solver.termination_condition))
 
-        if results.solver.status == pyo.SolverStatus.ok and results.solver.termination_condition == pyo.TerminationCondition.optimal:
+        lower_bound = results.problem.lower_bound if results.problem.lower_bound is not None else "N/A"
+        upper_bound = results.problem.upper_bound if results.problem.upper_bound is not None else "N/A"
+        gap = "N/A"
+        if isinstance(lower_bound, (int, float)) and isinstance(upper_bound, (int, float)) and upper_bound != 0:
+            if lower_bound > -1e20 and upper_bound < 1e20: # Ensure valid bounds
+                gap = abs(upper_bound - lower_bound) / abs(upper_bound)
+
+        results_dict["kpis"]["lower_bound"] = lower_bound
+        results_dict["kpis"]["upper_bound"] = upper_bound
+        results_dict["kpis"]["gap"] = gap
+
+        termination_condition = results.solver.termination_condition
+        is_max_time_limit = termination_condition == pyo.TerminationCondition.maxTimeLimit
+
+        if results.solver.status == pyo.SolverStatus.ok and (termination_condition == pyo.TerminationCondition.optimal or is_max_time_limit):
             print(translate("Solução Ótima Encontrada!", lang))
             objective_value = pyo.value(model.Objective)
             print(translate("Custo Total (Função Objetivo): R$ {val:,.2f}", lang).format(val=objective_value))
@@ -1093,9 +1132,15 @@ def _run_milp_optimization_model(start_time, supply, demand_total_capacity, dema
                 print("\n" + translate("Nota: Foram utilizadas variáveis dummies com custo elevado para impedir que o modelo falhasse por inviabilidade.", lang))
 
         else:
-            print(translate("Não foi possível encontrar uma solução ótima.", lang))
-            results_dict["status"] = "infeasible"
-            results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução ótima.", lang))
+            if is_max_time_limit:
+                print(translate("Limite de tempo atingido sem solução factível (NFS).", lang))
+                results_dict["status"] = "timeout_nfs"
+                results_dict["kpis"]["gap"] = "NFS"
+                results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução factível antes do tempo limite.", lang))
+            else:
+                print(translate("Não foi possível encontrar uma solução ótima.", lang))
+                results_dict["status"] = "infeasible"
+                results_dict["warnings"]["general"].append(translate("O modelo não encontrou solução ótima.", lang))
 
     except Exception as e:
         print("\n" + translate("ERRO DURANTE A OTIMIZAÇÃO: {err}", lang).format(err=str(e)))
