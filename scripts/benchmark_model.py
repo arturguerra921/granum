@@ -301,7 +301,6 @@ def main():
                     input_min_freight=INPUT_MIN_FREIGHT,
                     input_max_freight=INPUT_MAX_FREIGHT,
                     solver_gap=gap_val,
-                    solver_time_limit=TIME_LIMIT_SECONDS,
                     force_milp=FORCE_MILP,
                     lang="pt"
                 )
