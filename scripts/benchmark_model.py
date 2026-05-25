@@ -22,6 +22,7 @@ import numpy as np
 # =============================================================================
 # MODEL PARAMETERS CONFIGURATION
 # =============================================================================
+FORCE_MILP = False # Set to True to force the use of the MILP model regardless of other inputs
 TOGGLE_MIN_MAX_CAPACITY = False  # Set to True to use MILP model
 INPUT_MIN_LOAD = None
 INPUT_MAX_LOAD = None
@@ -38,6 +39,7 @@ INICIAL_OFERTAS = 30
 INICIAL_ARMAZENS = 2
 MAX_RECEPTION_PERCENTAGE = 0.8
 GAPS = [0.05, 0.01]
+TIME_LIMIT_SECONDS = 600  # Maximum time in seconds for the solver per iteration
 
 # =============================================================================
 # FILE PATHS
@@ -299,6 +301,7 @@ def main():
                     input_min_freight=INPUT_MIN_FREIGHT,
                     input_max_freight=INPUT_MAX_FREIGHT,
                     solver_gap=gap_val,
+                    force_milp=FORCE_MILP,
                     lang="pt"
                 )
 
@@ -307,6 +310,15 @@ def main():
                 optimal_value = results_dict.get("objective", 0.0)
                 status = results_dict.get("status", "unknown")
                 gap_achieved = results_dict.get("kpis", {}).get("gap", "N/A")
+
+                model_stats = results_dict.get("model_stats", {})
+                tot_vars = model_stats.get("total_variables", 0)
+                tot_cons = model_stats.get("total_constraints", 0)
+                tot_iters = model_stats.get("iterations", 0)
+                tot_nodes = model_stats.get("nodes", 0)
+                bin_vars = model_stats.get("binary_variables", 0)
+                int_vars = model_stats.get("integer_variables", 0)
+                cont_vars = model_stats.get("continuous_variables", 0)
 
                 print(f"Model Status: {status}")
                 if status == 'error':
@@ -324,13 +336,20 @@ def main():
                     "Resolution Time (seconds)": execution_time,
                     "Optimal Value": optimal_value,
                     "Gap Achieved": gap_achieved,
+                    "Total Variables": tot_vars,
+                    "Continuous Variables": cont_vars,
+                    "Binary Variables": bin_vars,
+                    "Integer Variables": int_vars,
+                    "Total Constraints": tot_cons,
+                    "Total Iterations": tot_iters,
+                    "Enumerated Nodes": tot_nodes,
                     "Status": status
                 }
                 results_for_gap.append(res_record)
                 all_results.append(res_record)
 
-                if execution_time >= 600 or status == "timeout_nfs":
-                    print(f"\n[!] Time limit of 600 seconds reached (Resolution Time: {execution_time:.2f}s). Stopping doubling for Gap {gap_val*100}%.\n")
+                if execution_time >= TIME_LIMIT_SECONDS or status == "timeout_nfs":
+                    print(f"\n[!] Time limit of {TIME_LIMIT_SECONDS} seconds reached (Resolution Time: {execution_time:.2f}s). Stopping doubling for Gap {gap_val*100}%.\n")
                     break
 
             except Exception as e:
@@ -350,10 +369,12 @@ def main():
             df_results_gap = pd.DataFrame(results_for_gap)
             csv_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.csv")
             pkl_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.pkl")
+            xlsx_file = os.path.join(benchmark_dir, f"benchmark_results_gap_{int(gap_val*100)}.xlsx")
             try:
                 df_results_gap.to_csv(csv_file, index=False)
                 df_results_gap.to_pickle(pkl_file)
-                print(f"Results for Gap {gap_val*100}% exported to {csv_file} and {pkl_file}")
+                df_results_gap.to_excel(xlsx_file, index=False)
+                print(f"Results for Gap {gap_val*100}% exported to {csv_file}, {pkl_file}, and {xlsx_file}")
             except Exception as e:
                 print(f"Failed to export results for gap {gap_val}: {e}")
 
@@ -369,31 +390,8 @@ def main():
             print(f"Failed to export biggest datasets for gap {gap_val}: {e}")
 
     print("\n====================================================================")
-    print("FINAL SUMMARY REPORT")
+    print("BENCHMARK EXECUTION COMPLETED")
     print("====================================================================")
-
-    if all_results:
-        df_all = pd.DataFrame(all_results)
-
-        # Create a combined Size string for comparison
-        df_all["Problem Size (Supply x Demand)"] = df_all.apply(lambda row: f"{row['Number of Supply Nodes']}x{row['Number of Demand Nodes']}", axis=1)
-
-        # Pivot table
-        # We'll pivot using 'Problem Size (Supply x Demand)' as index and 'Gap Target' as columns.
-        pivot_df = df_all.pivot_table(
-            index="Problem Size (Supply x Demand)",
-            columns="Gap Target",
-            values=["Resolution Time (seconds)", "Gap Achieved", "Status"],
-            aggfunc=lambda x: ' '.join(str(v) for v in x) if isinstance(x.iloc[0], str) else x.iloc[0] # To handle strings like "NFS" and "Status"
-        )
-
-        print(pivot_df.to_string())
-
-        summary_csv = os.path.join(benchmark_dir, "benchmark_summary.csv")
-        pivot_df.to_csv(summary_csv)
-        print(f"\nFinal summary exported to {summary_csv}")
-    else:
-        print("No results generated.")
 
 if __name__ == "__main__":
     main()
