@@ -12,15 +12,15 @@ include-package-data = true
 name = "GranumDSS"
 version = "0.0.1"
 authors = [
-    {name = "ualivent", email="ualivent@gmail.com"}
+    {name = "arturguerra", email="arturguerra921@hotmail.com"}
 ]
 maintainers = [
-    {name = "ualivent", email="ualivent@gmail.com"}
+    {name = "arturguerra", email="arturguerra921@hotmail.com"}
 ]
-description = "Google Calendar for terminal usage."
+description = "GranumDSS"
 readme = "README.md"
 license = {file = "LICENSE"}
-requires-python = "==3.10.20"
+requires-python = "~=3.10.0"
 dependencies = [
     "plotly==6.5.2",
     "dash==4.0.0",
