@@ -22,22 +22,22 @@ import numpy as np
 # =============================================================================
 # MODEL PARAMETERS CONFIGURATION
 # =============================================================================
-FORCE_MILP = True # Set to True to force the use of the MILP model regardless of other inputs
-TOGGLE_MIN_MAX_CAPACITY = True  # Set to True to use MILP model
+FORCE_MILP = False # Set to True to force the use of the MILP model regardless of other inputs
+TOGGLE_MIN_MAX_CAPACITY = False # Set to True to use MILP model
 INPUT_MIN_LOAD = None
 INPUT_MAX_LOAD = None
 INPUT_ALLOCATION_DAYS = 1.0
 INPUT_MIN_FREIGHT = None
-INPUT_MAX_FREIGHT = 50
+INPUT_MAX_FREIGHT = None
 TOGGLE_PARETO = False
-TOGGLE_USE_RECEPTION = True
+TOGGLE_USE_RECEPTION = False
 
 # =============================================================================
 # DATA GENERATION CONFIGURATION
 # =============================================================================
 INICIAL_OFERTAS = 30
 INICIAL_ARMAZENS = 2
-MAX_RECEPTION_PERCENTAGE = 0.8
+MAX_RECEPTION_PERCENTAGE = 0.2
 GAPS = [0.05, 0.01]
 TIME_LIMIT_SECONDS = 600  # Maximum time in seconds for the solver per iteration
 
