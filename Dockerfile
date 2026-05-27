@@ -3,7 +3,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install system dependencies (e.g., CBC solver for Pyomo)
-RUN apt-get update && apt-get install -y coinor-cbc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y coinor-cbc=2.10.12 && rm -rf /var/lib/apt/lists/*
 
 # Copy project files
 COPY pyproject.toml README.md wsgi.py run_server.py ./

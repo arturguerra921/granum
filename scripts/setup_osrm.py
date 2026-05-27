@@ -71,7 +71,7 @@ def process_osrm():
     # Actually easier to just map it to /data/.stxxl and point STXXLCFG env var
     # Added --small-component-size 50000 to keep larger isolated networks (rural areas)
     extract_cmd = (
-        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
+        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend:v5.26.0 "
         f"osrm-extract -p /opt/car.lua /data/{OSM_PBF_FILE} --small-component-size 50000"
     )
     print("Running extraction (this may take a while using disk swap)...")
@@ -79,7 +79,7 @@ def process_osrm():
 
     # 2. Partition (MLD) - Partition the graph
     partition_cmd = (
-        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
+        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend:v5.26.0 "
         f"osrm-partition /data/{OSRM_FILE_BASE}"
     )
     print("Running partitioning (MLD)...")
@@ -87,7 +87,7 @@ def process_osrm():
 
     # 3. Customize (MLD) - Customize the graph
     customize_cmd = (
-        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend "
+        f"docker run --rm -v \"{DATA_DIR}:/data\" -e STXXLCFG=/data/.stxxl osrm/osrm-backend:v5.26.0 "
         f"osrm-customize /data/{OSRM_FILE_BASE}"
     )
     print("Running customization (MLD)...")
